@@ -1,15 +1,17 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 # COSTS = [
-#     {'amount': 290, 'month': 1},
-#     {'amount': 880, 'month': 3},
-#     {'amount': 1700, 'month': 6},
+#     {'amount': 1111, 'month': 1},
+#     {'amount': 2999, 'month': 3},
+#     {'amount': 5555, 'month': 6},
+#     {'amount': 11111, 'month': 12},
 # ]
 # Выбор периода подписки
 sub_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='1 месяц/290 ₽', callback_data='pay 0')],
-    [InlineKeyboardButton(text='3 месяца/880 ₽', callback_data='pay 1')],
-    [InlineKeyboardButton(text='🔥6 месяцев/1700 ₽🔥', callback_data='pay 2')],
+    [InlineKeyboardButton(text='1 месяц — 1 111 ₽', callback_data='pay 0')],
+    [InlineKeyboardButton(text='3 месяца — 2 999 ₽', callback_data='pay 1')],
+    [InlineKeyboardButton(text='6 месяцев — 5 555 ₽', callback_data='pay 2')],
+    [InlineKeyboardButton(text='12 месяцев — 11 111 ₽', callback_data='pay 3')],
     [InlineKeyboardButton(text='↩️ Назад', callback_data='menu')]
 ])
 

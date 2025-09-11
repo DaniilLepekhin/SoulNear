@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ADMINS = [580613548, 946195257, 73744901]
+ADMINS = [580613548, 946195257, 73744901, 389209990]
 TOKEN = os.getenv('TOKEN', '7548056844:AAHH5W5myeaH_lLBbxW5RxqJiQwpd4wNNcg')
 POSTGRES_PASS = os.getenv('POSTGRES_PASS', 'your_postgres_password_here')
 

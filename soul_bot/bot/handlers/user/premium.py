@@ -11,9 +11,10 @@ import database.repository.statistic_day as db_statistic_day
 import database.repository.ads as db_ads
 
 COSTS = [
-    {'amount': 290, 'month': 1},
-    {'amount': 880, 'month': 3},
-    {'amount': 1700, 'month': 6},
+    {'amount': 1111, 'month': 1},
+    {'amount': 2999, 'month': 3},
+    {'amount': 5555, 'month': 6},
+    {'amount': 11111, 'month': 12},
 ]
 
 

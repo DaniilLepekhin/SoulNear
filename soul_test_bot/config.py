@@ -27,4 +27,4 @@ POSTGRES_USER = os.getenv('POSTGRES_USER', 'postgres')
 POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'your_postgres_password_here')
 POSTGRES_DB = os.getenv('POSTGRES_DB', 'soul_test_bot')
 
-ADMINS = [580613548, 946195257, 73744901]
+ADMINS = [580613548, 946195257, 73744901, 389209990]
