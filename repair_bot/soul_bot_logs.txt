@@ -1,0 +1,385 @@
+Apr 13 23:25:52 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:25:52 vm3980905.stark-industries.solutions python3.13[5185]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:25:52 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:25:52 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:25:57 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 1.
+Apr 13 23:25:57 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:25:57 vm3980905.stark-industries.solutions python3.13[5190]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:25:57 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:25:57 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:02 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 2.
+Apr 13 23:26:02 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:02 vm3980905.stark-industries.solutions python3.13[5193]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:02 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:02 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:07 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 3.
+Apr 13 23:26:07 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:07 vm3980905.stark-industries.solutions python3.13[5195]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:07 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:07 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:13 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 4.
+Apr 13 23:26:13 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:13 vm3980905.stark-industries.solutions python3.13[5198]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:13 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:13 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:18 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 5.
+Apr 13 23:26:18 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:18 vm3980905.stark-industries.solutions python3.13[5200]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:18 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:18 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:23 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 6.
+Apr 13 23:26:23 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:23 vm3980905.stark-industries.solutions python3.13[5203]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:23 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:23 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:28 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 7.
+Apr 13 23:26:28 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:28 vm3980905.stark-industries.solutions python3.13[5205]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:28 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:28 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:34 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 8.
+Apr 13 23:26:34 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:34 vm3980905.stark-industries.solutions python3.13[5207]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:34 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:34 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:39 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 9.
+Apr 13 23:26:39 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:39 vm3980905.stark-industries.solutions python3.13[5210]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:39 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:39 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:44 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 10.
+Apr 13 23:26:44 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:44 vm3980905.stark-industries.solutions python3.13[5212]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:44 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:44 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:49 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 11.
+Apr 13 23:26:49 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:49 vm3980905.stark-industries.solutions python3.13[5214]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:49 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:49 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:26:55 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 12.
+Apr 13 23:26:55 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:26:55 vm3980905.stark-industries.solutions python3.13[5216]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:26:55 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:26:55 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:00 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 13.
+Apr 13 23:27:00 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:00 vm3980905.stark-industries.solutions python3.13[5219]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:00 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:00 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:05 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 14.
+Apr 13 23:27:05 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:05 vm3980905.stark-industries.solutions python3.13[5221]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:05 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:05 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:10 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 15.
+Apr 13 23:27:10 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:10 vm3980905.stark-industries.solutions python3.13[5224]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:10 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:10 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:16 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 16.
+Apr 13 23:27:16 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:16 vm3980905.stark-industries.solutions python3.13[5242]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:16 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:16 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:21 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 17.
+Apr 13 23:27:21 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:21 vm3980905.stark-industries.solutions python3.13[5245]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:21 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:21 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:26 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 18.
+Apr 13 23:27:26 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:26 vm3980905.stark-industries.solutions python3.13[5247]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:26 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:26 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:31 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 19.
+Apr 13 23:27:31 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:31 vm3980905.stark-industries.solutions python3.13[5251]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:31 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:31 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:37 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 20.
+Apr 13 23:27:37 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:37 vm3980905.stark-industries.solutions python3.13[5265]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:37 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:37 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:42 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 21.
+Apr 13 23:27:42 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:42 vm3980905.stark-industries.solutions python3.13[5269]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:42 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:42 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:47 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 22.
+Apr 13 23:27:47 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:47 vm3980905.stark-industries.solutions python3.13[5279]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:47 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:47 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:52 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 23.
+Apr 13 23:27:52 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:52 vm3980905.stark-industries.solutions python3.13[5284]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:52 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:52 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:27:58 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 24.
+Apr 13 23:27:58 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:27:58 vm3980905.stark-industries.solutions python3.13[5299]: /home/soul_bot/venv/bin/python3.13: can't open file '/home/soul_bot/main.py': [Errno 2] No such file or directory
+Apr 13 23:27:58 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Main process exited, code=exited, status=2/INVALIDARGUMENT
+Apr 13 23:27:58 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Failed with result 'exit-code'.
+Apr 13 23:28:03 vm3980905.stark-industries.solutions systemd[1]: soul_bot.service: Scheduled restart job, restart counter is at 25.
+Apr 13 23:28:03 vm3980905.stark-industries.solutions systemd[1]: Started soul_bot.service - soul_bot.
+Apr 13 23:28:14 vm3980905.stark-industries.solutions python3.13[5366]: INFO:aiogram.dispatcher:Start polling
+Apr 13 23:28:14 vm3980905.stark-industries.solutions python3.13[5366]: INFO:aiogram.dispatcher:Run polling for bot @SoulnearBot id=7120474080 - 'SOUL.near'
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: ERROR:asyncio:Task exception was never retrieved
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: future: <Task finished name='Task-12' coro=<increment() done, defined at /home/soul_bot/database/repository/statistic_day.py:19> exception=IntegrityError('(sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class \'asyncpg.exceptions.UniqueViolationError\'>: duplicate key value violates unique constraint "statistic_day_pkey"\nDETAIL:  Key (date)=(2025-04-13) already exists.')>
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: Traceback (most recent call last):
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 545, in _prepare_and_execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._rows = deque(await prepared_stmt.fetch(*parameters))
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/asyncpg/prepared_stmt.py", line 176, in fetch
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     data = await self.__bind_execute(args, 0, timeout)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/asyncpg/prepared_stmt.py", line 267, in __bind_execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     data, status, _ = await self.__do_execute(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         lambda protocol: protocol.bind_execute(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:             self._state, args, '', limit, True, timeout))
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/asyncpg/prepared_stmt.py", line 256, in __do_execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     return await executor(protocol)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "asyncpg/protocol/protocol.pyx", line 206, in bind_execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: asyncpg.exceptions.UniqueViolationError: duplicate key value violates unique constraint "statistic_day_pkey"
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: DETAIL:  Key (date)=(2025-04-13) already exists.
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: The above exception was the direct cause of the following exception:
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: Traceback (most recent call last):
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self.dialect.do_execute(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         cursor, str_statement, effective_parameters, context
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     cursor.execute(statement, parameters)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 580, in execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._adapt_connection.await_(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         self._prepare_and_execute(operation, parameters)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     value = await result
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:             ^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 558, in _prepare_and_execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._handle_exception(error)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 508, in _handle_exception
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._adapt_connection._handle_exception(error)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 792, in _handle_exception
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     raise translated_error from error
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.IntegrityError: <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "statistic_day_pkey"
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: DETAIL:  Key (date)=(2025-04-13) already exists.
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: The above exception was the direct cause of the following exception:
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: Traceback (most recent call last):
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/database/repository/statistic_day.py", line 21, in increment
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     await check_today(today)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/database/repository/statistic_day.py", line 16, in check_today
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     await session.commit()
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/ext/asyncio/session.py", line 1015, in commit
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     await greenlet_spawn(self.sync_session.commit)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 203, in greenlet_spawn
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     result = context.switch(value)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 2032, in commit
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     trans.commit(_to_root=True)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "<string>", line 2, in commit
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ret_value = fn(self, *arg, **kw)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 1313, in commit
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._prepare_impl()
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "<string>", line 2, in _prepare_impl
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ret_value = fn(self, *arg, **kw)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 1288, in _prepare_impl
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self.session.flush()
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 4353, in flush
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._flush(objects)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 4488, in _flush
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     with util.safe_reraise():
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:          ~~~~~~~~~~~~~~~~~^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     raise exc_value.with_traceback(exc_tb)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py", line 4449, in _flush
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     flush_context.execute()
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     rec.execute(self)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     util.preloaded.orm_persistence.save_obj(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         self.mapper,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         uow.states_for_mapper_hierarchy(self.mapper, False, False),
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         uow,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py", line 93, in save_obj
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     _emit_insert_statements(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         base_mapper,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ...<3 lines>...
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         insert,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py", line 1048, in _emit_insert_statements
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     result = connection.execute(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         statement, multiparams, execution_options=execution_options
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1416, in execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     return meth(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         self,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         distilled_parameters,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         execution_options or NO_OPTIONS,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py", line 523, in _execute_on_connection
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     return connection._execute_clauseelement(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         self, distilled_params, execution_options
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1638, in _execute_clauseelement
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ret = self._execute_context(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         dialect,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ...<8 lines>...
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         cache_hit=cache_hit,
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1843, in _execute_context
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     return self._exec_single_context(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:            ~~~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         dialect, context, statement, parameters
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1983, in _exec_single_context
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._handle_dbapi_exception(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         e, str_statement, effective_parameters, cursor, context
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 2352, in _handle_dbapi_exception
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1964, in _exec_single_context
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self.dialect.do_execute(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         cursor, str_statement, effective_parameters, context
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py", line 945, in do_execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     cursor.execute(statement, parameters)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 580, in execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._adapt_connection.await_(
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         self._prepare_and_execute(operation, parameters)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     value = await result
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:             ^^^^^^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 558, in _prepare_and_execute
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._handle_exception(error)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 508, in _handle_exception
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     self._adapt_connection._handle_exception(error)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py", line 792, in _handle_exception
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]:     raise translated_error from error
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: sqlalchemy.exc.IntegrityError: (sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.UniqueViolationError'>: duplicate key value violates unique constraint "statistic_day_pkey"
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: DETAIL:  Key (date)=(2025-04-13) already exists.
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: [SQL: INSERT INTO statistic_day (date, new_users, return_users, block_users, refs, ads, sarafan, earn, good_requests, bad_requests, events, assistant, helper, sleeper) VALUES ($1::DATE, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER, $14::INTEGER)]
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: [parameters: (datetime.date(2025, 4, 13), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)]
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: (Background on this error at: https://sqlalche.me/e/20/gkpj)
+Apr 13 23:28:15 vm3980905.stark-industries.solutions python3.13[5366]: INFO:aiogram.event:Update id=79851107 is handled. Duration 1106 ms by bot id=7120474080
+Apr 13 23:28:16 vm3980905.stark-industries.solutions python3.13[5366]: INFO:aiogram.event:Update id=79851108 is handled. Duration 1238 ms by bot id=7120474080
+Apr 13 23:28:21 vm3980905.stark-industries.solutions python3.13[5366]: INFO:aiogram.event:Update id=79851109 is handled. Duration 248 ms by bot id=7120474080
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]: INFO:aiogram.event:Update id=79851110 is not handled. Duration 52 ms by bot id=7120474080
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]: ERROR:aiogram.event:Cause exception while process update id=79851110 by bot id=7120474080
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]: AttributeError: 'NoneType' object has no attribute 'new_users'
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]: Traceback (most recent call last):
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 309, in _process_update
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     response = await self.feed_update(bot, update, **kwargs)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 158, in feed_update
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     response = await self.update.wrap_outer_middleware(
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     ...<7 lines>...
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/error.py", line 25, in __call__
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await handler(event, data)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 56, in __call__
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await handler(event, data)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/fsm/middleware.py", line 42, in __call__
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await handler(event, data)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 121, in trigger
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await wrapped_inner(event, kwargs)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 43, in call
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await wrapped()
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 276, in _listen_update
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 146, in propagate_event
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 141, in _wrapped
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await self._propagate_event(
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:         observer=observer, update_type=update_type, event=telegram_event, **data
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     )
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     ^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 166, in _propagate_event
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     response = await observer.trigger(event, **kwargs)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 121, in trigger
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await wrapped_inner(event, kwargs)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/bot/middlewares/events.py", line 23, in __call__
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await handler(event, data)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 43, in call
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     return await wrapped()
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:            ^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/bot/handlers/admin/start.py", line 71, in admin
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     await message.answer(text=await text_panel(), reply_markup=kba.menu, parse_mode='html')
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:                               ^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:   File "/home/soul_bot/bot/handlers/admin/start.py", line 31, in text_panel
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:     yesterday_new_percent, yesterday_block_percent = percent(yesterday.new_users, yesterday.block_users)
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]:                                                              ^^^^^^^^^^^^^^^^^^^
+Apr 13 23:28:25 vm3980905.stark-industries.solutions python3.13[5366]: AttributeError: 'NoneType' object has no attribute 'new_users'
+Apr 13 23:28:49 vm3980905.stark-industries.solutions python3.13[5366]: INFO:aiogram.event:Update id=79851111 is handled. Duration 199 ms by bot id=7120474080
+Apr 13 23:29:05 vm3980905.stark-industries.solutions python3.13[5366]: INFO:aiogram.event:Update id=79851112 is handled. Duration 155 ms by bot id=7120474080
