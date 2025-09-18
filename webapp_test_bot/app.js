@@ -527,6 +527,16 @@ function drawMoodChart() {
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
         ctx.stroke();
+            /* AXIS LABELS */
+            ctx.fillStyle = "#1565C0";
+            ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            for (let i = 0; i < moodData.length; i++) {
+                const x = (width / (moodData.length - 1)) * i;
+                const label = moodData[i].time;
+                ctx.fillText(label, x, height - 4);
+            }
     }
 
     // Horizontal lines
@@ -538,23 +548,26 @@ function drawMoodChart() {
         ctx.stroke();
     }
 
-    // Draw mood line only (no fill)
-    ctx.strokeStyle = '#1976D2';
+    // Draw mood line with smoothing
+    const points = moodData.map((p, i) => ({ x: (width / (moodData.length - 1)) * i, y: height - (p.value * height) }));
+
+    ctx.strokeStyle = "#1976D2";
     ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.beginPath();
 
-    moodData.forEach((point, index) => {
-        const x = (width / (moodData.length - 1)) * index;
-        const y = height - (point.value * height);
-
-        if (index === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
+    if (points.length) {
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 1; i++) {
+            const xc = (points[i].x + points[i + 1].x) / 2;
+            const yc = (points[i].y + points[i + 1].y) / 2;
+            ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
         }
-    });
-
-    ctx.stroke();
+        const last = points[points.length - 1];
+        ctx.quadraticCurveTo(points[points.length - 1].x, points[points.length - 1].y, last.x, last.y);
+        ctx.stroke();
+    }
 
     // No data points - just clean line
 }
@@ -655,3 +668,77 @@ window.SoulNearApp = {
     vibrate,
     showNotification
 };
+// twemoji parse on load
+document.addEventListener("DOMContentLoaded", function(){
+  if (window.twemoji) {
+    window.twemoji.parse(document.body, {folder: "svg", ext: ".svg"});
+  }
+});
+
+// UI 2025-09-18: override drawMoodChart with smoothing
+function drawMoodChart() {
+    const canvas = document.getElementById("moodChart");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+
+    // Set canvas size
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * window.devicePixelRatio;
+    canvas.height = rect.height * window.devicePixelRatio;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+    const width = rect.width;
+    const height = rect.height;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+
+    // Sample mood data
+    const moodData = [
+        { time: 21.04, value: 0.3 },
+        { time: 22.04, value: 0.5 },
+        { time: 23.04, value: 0.4 },
+        { time: 24.04, value: 0.6 },
+        { time: 25.04, value: 0.8 },
+        { time: 26.04, value: 0.7 },
+        { time: 27.04, value: 0.9 },
+        { time: 28.04, value: 0.8 },
+        { time: 29.04, value: 0.6 },
+        { time: 30.04, value: 0.7 }
+    ];
+
+    // Grid
+    ctx.strokeStyle = "#E3F2FD";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 10; i++) {
+        const x = (width / 10) * i;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+    }
+    for (let i = 0; i <= 5; i++) {
+        const y = (height / 5) * i;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+    }
+
+    // Smooth line
+    const points = moodData.map((p, i) => ({ x: (width / (moodData.length - 1)) * i, y: height - (p.value * height) }));
+    ctx.strokeStyle = "#1976D2";
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    if (points.length) {
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 1; i++) {
+            const xc = (points[i].x + points[i + 1].x) / 2;
+            const yc = (points[i].y + points[i + 1].y) / 2;
+            ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+        }
+        const last = points[points.length - 1];
+        ctx.quadraticCurveTo(points[points.length - 1].x, points[points.length - 1].y, last.x, last.y);
+    }
+    ctx.stroke();
+}
+
+// cache-bust 1758206594

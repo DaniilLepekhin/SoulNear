@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoulNear</title>
+    <link rel="stylesheet" href="styles.css?v=1758207412">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="screen splash-screen active">
+        <img src="robot.png" alt="SoulNear Robot" class="robot-image">
+        <div class="splash-title">
+            <h1>SoulNear</h1>
+            <p>Твой путь к совершенству</p>
+        </div>
+        <div class="splash-footer">
+            <p>© 2025 SoulNear</p>
+        </div>
+    </div>
+
+    <!-- Onboarding Screen -->
+    <div id="onboarding-screen" class="screen security-screen">
+        <div class="lock-container">
+            <img src="lock.png" alt="Security Lock" class="lock-image">
+        </div>
+        <div class="security-title">
+            <h2>Безопасность<br>наш приоритет</h2>
+            <p>Все ваши диалоги с Soul Near защищены, приватны и не передаются третьим лицам.</p>
+        </div>
+        <button class="continue-btn" onclick="showMainScreen()">Продолжить</button>
+    </div>
+
+    <!-- Main Screen -->
+    <div id="main-screen" class="screen main-screen">
+        <div class="main-container">
+            <!-- Calendar Section -->
+            <div class="calendar-section">
+                <div class="month-label" id="currentMonth">Апрель</div>
+                <div class="calendar-container">
+                    <div class="calendar-days">
+                        <div class="calendar-day completed" data-day="4">
+                            <div class="day-circle">
+                                <span class="day-number">4</span>
+                            </div>
+                            <span class="day-badge">😊</span>
+                        </div>
+                        <div class="calendar-day completed" data-day="5">
+                            <div class="day-circle">
+                                <span class="day-number">5</span>
+                            </div>
+                            <span class="day-badge">😐</span>
+                        </div>
+                        <div class="calendar-day active" data-day="6">
+                            <div class="day-circle">
+                                <span class="day-number">6</span>
+                            </div>
+                            <span class="day-badge">➕</span>
+                        </div>
+                        <div class="calendar-day" data-day="7">
+                            <div class="day-circle">
+                                <span class="day-number">7</span>
+                            </div>
+                            <span class="day-badge">➕</span>
+                        </div>
+                        <div class="calendar-day" data-day="8">
+                            <div class="day-circle">
+                                <span class="day-number">8</span>
+                            </div>
+                            <span class="day-badge">➕</span>
+                        </div>
+                        <div class="calendar-day" data-day="9">
+                            <div class="day-circle">
+                                <span class="day-number">9</span>
+                            </div>
+                            <span class="day-badge">➕</span>
+                        </div>
+                    </div>
+                    <div class="calendar-indicators">
+                        <div class="day-indicator" data-day="4"></div>
+                        <div class="day-indicator" data-day="5"></div>
+                        <div class="day-indicator active" data-day="6"></div>
+                        <div class="day-indicator-placeholder" data-day="7"></div>
+                        <div class="day-indicator-placeholder" data-day="8"></div>
+                        <div class="day-indicator-placeholder" data-day="9"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Greeting Section -->
+            <div class="greeting-section">
+                <h2 id="greetingText">Доброе утро, Аня!</h2>
+                <p>Сегодня 24-й день вашего путешествия!</p>
+            </div>
+
+            <!-- Mood Section with Chart -->
+            <div class="mood-section">
+                <div class="mood-header">
+                    <span>Как ты себя чувствуешь сегодня?</span>
+                    <div class="mood-brain-icon">🧠</div>
+                </div>
+                <div class="mood-selector">
+                    <div class="mood-emoji">😆</div>
+                    <div class="mood-emoji">🤗</div>
+                    <div class="mood-emoji">😐</div>
+                    <div class="mood-emoji">😌</div>
+                    <div class="mood-emoji">🤯</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="moodChart" width="320" height="180"></canvas>
+                </div>
+                <div class="chart-dates">
+                    <span>24.04</span>
+                    <span>25.04</span>
+                    <span>26.04</span>
+                    <span>27.04</span>
+                    <span>28.04</span>
+                    <span>29.04</span>
+                    <span>30.04</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="showMainScreen()">
+                <div class="nav-icon">🏠</div>
+            </div>
+            <div class="nav-item" onclick="showVoiceAssistant()">
+                <div class="nav-icon">🎤</div>
+            </div>
+            <div class="nav-item" onclick="showPractices()">
+                <div class="nav-icon">⚡</div>
+            </div>
+            <div class="nav-item" onclick="showProfile()">
+                <div class="nav-icon">👤</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Screen -->
+    <div id="chat-screen" class="screen">
+        <div class="chat-header">
+            <button class="back-btn" onclick="showMainScreen()">←</button>
+            <div class="chat-title">
+                <div class="chat-icon">💬</div>
+                <span>Soul Near GPT</span>
+            </div>
+            <button class="menu-btn">⚙️</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message assistant">
+                <div class="message-content">
+                    <p>Я Soul.near - твой цифровой наставник по ясным коммуникации и гармонии 🧠✨</p>
+                    <p class="message-subtext">💬 Просто напиши мне - и я отвечу.</p>
+                </div>
+            </div>
+
+            <div class="message user">
+                <div class="message-content">
+                    Чувствую, что сбился с пути. Всё стало каким то пустым.
+                </div>
+            </div>
+
+            <div class="message assistant">
+                <div class="message-content">
+                    Иногда такие моменты - это знак остановиться и услышать себя.
+
+                    Если бы ты мог дать себе один честный ответ, что бы ты сказал?
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <button class="chat-add-btn">+</button>
+            <input type="text" id="chatInput" placeholder="Чем я могу помочь?" />
+            <button class="voice-btn" onclick="toggleVoiceRecording()">
+                <div class="voice-icon"></div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Voice Chat Screen -->
+    <div id="voice-chat-screen" class="screen">
+        <div class="chat-header">
+            <button class="back-btn" onclick="showMainScreen()">←</button>
+            <div class="chat-title">
+                <div class="chat-icon">💬</div>
+                <span>Soul Near GPT</span>
+            </div>
+            <button class="menu-btn">⚙️</button>
+        </div>
+
+        <div class="voice-chat-content">
+            <div class="voice-message incoming">
+                <button class="play-btn">▶</button>
+                <div class="voice-waveform">
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                </div>
+            </div>
+
+            <div class="voice-recording-indicator">
+                <div class="recording-waveform">
+                    <div class="recording-bar"></div>
+                    <div class="recording-bar"></div>
+                    <div class="recording-bar"></div>
+                    <div class="recording-bar"></div>
+                    <div class="recording-bar"></div>
+                </div>
+                <button class="pause-btn">⏸</button>
+            </div>
+
+            <div class="voice-controls">
+                <button class="voice-add-btn">+</button>
+                <button class="voice-record-btn">
+                    <div class="voice-orb">
+                        <div class="orb-core"></div>
+                        <div class="orb-ring"></div>
+                    </div>
+                </button>
+                <button class="voice-keyboard-btn">⌨️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Practices Screen -->
+    <div id="practices-screen" class="screen">
+        <div class="practices-header">
+            <h2>Практики</h2>
+        </div>
+
+        <div class="practices-filters">
+            <button class="filter-btn active">Все</button>
+            <button class="filter-btn">❤️</button>
+            <button class="filter-btn">Медитации</button>
+            <button class="filter-btn">Йога</button>
+        </div>
+
+        <div class="practices-content">
+            <div class="practice-card plan-card">
+                <h3>План на день</h3>
+                <div class="plan-items">
+                    <div class="plan-item active">Аффирмации</div>
+                    <div class="plan-item">Медитация</div>
+                    <div class="plan-item">Мантры</div>
+                </div>
+                <button class="plan-favorite">♡</button>
+            </div>
+
+            <div class="practice-card evening-card">
+                <h3>Вечерняя йога</h3>
+            </div>
+
+            <div class="practice-item">
+                <div class="practice-info">
+                    <h4>Медитация</h4>
+                    <div class="practice-tags">
+                        <span class="tag">7 мин</span>
+                        <span class="tag">Утренняя</span>
+                    </div>
+                </div>
+                <button class="practice-play-btn">▶</button>
+            </div>
+
+            <div class="practice-premium">
+                <div class="premium-icon">Ⓟ</div>
+                <h4>Пережить тяжелый момент</h4>
+                <button class="premium-favorite">♡</button>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="nav-item" onclick="showMainScreen()">
+                <div class="nav-icon">🏠</div>
+            </div>
+            <div class="nav-item" onclick="showVoiceAssistant()">
+                <div class="nav-icon">🎤</div>
+            </div>
+            <div class="nav-item active" onclick="showPractices()">
+                <div class="nav-icon">⚡</div>
+            </div>
+            <div class="nav-item" onclick="showProfile()">
+                <div class="nav-icon">👤</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Practice Player Screen -->
+    <div id="practice-player-screen" class="screen">
+        <div class="player-header">
+            <button class="back-btn" onclick="showPractices()">←</button>
+            <h3>Дыхание</h3>
+        </div>
+
+        <div class="player-content">
+            <div class="breathing-orb">
+                <div class="orb-gradient">
+                    <div class="breathing-text">Вдох</div>
+                </div>
+            </div>
+
+            <div class="player-timer">1:34</div>
+
+            <div class="player-controls">
+                <button class="player-pause-btn">⏸</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat History Screen -->
+    <div id="chat-history-screen" class="screen">
+        <div class="chat-header">
+            <button class="back-btn" onclick="showMainScreen()">←</button>
+            <div class="chat-title">
+                <div class="chat-icon">💬</div>
+                <span>Soul Near GPT</span>
+            </div>
+            <button class="new-chat-btn">+</button>
+        </div>
+
+        <div class="history-content">
+            <div class="history-group">
+                <h4>Сегодня</h4>
+                <div class="history-item">Как справляться со стрессом</div>
+                <div class="history-item">Проблемы на работе</div>
+            </div>
+
+            <div class="history-group">
+                <h4>Вчера</h4>
+                <div class="history-item">Поссорились с парнем</div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <button class="chat-add-btn">+</button>
+            <input type="text" placeholder="Чем я могу помочь?" />
+            <button class="voice-btn">
+                <div class="voice-icon"></div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Profile Screen -->
+    <div id="profile-screen" class="screen">
+        <div class="profile-header">
+            <h2>Профиль</h2>
+        </div>
+
+        <div class="profile-content">
+            <div class="profile-card">
+                <div class="profile-avatar"></div>
+                <div class="achievement-grid">
+                    <div class="achievement-slot"></div>
+                    <div class="achievement-slot"></div>
+                </div>
+            </div>
+
+            <div class="profile-menu">
+                <div class="profile-menu-item">
+                    <div class="menu-item-icon">❓</div>
+                    <span>Помощь</span>
+                    <div class="menu-arrow">→</div>
+                </div>
+                <div class="profile-menu-item">
+                    <div class="menu-item-icon">📱</div>
+                    <span>Поддержка Soul Near</span>
+                    <div class="menu-arrow">→</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="nav-item" onclick="showMainScreen()">
+                <div class="nav-icon">🏠</div>
+            </div>
+            <div class="nav-item" onclick="showVoiceAssistant()">
+                <div class="nav-icon">🎤</div>
+            </div>
+            <div class="nav-item" onclick="showPractices()">
+                <div class="nav-icon">⚡</div>
+            </div>
+            <div class="nav-item active" onclick="showProfile()">
+                <div class="nav-icon">👤</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice Assistant Screen -->
+    <div id="voice-assistant-screen" class="screen">
+        <div class="voice-assistant-content">
+            <div class="assistant-title">Soul Near GPT</div>
+
+            <div class="assistant-orb">
+                <div class="orb-gradient">
+                    <div class="orb-core"></div>
+                    <div class="orb-rings">
+                        <div class="orb-ring ring-1"></div>
+                        <div class="orb-ring ring-2"></div>
+                        <div class="orb-ring ring-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="assistant-question">
+                <h3>Чем я могу тебе<br>помочь сегодня?</h3>
+            </div>
+
+            <div class="assistant-options">
+                <div class="option-card" onclick="showChat()">
+                    <div class="option-icon">👥</div>
+                    <span>Чат<br>с Soul GPT</span>
+                </div>
+                <div class="option-card" onclick="showDreamAnalysis()">
+                    <div class="option-icon">💭</div>
+                    <span>Разбор<br>снов</span>
+                </div>
+                <div class="option-card" onclick="showPersonalityAnalysis()">
+                    <div class="option-icon">🧠</div>
+                    <span>Анализ<br>личности</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="nav-item" onclick="showMainScreen()">
+                <div class="nav-icon">🏠</div>
+            </div>
+            <div class="nav-item active" onclick="showVoiceAssistant()">
+                <div class="nav-icon">🎤</div>
+            </div>
+            <div class="nav-item" onclick="showPractices()">
+                <div class="nav-icon">⚡</div>
+            </div>
+            <div class="nav-item" onclick="showProfile()">
+                <div class="nav-icon">👤</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Plan Screen -->
+    <div id="daily-plan-screen" class="screen">
+        <div class="plan-header">
+            <div class="calendar-section">
+                <div class="month-label">Апрель</div>
+                <div class="calendar-days">
+                    <div class="day-item" data-day="4">
+                        <span class="day-number">4</span>
+                        <span class="day-emoji">😊</span>
+                        <div class="day-indicator"></div>
+                    </div>
+                    <div class="day-item" data-day="5">
+                        <span class="day-number">5</span>
+                        <span class="day-emoji">😐</span>
+                        <div class="day-indicator"></div>
+                    </div>
+                    <div class="day-item active" data-day="6">
+                        <span class="day-number">6</span>
+                        <span class="day-emoji">➕</span>
+                        <div class="day-indicator active"></div>
+                    </div>
+                    <div class="day-item" data-day="7">
+                        <span class="day-number">7</span>
+                        <span class="day-emoji">➕</span>
+                        <div class="day-indicator"></div>
+                    </div>
+                    <div class="day-item" data-day="8">
+                        <span class="day-number">8</span>
+                        <span class="day-emoji">➕</span>
+                        <div class="day-indicator"></div>
+                    </div>
+                    <div class="day-item" data-day="9">
+                        <span class="day-number">9</span>
+                        <span class="day-emoji">➕</span>
+                        <div class="day-indicator"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="daily-plan-content">
+            <h2>Ежедневный план</h2>
+
+            <div class="plan-practice">
+                <div class="practice-info">
+                    <h4>Медитация</h4>
+                    <div class="practice-tags">
+                        <span class="tag">7 мин</span>
+                        <span class="tag">Утренняя</span>
+                    </div>
+                </div>
+                <button class="practice-play-btn">▶</button>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="showMainScreen()">
+                <div class="nav-icon">🏠</div>
+            </div>
+            <div class="nav-item" onclick="showVoiceAssistant()">
+                <div class="nav-icon">🎤</div>
+            </div>
+            <div class="nav-item" onclick="showPractices()">
+                <div class="nav-icon">⚡</div>
+            </div>
+            <div class="nav-item" onclick="showProfile()">
+                <div class="nav-icon">👤</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=1758207412"></script>
+    <script>
+        // Auto-update month and greeting
+        function updateContent() {
+            const now = new Date();
+            const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                           'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+            // Update month
+            const monthElement = document.getElementById('currentMonth');
+            if (monthElement) {
+                monthElement.textContent = months[now.getMonth()];
+            }
+
+            // Get user name from Telegram WebApp
+            let userName = 'Аня'; // default
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
+                const user = window.Telegram.WebApp.initDataUnsafe.user;
+                if (user && user.first_name) {
+                    userName = user.first_name;
+                }
+            }
+
+            // Update greeting based on time
+            const hour = now.getHours();
+            let greeting;
+            if (hour < 6) greeting = 'Доброй ночи';
+            else if (hour < 12) greeting = 'Доброе утро';
+            else if (hour < 18) greeting = 'Добрый день';
+            else greeting = 'Добрый вечер';
+
+            const greetingElement = document.getElementById('greetingText');
+            if (greetingElement) {
+                greetingElement.textContent = `${greeting}, ${userName}!`;
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', updateContent);
+
+        // Also update when Telegram WebApp is ready
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            updateContent();
+        }
+    </script>
+</body>
+</html>
