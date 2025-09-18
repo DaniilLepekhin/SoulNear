@@ -142,13 +142,18 @@ body {
 
 /* Main Screen */
 .main-screen {
-    padding: 20px 20px 100px 20px;
+    padding: 20px 20px 20px 20px;
+    min-height: 100vh;
+    overflow: hidden;
 }
 
 .main-container {
     max-width: 400px;
-    margin: 0 auto;
-    padding: 20px 24px 100px 4px;
+    margin: 20px auto 20px auto;
+    padding: 24px;
+    background: white;
+    border-radius: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 /* Calendar Section */
@@ -304,8 +309,12 @@ body {
     font-weight: 500;
 }
 
-.mood-brain-icon {
-    font-size: 24px;
+.mood-profile-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
 }
 
 .mood-selector {
@@ -889,7 +898,7 @@ body {
 /* ===== emoji styling for twemoji ===== */
 .twemoji { width: 22px; height: 22px; vertical-align: middle; }
 .mood-emoji .twemoji { width: 28px; height: 28px; }
-.mood-header .mood-brain-icon .twemoji { width: 20px; height: 20px; }
+.mood-header .mood-profile-icon svg { width: 24px; height: 24px; }
 /* ===== end emoji styling ===== */
 
 
@@ -902,9 +911,40 @@ body {
 .day-badge { font-size: 10px; width: 16px; height: 16px; top: -4px; right: -4px; }
 
 /* Bottom nav compact */
-.bottom-nav { padding: 8px 6px; border-radius: 20px; }
+.bottom-nav {
+    padding: 8px 6px;
+    border-radius: 20px;
+    background: white;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
 .nav-item { padding: 6px 4px; }
-.nav-icon { font-size: 18px; width: 32px; height: 32px; }
+.nav-icon {
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #B0B0B0;
+}
+
+.nav-item.active .nav-icon {
+    color: #4A90E2;
+}
+
+.nav-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.nav-icon svg path {
+    fill: #B0B0B0;
+    transition: fill 0.3s ease;
+}
+
+.nav-item.active .nav-icon svg path {
+    fill: #4A90E2;
+}
 
 /* Mood selector emojis slightly smaller */
 .mood-emoji { width: 40px; height: 40px; font-size: 20px; }
@@ -917,8 +957,22 @@ body {
 /* HOTFIX 2025-09-18: restore layout, remove crowns, show chart */
 .calendar-day.completed::after { content: none !important; }
 .day-badge { top: -10px !important; right: -6px !important; }
-.bottom-nav { position: fixed !important; bottom: 12px !important; left: 16px !important; right: 16px !important; flex-direction: row !important; display: flex !important; }
-.nav-item { flex: 1 1 auto !important; }
+.bottom-nav {
+    position: fixed !important;
+    bottom: 12px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+    flex-direction: row !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 8px !important;
+}
+.nav-item {
+    flex: none !important;
+    width: 56px !important;
+    height: 48px !important;
+}
 #moodChart { width: 100% !important; height: 140px !important; }
 .chart-container { min-height: 160px !important; background: #F3F6FA !important; }
 

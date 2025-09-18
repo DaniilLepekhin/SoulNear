@@ -183,21 +183,56 @@ function onScreenShow(screenId) {
     }
 }
 
+// Update navigation active states
+function updateNavigation(activeScreen) {
+    // Remove active class from all nav items
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Add active class to current nav item based on screen
+    let activeNavSelector = '';
+    switch(activeScreen) {
+        case 'main-screen':
+            activeNavSelector = '.nav-item[onclick="showMainScreen()"]';
+            break;
+        case 'voice-assistant-screen':
+            activeNavSelector = '.nav-item[onclick="showVoiceAssistant()"]';
+            break;
+        case 'practices-screen':
+            activeNavSelector = '.nav-item[onclick="showPractices()"]';
+            break;
+        case 'profile-screen':
+            activeNavSelector = '.nav-item[onclick="showProfile()"]';
+            break;
+    }
+
+    if (activeNavSelector) {
+        document.querySelectorAll(activeNavSelector).forEach(item => {
+            item.classList.add('active');
+        });
+    }
+}
+
 // Main navigation functions
 function showMainScreen() {
     showScreen('main-screen');
+    updateNavigation('main-screen');
 }
 
 function showVoiceAssistant() {
     showScreen('voice-assistant-screen');
+    updateNavigation('voice-assistant-screen');
 }
 
 function showPractices() {
     showScreen('practices-screen');
+    updateNavigation('practices-screen');
 }
 
 function showProfile() {
     showScreen('profile-screen');
+    updateNavigation('profile-screen');
 }
 
 function showChat() {
