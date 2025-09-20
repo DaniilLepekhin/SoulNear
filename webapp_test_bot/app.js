@@ -153,7 +153,6 @@ function updateNavigation(screenId) {
     const navMapping = {
         'main-screen': 0,
         'daily-plan-screen': 0,
-        'voice-assistant-screen': 1,
         'voice-chat-screen': 1,
         'practices-screen': 2,
         'practice-player-screen': 2,
@@ -196,8 +195,8 @@ function updateNavigation(activeScreen) {
         case 'main-screen':
             activeNavSelector = '.nav-item[onclick="showMainScreen()"]';
             break;
-        case 'voice-assistant-screen':
-            activeNavSelector = '.nav-item[onclick="showVoiceAssistant()"]';
+        case 'voice-chat-screen':
+            activeNavSelector = '.nav-item[onclick="showVoiceChat()"]';
             break;
         case 'practices-screen':
             activeNavSelector = '.nav-item[onclick="showPractices()"]';
@@ -220,10 +219,6 @@ function showMainScreen() {
     updateNavigation('main-screen');
 }
 
-function showVoiceAssistant() {
-    showScreen('voice-assistant-screen');
-    updateNavigation('voice-assistant-screen');
-}
 
 function showPractices() {
     showScreen('practices-screen');
@@ -777,3 +772,161 @@ function drawMoodChart() {
 }
 
 // cache-bust 1758206594
+
+// ========================================
+// ГОЛОСОВОЙ ЧАТ - НОВАЯ ЛОГИКА ПО ТЗ
+// ========================================
+
+// Переключение записи голоса
+function toggleVoiceRecording() {
+    if (isRecording) {
+        stopVoiceRecording();
+    } else {
+        startVoiceRecording();
+    }
+}
+
+// Обновленная функция записи голоса
+function startVoiceRecording() {
+    if (isRecording) return;
+
+    isRecording = true;
+
+    // Обновляем UI для новой кнопки микрофона
+    const micBtn = document.querySelector('.voice-mic-btn');
+    if (micBtn) {
+        micBtn.classList.add('recording');
+    }
+
+    // Показываем пользовательское сообщение
+    showUserVoiceMessage();
+
+    // Haptic feedback
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+    }
+
+    console.log('Voice recording started...');
+}
+
+// Обновленная функция остановки записи
+function stopVoiceRecording() {
+    if (!isRecording) return;
+
+    isRecording = false;
+
+    // Убираем анимацию записи
+    const micBtn = document.querySelector('.voice-mic-btn');
+    if (micBtn) {
+        micBtn.classList.remove('recording');
+    }
+
+    // Отправляем данные в Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+            type: 'voice_message',
+            action: 'send',
+            timestamp: Date.now()
+        }));
+    }
+
+    console.log('Voice recording stopped.');
+}
+
+// Показать сообщение пользователя
+function showUserVoiceMessage() {
+    const messagesContainer = document.querySelector('.voice-messages');
+    const userMessage = document.querySelector('.user-message');
+
+    if (messagesContainer && userMessage) {
+        userMessage.style.display = 'flex';
+        // Прокрутка к новому сообщению
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+}
+
+// Переключение Play/Pause для голосовых сообщений
+function toggleVoicePlayback(button) {
+    const isPlaying = button.innerHTML.includes('rect');
+
+    if (isPlaying) {
+        // Остановить воспроизведение - показать иконку Play
+        button.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M8 5V19L19 12L8 5Z" fill="currentColor"/>
+            </svg>
+        `;
+        stopWaveAnimation(button);
+    } else {
+        // Начать воспроизведение - показать иконку Pause
+        button.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
+                <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+            </svg>
+        `;
+        startWaveAnimation(button);
+
+        // Автоматически остановить через 3 секунды (имитация)
+        setTimeout(() => {
+            if (button.innerHTML.includes('rect')) {
+                button.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 5V19L19 12L8 5Z" fill="currentColor"/>
+                    </svg>
+                `;
+                stopWaveAnimation(button);
+            }
+        }, 3000);
+    }
+
+    // Haptic feedback
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+    }
+}
+
+// Анимация волн
+function startWaveAnimation(button) {
+    const waveform = button.nextElementSibling;
+    if (waveform) {
+        const waveBars = waveform.querySelectorAll('.wave-bar');
+        waveBars.forEach((bar, index) => {
+            bar.style.animationDelay = `${index * 0.1}s`;
+            bar.style.animationPlayState = 'running';
+        });
+    }
+}
+
+function stopWaveAnimation(button) {
+    const waveform = button.nextElementSibling;
+    if (waveform) {
+        const waveBars = waveform.querySelectorAll('.wave-bar');
+        waveBars.forEach(bar => {
+            bar.style.animationPlayState = 'paused';
+        });
+    }
+}
+
+// Инициализация событий для голосового чата
+function initVoiceChatEvents() {
+    // Добавляем обработчики для кнопок play/pause
+    document.querySelectorAll('.voice-play-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            toggleVoicePlayback(this);
+        });
+    });
+
+    // Обработчик для кнопки клавиатуры (переход к текстовому чату)
+    const keyboardBtn = document.querySelector('.voice-keyboard-btn');
+    if (keyboardBtn) {
+        keyboardBtn.addEventListener('click', function() {
+            showScreen('chat-screen');
+        });
+    }
+}
+
+// Добавляем инициализацию при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    initVoiceChatEvents();
+});

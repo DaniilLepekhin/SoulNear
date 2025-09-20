@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoulNear</title>
-    <link rel="stylesheet" href="styles.css?v=1758207412">
+    <link rel="stylesheet" href="styles.css?v=1758207600">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script>
 </head>
@@ -134,7 +134,7 @@
                     </svg>
                 </div>
             </div>
-            <div class="nav-item" onclick="showVoiceAssistant()">
+            <div class="nav-item" onclick="showVoiceChat()">
                 <div class="nav-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" fill="currentColor"/>
@@ -202,52 +202,102 @@
     </div>
 
     <!-- Voice Chat Screen -->
-    <div id="voice-chat-screen" class="screen">
-        <div class="chat-header">
-            <button class="back-btn" onclick="showMainScreen()">←</button>
-            <div class="chat-title">
-                <div class="chat-icon">💬</div>
-                <span>Soul Near GPT</span>
+    <div id="voice-chat-screen" class="screen voice-chat-screen">
+        <!-- Верхняя панель по ТЗ -->
+        <div class="voice-header">
+            <div class="voice-left-controls">
+                <button class="voice-back-btn" onclick="showMainScreen()">←</button>
+                <div class="voice-multitask-icon">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="1" y="3" width="6" height="4" rx="1" fill="#4A90E2"/>
+                        <rect x="9" y="3" width="6" height="4" rx="1" fill="#4A90E2"/>
+                        <rect x="1" y="9" width="6" height="4" rx="1" fill="#4A90E2"/>
+                        <rect x="9" y="9" width="6" height="4" rx="1" fill="#4A90E2"/>
+                    </svg>
+                </div>
             </div>
-            <button class="menu-btn">⚙️</button>
+            <h1 class="voice-title">Soul Near GPT</h1>
+            <div class="voice-avatar">
+                <img src="Robo.png" alt="SoulNear Assistant" />
+            </div>
         </div>
 
-        <div class="voice-chat-content">
-            <div class="voice-message incoming">
-                <button class="play-btn">▶</button>
-                <div class="voice-waveform">
-                    <div class="wave-bar"></div>
-                    <div class="wave-bar"></div>
-                    <div class="wave-bar"></div>
-                    <div class="wave-bar"></div>
-                    <div class="wave-bar"></div>
-                    <div class="wave-bar"></div>
-                    <div class="wave-bar"></div>
-                    <div class="wave-bar"></div>
-                </div>
-            </div>
-
-            <div class="voice-recording-indicator">
-                <div class="recording-waveform">
-                    <div class="recording-bar"></div>
-                    <div class="recording-bar"></div>
-                    <div class="recording-bar"></div>
-                    <div class="recording-bar"></div>
-                    <div class="recording-bar"></div>
-                </div>
-                <button class="pause-btn">⏸</button>
-            </div>
-
-            <div class="voice-controls">
-                <button class="voice-add-btn">+</button>
-                <button class="voice-record-btn">
-                    <div class="voice-orb">
-                        <div class="orb-core"></div>
-                        <div class="orb-ring"></div>
-                    </div>
+        <!-- Зона сообщений -->
+        <div class="voice-messages">
+            <!-- Сообщение от ассистента слева -->
+            <div class="voice-message assistant-message">
+                <button class="voice-play-btn assistant-play">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 5V19L19 12L8 5Z" fill="currentColor"/>
+                    </svg>
                 </button>
-                <button class="voice-keyboard-btn">⌨️</button>
+                <div class="voice-waveform">
+                    <div class="wave-bar" style="height: 12px"></div>
+                    <div class="wave-bar" style="height: 8px"></div>
+                    <div class="wave-bar" style="height: 16px"></div>
+                    <div class="wave-bar" style="height: 6px"></div>
+                    <div class="wave-bar" style="height: 14px"></div>
+                    <div class="wave-bar" style="height: 18px"></div>
+                    <div class="wave-bar" style="height: 10px"></div>
+                    <div class="wave-bar" style="height: 13px"></div>
+                    <div class="wave-bar" style="height: 7px"></div>
+                    <div class="wave-bar" style="height: 15px"></div>
+                    <div class="wave-bar" style="height: 11px"></div>
+                    <div class="wave-bar" style="height: 9px"></div>
+                    <div class="wave-bar" style="height: 17px"></div>
+                    <div class="wave-bar" style="height: 12px"></div>
+                </div>
             </div>
+
+            <!-- Сообщение от пользователя справа -->
+            <div class="voice-message user-message">
+                <button class="voice-play-btn user-play-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
+                        <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+                    </svg>
+                </button>
+                <div class="voice-waveform user-waveform">
+                    <div class="wave-bar" style="height: 10px"></div>
+                    <div class="wave-bar" style="height: 14px"></div>
+                    <div class="wave-bar" style="height: 8px"></div>
+                    <div class="wave-bar" style="height: 16px"></div>
+                    <div class="wave-bar" style="height: 11px"></div>
+                    <div class="wave-bar" style="height: 9px"></div>
+                    <div class="wave-bar" style="height: 13px"></div>
+                    <div class="wave-bar" style="height: 7px"></div>
+                    <div class="wave-bar" style="height: 15px"></div>
+                    <div class="wave-bar" style="height: 12px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Нижняя панель управления -->
+        <div class="voice-bottom-controls">
+            <button class="voice-add-btn">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 4V16M4 10H16" stroke="#4A90E2" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <button class="voice-mic-btn" onclick="toggleVoiceRecording()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 14C13.66 14 15 12.66 15 11V5C15 3.34 13.66 2 12 2C10.34 2 9 3.34 9 5V11C9 12.66 10.34 14 12 14Z" fill="white"/>
+                    <path d="M19 11C19 14.53 16.39 17.44 13 17.93V21H11V17.93C7.61 17.44 5 14.53 5 11H7C7 13.76 9.24 16 12 16C14.76 16 17 13.76 17 11H19Z" fill="white"/>
+                </svg>
+            </button>
+            <button class="voice-keyboard-btn">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect x="2" y="6" width="16" height="10" rx="2" stroke="#4A90E2" stroke-width="1.5" fill="none"/>
+                    <rect x="4" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
+                    <rect x="6.5" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
+                    <rect x="9" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
+                    <rect x="11.5" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
+                    <rect x="14" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
+                    <rect x="5" y="11" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
+                    <rect x="7.5" y="11" width="5" height="1.5" rx="0.5" fill="#4A90E2"/>
+                    <rect x="13.5" y="11" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
+                </svg>
+            </button>
         </div>
     </div>
 
@@ -306,7 +356,7 @@
                     </svg>
                 </div>
             </div>
-            <div class="nav-item" onclick="showVoiceAssistant()">
+            <div class="nav-item" onclick="showVoiceChat()">
                 <div class="nav-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" fill="currentColor"/>
@@ -423,7 +473,7 @@
                     </svg>
                 </div>
             </div>
-            <div class="nav-item" onclick="showVoiceAssistant()">
+            <div class="nav-item" onclick="showVoiceChat()">
                 <div class="nav-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" fill="currentColor"/>
@@ -447,74 +497,6 @@
         </div>
     </div>
 
-    <!-- Voice Assistant Screen -->
-    <div id="voice-assistant-screen" class="screen">
-        <div class="voice-assistant-content">
-            <div class="assistant-title">Soul Near GPT</div>
-
-            <div class="assistant-orb">
-                <div class="orb-gradient">
-                    <div class="orb-core"></div>
-                    <div class="orb-rings">
-                        <div class="orb-ring ring-1"></div>
-                        <div class="orb-ring ring-2"></div>
-                        <div class="orb-ring ring-3"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="assistant-question">
-                <h3>Чем я могу тебе<br>помочь сегодня?</h3>
-            </div>
-
-            <div class="assistant-options">
-                <div class="option-card" onclick="showChat()">
-                    <div class="option-icon">👥</div>
-                    <span>Чат<br>с Soul GPT</span>
-                </div>
-                <div class="option-card" onclick="showDreamAnalysis()">
-                    <div class="option-icon">💭</div>
-                    <span>Разбор<br>снов</span>
-                </div>
-                <div class="option-card" onclick="showPersonalityAnalysis()">
-                    <div class="option-icon">🧠</div>
-                    <span>Анализ<br>личности</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bottom Navigation -->
-        <div class="bottom-nav">
-            <div class="nav-item" onclick="showMainScreen()">
-                <div class="nav-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="nav-item active" onclick="showVoiceAssistant()">
-                <div class="nav-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" fill="currentColor"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="nav-item" onclick="showPractices()">
-                <div class="nav-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6 6h4v4H6V6zm0 8h4v4H6v-4zm8-8h4v4h-4V6zm0 8h4v4h-4v-4z" fill="currentColor"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="nav-item" onclick="showProfile()">
-                <div class="nav-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v1c0 .55.45 1 1 1h14c.55 0 1-.45 1-1v-1c0-2.66-5.33-4-8-4z" fill="currentColor"/>
-                    </svg>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Daily Plan Screen -->
     <div id="daily-plan-screen" class="screen">
@@ -580,7 +562,7 @@
                     </svg>
                 </div>
             </div>
-            <div class="nav-item" onclick="showVoiceAssistant()">
+            <div class="nav-item" onclick="showVoiceChat()">
                 <div class="nav-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" fill="currentColor"/>
@@ -604,7 +586,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=1758207412"></script>
+    <script src="app.js?v=1758207600"></script>
     <script>
         // Auto-update month and greeting
         function updateContent() {

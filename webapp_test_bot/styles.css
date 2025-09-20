@@ -9,19 +9,32 @@
 body {
     background: linear-gradient(135deg, #F0F7FF 0%, #E6F2FF 100%);
     color: #333;
-    overflow-x: hidden;
-    min-height: 100vh;
+    overflow: hidden;
+    height: 100vh;
+    position: fixed;
+    width: 100%;
 }
 
 .screen {
-    display: none;
+    display: none !important;
     min-height: 100vh;
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    z-index: 1;
+    visibility: hidden;
+    opacity: 0;
 }
 
 .screen.active {
-    display: flex;
+    display: flex !important;
     flex-direction: column;
+    z-index: 10;
+    visibility: visible;
+    opacity: 1;
 }
 
 /* Splash Screen */
@@ -1037,6 +1050,365 @@ body {
 .mood-section .mood-selector { background: #1976D2 !important; }
 
 /* cache-bust 1758206594 */
+
+/* ========================================
+   ГОЛОСОВОЙ ЧАТ С АССИСТЕНТОМ - ПО ТЗ
+======================================== */
+
+/* Экран голосового чата */
+.voice-chat-screen {
+    background: #F5F9FF !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 1;
+}
+
+.voice-chat-screen.active {
+    z-index: 10;
+}
+
+/* 1. Верхняя панель (Header) - высота ~60px */
+.voice-header {
+    height: 60px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    position: relative;
+    z-index: 1;
+    margin-bottom: 10px;
+}
+
+.voice-left-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.voice-back-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #4A90E2;
+    cursor: pointer;
+    padding: 4px;
+    min-width: 24px;
+}
+
+.voice-multitask-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+}
+
+.voice-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #4A90E2;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    background: none;
+}
+
+.voice-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.voice-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 2. Зона сообщений (Chat area) */
+.voice-messages {
+    flex: 1;
+    padding: 20px 20px 10px 20px;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 12px;
+    overflow-y: auto;
+    justify-content: flex-start;
+}
+
+/* Голосовые сообщения */
+.voice-message {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: 25px;
+    max-width: 80%;
+    width: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    backdrop-filter: blur(10px);
+}
+
+.voice-message:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.assistant-message .voice-play-btn:hover {
+    transform: scale(1.15);
+    box-shadow: 0 6px 20px rgba(74, 144, 226, 0.6);
+}
+
+.user-message .voice-play-btn:hover {
+    transform: scale(1.15);
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+}
+
+/* Сообщение ассистента - слева */
+.assistant-message {
+    background: #FFFFFF;
+    border: 1px solid #E0E7FF;
+    align-self: flex-start;
+    margin-right: auto;
+    margin-left: 0;
+}
+
+.assistant-message .voice-play-btn {
+    background: linear-gradient(135deg, #4A90E2 0%, #6BA3D6 100%);
+    border: none;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    min-width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+    transition: all 0.2s ease;
+}
+
+.assistant-message .voice-play-btn svg {
+    margin-left: 1px;
+}
+
+.assistant-message .voice-waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 24px;
+    min-width: 120px;
+    padding: 0 8px;
+}
+
+.assistant-message .wave-bar {
+    width: 3px;
+    background: linear-gradient(135deg, #4A90E2 0%, #6BA3D6 100%);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+    animation: wave-pulse 2s ease-in-out infinite;
+    opacity: 0.8;
+}
+
+/* Сообщение пользователя - справа */
+.user-message {
+    background: #4A90E2;
+    align-self: flex-end;
+    margin-left: auto;
+    margin-right: 0;
+}
+
+.user-message .voice-play-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    min-width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+}
+
+.user-message .voice-waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 24px;
+    min-width: 100px;
+    padding: 0 8px;
+}
+
+.user-message .wave-bar {
+    width: 3px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+    opacity: 0.9;
+}
+
+/* 3. Нижняя панель (Bottom controls) - высота ~100px */
+.voice-bottom-controls {
+    height: 100px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 50px;
+    padding: 20px;
+    z-index: 1;
+}
+
+.voice-add-btn, .voice-keyboard-btn {
+    background: linear-gradient(135deg, rgba(74, 144, 226, 0.1) 0%, rgba(107, 163, 214, 0.1) 100%);
+    border: 1px solid rgba(74, 144, 226, 0.2);
+    cursor: pointer;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(74, 144, 226, 0.15);
+}
+
+.voice-add-btn:hover, .voice-keyboard-btn:hover {
+    background: linear-gradient(135deg, rgba(74, 144, 226, 0.2) 0%, rgba(107, 163, 214, 0.2) 100%);
+    transform: scale(1.15) translateY(-2px);
+    box-shadow: 0 8px 24px rgba(74, 144, 226, 0.25);
+    border-color: rgba(74, 144, 226, 0.4);
+}
+
+/* Центральная кнопка микрофона */
+.voice-mic-btn {
+    width: 80px;
+    height: 80px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7D5FFF 0%, #FF4D8D 50%, #4DBDFF 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 32px rgba(125, 95, 255, 0.5), 0 0 0 0 rgba(125, 95, 255, 0.4);
+    position: relative;
+    animation: pulse-ring 2s infinite;
+}
+
+.voice-mic-btn::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7D5FFF 0%, #FF4D8D 50%, #4DBDFF 100%);
+    z-index: -1;
+    opacity: 0.2;
+    filter: blur(12px);
+    animation: glow-pulse 3s ease-in-out infinite alternate;
+}
+
+.voice-mic-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 12px 40px rgba(125, 95, 255, 0.6), 0 0 0 8px rgba(125, 95, 255, 0.1);
+    box-shadow: 0 6px 30px rgba(125, 95, 255, 0.6);
+}
+
+.voice-mic-btn:active {
+    transform: scale(0.95);
+}
+
+.voice-mic-btn.recording {
+    animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+/* Анимации */
+@keyframes wave-pulse {
+    0%, 100% {
+        transform: scaleY(0.8);
+        opacity: 0.6;
+    }
+    50% {
+        transform: scaleY(1.8);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse-ring {
+    0% {
+        box-shadow: 0 8px 32px rgba(125, 95, 255, 0.5), 0 0 0 0 rgba(125, 95, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 8px 32px rgba(125, 95, 255, 0.5), 0 0 0 8px rgba(125, 95, 255, 0.1);
+    }
+    100% {
+        box-shadow: 0 8px 32px rgba(125, 95, 255, 0.5), 0 0 0 0 rgba(125, 95, 255, 0);
+    }
+}
+
+@keyframes glow-pulse {
+    0% {
+        opacity: 0.2;
+        filter: blur(12px);
+    }
+    100% {
+        opacity: 0.4;
+        filter: blur(16px);
+    }
+}
+
+@keyframes mic-pulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(100, 100, 255, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(100, 100, 255, 0.8);
+    }
+}
+
+/* Адаптивность */
+@media (max-width: 480px) {
+    .voice-bottom-controls {
+        gap: 30px;
+    }
+
+    .voice-mic-btn {
+        width: 64px;
+        height: 64px;
+    }
+
+    .mic-icon {
+        font-size: 24px;
+    }
+}
 
 /* UI 2025-09-18: chart rounding + header color + dates */
 .mood-section h3,
