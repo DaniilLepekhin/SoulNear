@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoulNear</title>
-    <link rel="stylesheet" href="styles.css?v=1758207600">
+    <link rel="stylesheet" href="styles.css?v=1758208300">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script>
 </head>
@@ -159,14 +159,16 @@
     </div>
 
     <!-- Chat Screen -->
-    <div id="chat-screen" class="screen">
+    <div id="chat-screen" class="screen chat-screen">
+        <!-- Header как в макете -->
         <div class="chat-header">
-            <button class="back-btn" onclick="showMainScreen()">←</button>
-            <div class="chat-title">
-                <div class="chat-icon">💬</div>
-                <span>Soul Near GPT</span>
+            <div class="chat-left-controls">
+                <button class="chat-back-btn" onclick="showVoiceChat()">←</button>
             </div>
-            <button class="menu-btn">⚙️</button>
+            <h1 class="chat-title">Soul Near GPT</h1>
+            <div class="chat-avatar">
+                <img src="Robo.png" alt="SoulNear Assistant" />
+            </div>
         </div>
 
         <div class="chat-messages" id="chatMessages">
@@ -193,10 +195,17 @@
         </div>
 
         <div class="chat-input-container">
-            <button class="chat-add-btn">+</button>
+            <button class="chat-add-btn">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 4V16M4 10H16" stroke="#4A90E2" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
             <input type="text" id="chatInput" placeholder="Чем я могу помочь?" />
-            <button class="voice-btn" onclick="toggleVoiceRecording()">
-                <div class="voice-icon"></div>
+            <button class="chat-voice-btn" onclick="showVoiceChat()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 14C13.66 14 15 12.66 15 11V5C15 3.34 13.66 2 12 2C10.34 2 9 3.34 9 5V11C9 12.66 10.34 14 12 14Z" fill="white"/>
+                    <path d="M19 11C19 14.53 16.39 17.44 13 17.93V21H11V17.93C7.61 17.44 5 14.53 5 11H7C7 13.76 9.24 16 12 16C14.76 16 17 13.76 17 11H19Z" fill="white"/>
+                </svg>
             </button>
         </div>
     </div>
@@ -285,7 +294,7 @@
                     <path d="M19 11C19 14.53 16.39 17.44 13 17.93V21H11V17.93C7.61 17.44 5 14.53 5 11H7C7 13.76 9.24 16 12 16C14.76 16 17 13.76 17 11H19Z" fill="white"/>
                 </svg>
             </button>
-            <button class="voice-keyboard-btn">
+            <button class="voice-keyboard-btn" onclick="showScreen('chat-screen')">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <rect x="2" y="6" width="16" height="10" rx="2" stroke="#4A90E2" stroke-width="1.5" fill="none"/>
                     <rect x="4" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
@@ -586,7 +595,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=1758207600"></script>
+    <script src="app.js?v=1758208200"></script>
     <script>
         // Auto-update month and greeting
         function updateContent() {
@@ -624,7 +633,53 @@
         }
 
         // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', updateContent);
+        document.addEventListener('DOMContentLoaded', function() {
+            updateContent();
+
+            // Исправление эмодзи: обработать twemoji везде кроме чата
+            if (typeof twemoji !== 'undefined') {
+                // Сначала обработаем twemoji как обычно
+                twemoji.parse(document.body);
+
+                // Затем заменим картинки на обычные эмодзи в области чата
+                setTimeout(() => {
+                    const chatMessages = document.querySelector('.chat-messages');
+                    if (chatMessages) {
+                        const emojiImages = chatMessages.querySelectorAll('img.emoji');
+                        emojiImages.forEach(img => {
+                            const alt = img.alt;
+                            if (alt) {
+                                const span = document.createElement('span');
+                                span.textContent = alt;
+                                span.style.fontFamily = 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif';
+                                span.style.letterSpacing = 'normal';
+                                span.style.wordSpacing = 'normal';
+                                img.parentNode.replaceChild(span, img);
+                            }
+                        });
+
+                        // Нормализуем пробелы в тексте
+                        const textNodes = [];
+                        const walker = document.createTreeWalker(
+                            chatMessages,
+                            NodeFilter.SHOW_TEXT,
+                            null,
+                            false
+                        );
+                        let node;
+                        while (node = walker.nextNode()) {
+                            textNodes.push(node);
+                        }
+
+                        textNodes.forEach(textNode => {
+                            if (textNode.textContent) {
+                                textNode.textContent = textNode.textContent.replace(/\s+/g, ' ');
+                            }
+                        });
+                    }
+                }, 100);
+            }
+        });
 
         // Also update when Telegram WebApp is ready
         if (window.Telegram && window.Telegram.WebApp) {

@@ -219,6 +219,11 @@ function showMainScreen() {
     updateNavigation('main-screen');
 }
 
+function showVoiceChat() {
+    showScreen('voice-chat-screen');
+    updateNavigation('voice-chat-screen');
+}
+
 
 function showPractices() {
     showScreen('practices-screen');

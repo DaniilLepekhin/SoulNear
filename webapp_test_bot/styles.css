@@ -1049,6 +1049,253 @@ body {
 .greeting-section h2 { color: #1976D2 !important; }
 .mood-section .mood-selector { background: #1976D2 !important; }
 
+/* ========================================
+   ТЕКСТОВЫЙ ЧАТ С АССИСТЕНТОМ - ПО МАКЕТУ
+======================================== */
+
+/* Экран чата */
+.chat-screen {
+    background: linear-gradient(135deg, #F0F7FF 0%, #E6F2FF 50%, #DDE9F5 100%) !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 1;
+}
+
+.chat-screen.active {
+    z-index: 10;
+}
+
+/* Header чата */
+.chat-header {
+    height: 60px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    position: relative;
+    z-index: 1;
+    margin-bottom: 10px;
+}
+
+.chat-left-controls {
+    display: flex;
+    align-items: center;
+    min-width: 40px;
+}
+
+.chat-back-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #4A90E2;
+    cursor: pointer;
+    padding: 4px;
+    min-width: 24px;
+}
+
+.chat-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #4A90E2;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    background: none;
+}
+
+.chat-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.chat-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Сообщения чата */
+.chat-messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.message {
+    display: flex;
+    margin-bottom: 12px;
+    max-width: 85%;
+}
+
+/* Сообщения ассистента (слева, серые) */
+.message.assistant {
+    align-self: flex-start;
+}
+
+.message.assistant .message-content {
+    background: #F7F7F7;
+    color: #333;
+    padding: 12px 16px;
+    border-radius: 18px 18px 18px 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    font-size: 15px;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0;
+    word-spacing: 0;
+}
+
+/* Сообщения пользователя (справа, голубые) */
+.message.user {
+    align-self: flex-end;
+}
+
+.message.user .message-content {
+    background: linear-gradient(135deg, #4A90E2 0%, #6BA3D6 100%);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 18px 18px 4px 18px;
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+    font-size: 15px;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0;
+    word-spacing: 0;
+}
+
+.message-subtext {
+    margin-top: 4px;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+/* Исправление размера эмодзи в сообщениях */
+.chat-messages img.emoji,
+.chat-messages .twemoji {
+    height: 1.2em !important;
+    width: 1.2em !important;
+    display: inline !important;
+    vertical-align: text-bottom !important;
+    margin: 0 0.1em !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Отключить twemoji для области чата */
+.chat-messages {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+    letter-spacing: normal;
+    word-spacing: normal;
+}
+
+.chat-messages * {
+    font-family: inherit;
+    letter-spacing: normal;
+    word-spacing: normal;
+    line-height: 1.4;
+}
+
+.message-content {
+    letter-spacing: normal !important;
+    word-spacing: normal !important;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.message-content p {
+    margin: 0;
+    padding: 0;
+    letter-spacing: normal;
+    word-spacing: normal;
+    line-height: 1.4;
+}
+
+/* Нижняя панель ввода */
+.chat-input-container {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 25px;
+    margin: 20px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.chat-add-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.chat-add-btn:hover {
+    background: rgba(74, 144, 226, 0.1);
+    transform: scale(1.1);
+}
+
+#chatInput {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 16px;
+    color: #333;
+    padding: 12px 8px;
+}
+
+#chatInput::placeholder {
+    color: #4A90E2;
+    opacity: 0.7;
+}
+
+.chat-voice-btn {
+    background: linear-gradient(135deg, #7D5FFF 0%, #FF4D8D 50%, #4DBDFF 100%);
+    border: none;
+    cursor: pointer;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(125, 95, 255, 0.4);
+}
+
+.chat-voice-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(125, 95, 255, 0.6);
+}
+
 /* cache-bust 1758206594 */
 
 /* ========================================
@@ -1057,7 +1304,7 @@ body {
 
 /* Экран голосового чата */
 .voice-chat-screen {
-    background: #F5F9FF !important;
+    background: linear-gradient(135deg, #F0F7FF 0%, #E6F2FF 50%, #DDE9F5 100%) !important;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
