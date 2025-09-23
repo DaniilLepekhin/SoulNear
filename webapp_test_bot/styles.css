@@ -627,66 +627,356 @@ body {
 }
 
 /* Practice Screen */
-.practice-screen {
-    padding: 20px;
-    background: linear-gradient(135deg, #F8FCFF 0%, #F0F8FF 50%, #E8F4FD 100%);
+/* ========================================
+   ЭКРАН ПРАКТИК - ПО МАКЕТУ
+======================================== */
+
+.practices-screen {
+    background: linear-gradient(135deg, #F0F7FF 0%, #E6F2FF 50%, #DDE9F5 100%) !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 20px 16px;
+    padding-bottom: 100px; /* Место для навигации */
+    overflow-y: auto;
 }
 
-.practice-header {
-    text-align: center;
-    margin-bottom: 30px;
+/* 1. Заголовок */
+.practices-header {
+    margin-bottom: 20px;
 }
 
-.practice-header h2 {
-    font-size: 24px;
+.practices-title {
+    font-size: 28px;
+    font-weight: 600;
     color: #2C5282;
-    margin-bottom: 10px;
+    margin: 0;
+    text-align: left;
 }
 
-.practice-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 100px;
+/* 2. Фильтры категорий */
+.practices-filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
-.practice-card {
-    background: white;
+.practices-filters::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-btn {
+    padding: 8px 16px;
     border-radius: 20px;
-    padding: 25px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
-    cursor: pointer;
-}
-
-.practice-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(0,0,0,0.15);
-}
-
-.practice-card h3 {
-    font-size: 18px;
-    color: #2C5282;
-    margin-bottom: 10px;
-}
-
-.practice-card p {
-    font-size: 14px;
+    border: 1.5px solid #4A90E2;
+    background: white;
     color: #4A90E2;
-    line-height: 1.5;
-    margin-bottom: 15px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.practice-btn {
-    background: linear-gradient(145deg, #4A90E2 0%, #357ABD 100%);
+.filter-btn.active {
+    background: #4A90E2;
     color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 15px;
-    font-size: 14px;
-    cursor: pointer;
-    width: 100%;
+    border-color: #4A90E2;
 }
+
+.filter-btn:hover {
+    transform: scale(1.02);
+}
+
+.favorite-filter svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* 3. Контент практик */
+.practices-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 4. Ряд карточек План на день и Вечерняя йога */
+.practice-cards-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+/* 5. Карточка План на день */
+.plan-card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    position: relative;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2C5282;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.card-favorite {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #94A3B8;
+    transition: color 0.2s ease;
+}
+
+.card-favorite:hover {
+    color: #E53E3E;
+}
+
+.card-favorite.active {
+    color: #E53E3E;
+}
+
+.card-favorite.active svg path {
+    fill: #E53E3E;
+    stroke: #E53E3E;
+}
+
+.plan-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.plan-item {
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    border: 1px solid #E2E8F0;
+    background: white;
+    color: #64748B;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.plan-item.active {
+    background: #4A90E2;
+    color: white;
+    border-color: #4A90E2;
+}
+
+.plan-item:hover:not(.active) {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+}
+
+/* 6. Карточка Вечерняя йога */
+.evening-card {
+    background: #4A90E2;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(74,144,226,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+}
+
+.evening-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* 7. Блок Медитация */
+.meditation-block {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.meditation-info {
+    flex: 1;
+}
+
+.meditation-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2C5282;
+    margin: 0 0 8px 0;
+}
+
+.meditation-tags {
+    display: flex;
+    gap: 8px;
+}
+
+.tag {
+    padding: 4px 12px;
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #64748B;
+    font-weight: 500;
+}
+
+.meditation-play-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #4A90E2;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(74,144,226,0.3);
+}
+
+.meditation-play-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(74,144,226,0.4);
+}
+
+/* 8. Карточка Превью медитации */
+.preview-card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.preview-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.preview-image {
+    flex: 1;
+    height: 80px;
+    background: #F1F5F9;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-right: 12px;
+}
+
+.preview-label {
+    font-size: 12px;
+    color: #64748B;
+    margin-bottom: 8px;
+}
+
+.preview-play-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #4A90E2;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.preview-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.preview-price,
+.preview-favorite {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #E2E8F0;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #64748B;
+}
+
+.preview-price:hover,
+.preview-favorite:hover {
+    border-color: #4A90E2;
+    color: #4A90E2;
+}
+
+.preview-favorite.active {
+    color: #E53E3E;
+    border-color: #E53E3E;
+}
+
+.preview-favorite.active svg path {
+    fill: #E53E3E;
+    stroke: #E53E3E;
+}
+
+.preview-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin: 0;
+    text-align: left;
+}
+
+/* ========================================
+   EMOJI FIXES
+======================================== */
+
+/* Ограничиваем размер всех emoji изображений */
+img.emoji {
+    height: 1.2em !important;
+    width: 1.2em !important;
+    margin: 0 0.05em 0 0.1em !important;
+    vertical-align: -0.1em !important;
+    display: inline !important;
+}
+
+/* Для значков в календаре */
+.day-badge img.emoji {
+    height: 14px !important;
+    width: 14px !important;
+    margin: 0 !important;
+}
+
+/* ========================================
+   ПРОФИЛЬ
+======================================== */
 
 /* Profile Screen */
 .profile-screen {

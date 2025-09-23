@@ -638,31 +638,9 @@ function vibrate(pattern = [100]) {
 }
 
 function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: ${type === 'error' ? '#FF1744' : '#1565C0'};
-        color: white;
-        padding: 15px 30px;
-        border-radius: 25px;
-        z-index: 1000;
-        animation: slideDown 0.3s ease-out;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    `;
-
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.style.animation = 'slideUp 0.3s ease-out';
-        setTimeout(() => {
-            notification.remove();
-        }, 300);
-    }, 3000);
+    // Уведомления отключены для лучшего UX
+    console.log(`Notification (${type}):`, message);
+    return; // Просто логируем, не показываем уведомление
 }
 
 // Performance optimization
@@ -685,11 +663,25 @@ const handleResize = debounce(() => {
 
 window.addEventListener('resize', handleResize);
 
-// Error handling
-window.addEventListener('error', function(e) {
-    console.error('JavaScript error:', e.error);
-    showNotification('Произошла ошибка. Попробуйте обновить страницу.', 'error');
-});
+// Error handling полностью отключен для лучшего UX
+// window.addEventListener('error', function(e) {
+//     console.error('JavaScript error:', e.error);
+// });
+
+// Export functions to global scope for direct access
+window.showScreen = showScreen;
+window.showMainScreen = showMainScreen;
+window.showPractices = showPractices;
+window.showProfile = showProfile;
+window.showVoiceChat = showVoiceChat;
+window.toggleVoiceRecording = toggleVoiceRecording;
+window.filterPractices = filterPractices;
+window.toggleFavorite = toggleFavorite;
+window.playMeditation = playMeditation;
+window.selectPlanItem = selectPlanItem;
+window.setMood = setMood;
+window.goToHistory = goToHistory;
+window.sendChatMessage = sendChatMessage;
 
 // Export functions for potential module usage
 window.SoulNearApp = {
@@ -700,13 +692,20 @@ window.SoulNearApp = {
     stopVoiceRecording,
     playPractice,
     filterPractices,
+    toggleFavorite,
+    playMeditation,
+    selectPlanItem,
     vibrate,
     showNotification
 };
-// twemoji parse on load
+// twemoji parse on load - only for main screen badges
 document.addEventListener("DOMContentLoaded", function(){
   if (window.twemoji) {
-    window.twemoji.parse(document.body, {folder: "svg", ext: ".svg"});
+    // Только для значков в календаре на главном экране
+    const calendarBadges = document.querySelectorAll('.day-badge');
+    calendarBadges.forEach(badge => {
+      window.twemoji.parse(badge, {folder: "svg", ext: ".svg"});
+    });
   }
 });
 

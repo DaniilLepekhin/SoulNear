@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoulNear</title>
-    <link rel="stylesheet" href="styles.css?v=1758208300">
+    <link rel="stylesheet" href="styles.css?v=1758208700">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script>
+    <!-- <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script> --> <!-- Отключено для лучшей производительности -->
 </head>
 <body>
     <!-- Splash Screen -->
@@ -311,48 +311,91 @@
     </div>
 
     <!-- Practices Screen -->
-    <div id="practices-screen" class="screen">
+    <div id="practices-screen" class="screen practices-screen">
+        <!-- Заголовок -->
         <div class="practices-header">
-            <h2>Практики</h2>
+            <h1 class="practices-title">Практики</h1>
         </div>
 
+        <!-- Фильтры категорий -->
         <div class="practices-filters">
-            <button class="filter-btn active">Все</button>
-            <button class="filter-btn">❤️</button>
-            <button class="filter-btn">Медитации</button>
-            <button class="filter-btn">Йога</button>
+            <button class="filter-btn active" onclick="filterPractices('all')">Все</button>
+            <button class="filter-btn favorite-filter" onclick="filterPractices('favorite')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/>
+                </svg>
+            </button>
+            <button class="filter-btn" onclick="filterPractices('meditation')">Медитации</button>
+            <button class="filter-btn" onclick="filterPractices('yoga')">Йога</button>
         </div>
 
+        <!-- Контент практик -->
         <div class="practices-content">
-            <div class="practice-card plan-card">
-                <h3>План на день</h3>
-                <div class="plan-items">
-                    <div class="plan-item active">Аффирмации</div>
-                    <div class="plan-item">Медитация</div>
-                    <div class="plan-item">Мантры</div>
+            <!-- Блок План на день -->
+            <div class="practice-cards-row">
+                <div class="practice-card plan-card">
+                    <div class="card-header">
+                        <h3 class="card-title">План<br>на день</h3>
+                        <button class="card-favorite" onclick="toggleFavorite(this)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="currentColor" stroke-width="2" fill="none"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="plan-items">
+                        <button class="plan-item active" onclick="selectPlanItem(this)">Аффирмации</button>
+                        <button class="plan-item" onclick="selectPlanItem(this)">Медитация</button>
+                        <button class="plan-item" onclick="selectPlanItem(this)">Мантры</button>
+                    </div>
                 </div>
-                <button class="plan-favorite">♡</button>
+
+                <!-- Карточка Вечерняя йога -->
+                <div class="practice-card evening-card">
+                    <h3 class="evening-title">Вечерняя<br>йога</h3>
+                </div>
             </div>
 
-            <div class="practice-card evening-card">
-                <h3>Вечерняя йога</h3>
-            </div>
-
-            <div class="practice-item">
-                <div class="practice-info">
-                    <h4>Медитация</h4>
-                    <div class="practice-tags">
+            <!-- Блок Медитация -->
+            <div class="meditation-block">
+                <div class="meditation-info">
+                    <h4 class="meditation-title">Медитация</h4>
+                    <div class="meditation-tags">
                         <span class="tag">7 мин</span>
                         <span class="tag">Утренняя</span>
                     </div>
                 </div>
-                <button class="practice-play-btn">▶</button>
+                <button class="meditation-play-btn" onclick="playMeditation()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 5V19L19 12L8 5Z" fill="white"/>
+                    </svg>
+                </button>
             </div>
 
-            <div class="practice-premium">
-                <div class="premium-icon">Ⓟ</div>
-                <h4>Пережить тяжелый момент</h4>
-                <button class="premium-favorite">♡</button>
+            <!-- Карточка Превью медитации -->
+            <div class="preview-card">
+                <div class="preview-content">
+                    <div class="preview-image">
+                        <span class="preview-label">Превью</span>
+                        <button class="preview-play-btn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M8 5V19L19 12L8 5Z" fill="white"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="preview-actions">
+                        <button class="preview-price">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <button class="preview-favorite" onclick="toggleFavorite(this)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="currentColor" stroke-width="2" fill="none"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <h4 class="preview-title">Пережить тяжелый момент</h4>
             </div>
         </div>
 
@@ -595,7 +638,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=1758208200"></script>
+    <script src="app.js?v=1758208700"></script>
     <script>
         // Auto-update month and greeting
         function updateContent() {
@@ -636,49 +679,45 @@
         document.addEventListener('DOMContentLoaded', function() {
             updateContent();
 
-            // Исправление эмодзи: обработать twemoji везде кроме чата
-            if (typeof twemoji !== 'undefined') {
-                // Сначала обработаем twemoji как обычно
-                twemoji.parse(document.body);
-
-                // Затем заменим картинки на обычные эмодзи в области чата
-                setTimeout(() => {
-                    const chatMessages = document.querySelector('.chat-messages');
-                    if (chatMessages) {
-                        const emojiImages = chatMessages.querySelectorAll('img.emoji');
-                        emojiImages.forEach(img => {
-                            const alt = img.alt;
-                            if (alt) {
-                                const span = document.createElement('span');
-                                span.textContent = alt;
-                                span.style.fontFamily = 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif';
-                                span.style.letterSpacing = 'normal';
-                                span.style.wordSpacing = 'normal';
-                                img.parentNode.replaceChild(span, img);
-                            }
-                        });
-
-                        // Нормализуем пробелы в тексте
-                        const textNodes = [];
-                        const walker = document.createTreeWalker(
-                            chatMessages,
-                            NodeFilter.SHOW_TEXT,
-                            null,
-                            false
-                        );
-                        let node;
-                        while (node = walker.nextNode()) {
-                            textNodes.push(node);
+            // Twemoji обработка удалена - используется нативные эмодзи для лучшей производительности
+            // Обработка только для чата, если необходимо
+            setTimeout(() => {
+                const chatMessages = document.querySelector('.chat-messages');
+                if (chatMessages) {
+                    // Заменяем twemoji картинки на обычные эмодзи в чате
+                    const emojiImages = chatMessages.querySelectorAll('img.emoji');
+                    emojiImages.forEach(img => {
+                        const alt = img.alt;
+                        if (alt) {
+                            const span = document.createElement('span');
+                            span.textContent = alt;
+                            span.style.fontFamily = 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif';
+                            span.style.letterSpacing = 'normal';
+                            span.style.wordSpacing = 'normal';
+                            img.parentNode.replaceChild(span, img);
                         }
+                    });
 
-                        textNodes.forEach(textNode => {
-                            if (textNode.textContent) {
-                                textNode.textContent = textNode.textContent.replace(/\s+/g, ' ');
-                            }
-                        });
+                    // Нормализуем пробелы в тексте
+                    const textNodes = [];
+                    const walker = document.createTreeWalker(
+                        chatMessages,
+                        NodeFilter.SHOW_TEXT,
+                        null,
+                        false
+                    );
+                    let node;
+                    while (node = walker.nextNode()) {
+                        textNodes.push(node);
                     }
-                }, 100);
-            }
+
+                    textNodes.forEach(textNode => {
+                        if (textNode.textContent) {
+                            textNode.textContent = textNode.textContent.replace(/\s+/g, ' ');
+                        }
+                    });
+                }
+            }, 100);
         });
 
         // Also update when Telegram WebApp is ready
