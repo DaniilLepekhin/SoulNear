@@ -1,0 +1,91 @@
+/* 8. Карточка Превью - новая структура */
+.preview-card {
+    background: linear-gradient(135deg, #F8FCFF 0%, #F0F8FF 100%);
+    border-radius: 20px;
+    padding: 20px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 2px;
+    min-height: 120px;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+/* Стеклянный оверлей поверх всей области */
+.preview-glass-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    border-radius: 20px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.preview-glass-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    font-weight: 200;
+    color: #B0B0B0;
+    text-align: center;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Центральная кнопка play */
+.preview-center-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    padding: 8px;
+}
+
+.preview-center-play-btn:hover {
+    transform: translate(-50%, -50%) scale(1.2);
+    filter: drop-shadow(0 4px 12px rgba(74, 144, 226, 0.4));
+}
+
+/* Кнопки рубля и сердца */
+.preview-card .preview-price {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 15;
+}
+
+.preview-card .preview-favorite {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    z-index: 15;
+}
+
+/* Заголовок поверх всей области */
+.preview-title-overlay {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4A90E2;
+    margin: 0;
+    z-index: 12;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 4px 8px;
+    border-radius: 8px;
+    backdrop-filter: blur(4px);
+}
