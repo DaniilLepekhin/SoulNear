@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>SoulNear</title>
-    <link rel="stylesheet" href="styles.css?v=1758208700">
+    <link rel="stylesheet" href="styles.css?v=1758829280">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script> --> <!-- Отключено для лучшей производительности -->
 </head>
@@ -322,7 +325,7 @@
             <button class="filter-btn active" onclick="filterPractices('all')">Все</button>
             <button class="filter-btn favorite-filter" onclick="filterPractices('favorite')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/>
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="none"/>
                 </svg>
             </button>
             <button class="filter-btn" onclick="filterPractices('meditation')">Медитации</button>
@@ -336,16 +339,11 @@
                 <div class="practice-card plan-card">
                     <div class="card-header">
                         <h3 class="card-title">План<br>на день</h3>
-                        <button class="card-favorite" onclick="toggleFavorite(this)">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="currentColor" stroke-width="2" fill="none"/>
-                            </svg>
-                        </button>
                     </div>
-                    <div class="plan-items">
-                        <button class="plan-item active" onclick="selectPlanItem(this)">Аффирмации</button>
-                        <button class="plan-item" onclick="selectPlanItem(this)">Медитация</button>
-                        <button class="plan-item" onclick="selectPlanItem(this)">Мантры</button>
+                    <div class="plan-items" style="display: flex !important; flex-direction: column !important; gap: 2px !important; margin: 0 !important; padding: 0 !important;">
+                        <button class="plan-item active" onclick="selectPlanItem(this)" style="padding: 6px 12px !important; border-radius: 16px !important; font-size: 12px !important; height: 32px !important; border: 1px solid #2E6BEB !important; background: #2E6BEB !important; color: white !important; cursor: pointer !important; text-align: left !important; font-weight: 500 !important; display: flex !important; align-items: center !important; justify-content: flex-start !important; margin: 0 !important; box-sizing: border-box !important; pointer-events: auto !important; position: relative !important; z-index: 10 !important;">Аффирмации</button>
+                        <button class="plan-item" onclick="selectPlanItem(this)" style="padding: 6px 12px !important; border-radius: 16px !important; font-size: 12px !important; height: 32px !important; border: 1px solid #2E6BEB !important; background: #FFFFFF !important; color: #2E6BEB !important; cursor: pointer !important; text-align: left !important; font-weight: 500 !important; display: flex !important; align-items: center !important; justify-content: flex-start !important; margin: 0 !important; box-sizing: border-box !important; pointer-events: auto !important; position: relative !important; z-index: 10 !important;">Медитация</button>
+                        <button class="plan-item" onclick="selectPlanItem(this)" style="padding: 6px 12px !important; border-radius: 16px !important; font-size: 12px !important; height: 32px !important; border: 1px solid #2E6BEB !important; background: #FFFFFF !important; color: #2E6BEB !important; cursor: pointer !important; text-align: left !important; font-weight: 500 !important; display: flex !important; align-items: center !important; justify-content: flex-start !important; margin: 0 !important; box-sizing: border-box !important; pointer-events: auto !important; position: relative !important; z-index: 10 !important;">Мантры</button>
                     </div>
                 </div>
 
@@ -356,7 +354,7 @@
             </div>
 
             <!-- Блок Медитация -->
-            <div class="meditation-block">
+            <div class="meditation-card">
                 <div class="meditation-info">
                     <h4 class="meditation-title">Медитация</h4>
                     <div class="meditation-tags">
@@ -371,31 +369,42 @@
                 </button>
             </div>
 
-            <!-- Карточка Превью медитации -->
-            <div class="preview-card">
-                <div class="preview-content">
-                    <div class="preview-image">
-                        <span class="preview-label">Превью</span>
-                        <button class="preview-play-btn">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <path d="M8 5V19L19 12L8 5Z" fill="white"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="preview-actions">
-                        <button class="preview-price">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z" fill="currentColor"/>
-                            </svg>
-                        </button>
-                        <button class="preview-favorite" onclick="toggleFavorite(this)">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="currentColor" stroke-width="2" fill="none"/>
-                            </svg>
-                        </button>
-                    </div>
+            <!-- Карточка Превью медитации - новая структура -->
+            <div class="preview-card" onclick="playVideo()">
+                <!-- Стеклянный оверлей поверх всей области -->
+                <div class="preview-glass-overlay">
+                    <span class="preview-glass-label">Превью</span>
                 </div>
-                <h4 class="preview-title">Пережить тяжелый момент</h4>
+
+                <!-- Центральная кнопка play -->
+                <button class="preview-center-play-btn" onclick="event.stopPropagation(); playVideo()">
+                    <svg width="40" height="40" viewBox="0 0 1800 1800" fill="none">
+                        <g>
+                            <path fill="#4A90E2" d="M1407.629,872.813L693.082,460.273c-9.711-5.604-21.674-5.604-31.385,0
+                                c-9.712,5.609-15.693,15.968-15.693,27.182v631.583c0,17.33,14.051,31.385,31.385,31.385s31.385-14.055,31.385-31.385V541.814
+                                l620.392,358.18l-555.918,320.967c-15.014,8.669-20.154,27.864-11.489,42.874c5.815,10.07,16.363,15.692,27.213,15.692
+                                c5.324,0,10.719-1.357,15.662-4.203l602.995-348.148c9.711-5.609,15.692-15.969,15.692-27.182
+                                C1423.321,888.781,1417.34,878.421,1407.629,872.813z"/>
+                            <path fill="#4A90E2" d="M899.993,5.324c-493.322,0-894.67,401.352-894.67,894.679c0,493.322,401.348,894.674,894.67,894.674
+                                c493.331,0,894.683-401.352,894.683-894.674C1794.676,406.676,1393.324,5.324,899.993,5.324z M899.993,1731.906
+                                c-458.71,0-831.899-373.188-831.899-831.903S441.283,68.095,899.993,68.095c458.719,0,831.912,373.193,831.912,831.908
+                                S1358.712,1731.906,899.993,1731.906z"/>
+                        </g>
+                    </svg>
+                </button>
+
+                <!-- Кнопка рубля (верх справа) -->
+                <button class="preview-price" onclick="event.stopPropagation(); handlePriceClick()">₽</button>
+
+                <!-- Кнопка сердца (низ справа) -->
+                <button class="preview-favorite" onclick="event.stopPropagation(); toggleFavorite(this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="#4A90E2" stroke-width="1.5" fill="none"/>
+                    </svg>
+                </button>
+
+                <!-- Заголовок поверх всей области -->
+                <h4 class="preview-title-overlay">Пережить тяжелый момент</h4>
             </div>
         </div>
 
@@ -638,7 +647,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=1758208700"></script>
+    <script src="app.js?v=1758311900"></script>
     <script>
         // Auto-update month and greeting
         function updateContent() {

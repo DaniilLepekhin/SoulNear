@@ -614,7 +614,15 @@ function filterPractices(filter) {
         btn.classList.remove('active');
     });
 
-    event.target.classList.add('active');
+    // Find the button element (event.target might be SVG or other child element)
+    let targetButton = event.target;
+    while (targetButton && !targetButton.classList.contains('filter-btn')) {
+        targetButton = targetButton.parentElement;
+    }
+
+    if (targetButton) {
+        targetButton.classList.add('active');
+    }
 
     // Send filter data to Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp) {
@@ -641,6 +649,26 @@ function showNotification(message, type = 'info') {
     // Уведомления отключены для лучшего UX
     console.log(`Notification (${type}):`, message);
     return; // Просто логируем, не показываем уведомление
+}
+
+// Функция для выбора элемента плана на день
+function selectPlanItem(button) {
+    // Убираем active класс у всех кнопок в этом контейнере
+    const allButtons = button.parentElement.querySelectorAll('.plan-item');
+    allButtons.forEach(btn => {
+        btn.classList.remove('active');
+        // Сбрасываем стили для неактивной кнопки
+        btn.style.background = '#FFFFFF';
+        btn.style.color = '#2E6BEB';
+    });
+
+    // Добавляем active класс к текущей кнопке
+    button.classList.add('active');
+    // Устанавливаем стили для активной кнопки
+    button.style.background = '#2E6BEB';
+    button.style.color = 'white';
+
+    console.log('Selected plan item:', button.textContent);
 }
 
 // Performance optimization
@@ -677,7 +705,20 @@ window.showVoiceChat = showVoiceChat;
 window.toggleVoiceRecording = toggleVoiceRecording;
 window.filterPractices = filterPractices;
 window.toggleFavorite = toggleFavorite;
+// Preview video functions
+function playVideo() {
+    console.log('Playing video preview...');
+    // Here you would implement video playback logic
+}
+
+function handlePriceClick() {
+    console.log('Price button clicked');
+    // Here you would implement price/payment logic
+}
+
 window.playMeditation = playMeditation;
+window.playVideo = playVideo;
+window.handlePriceClick = handlePriceClick;
 window.selectPlanItem = selectPlanItem;
 window.setMood = setMood;
 window.goToHistory = goToHistory;
