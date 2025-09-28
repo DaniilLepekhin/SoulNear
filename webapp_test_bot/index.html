@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>SoulNear</title>
-    <link rel="stylesheet" href="styles.css?v=1759087755">
+    <link rel="stylesheet" href="styles.css?v=1759088900">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script> --> <!-- Отключено для лучшей производительности -->
 </head>
@@ -517,30 +517,63 @@
     </div>
 
     <!-- Profile Screen -->
-    <div id="profile-screen" class="screen">
+    <div id="profile-screen" class="screen profile-screen">
         <div class="profile-header">
-            <h2>Профиль</h2>
+            <h2 class="profile-title">Профиль</h2>
         </div>
 
         <div class="profile-content">
             <div class="profile-card">
-                <div class="profile-avatar"></div>
+                <div class="profile-avatar-container">
+                    <div class="profile-avatar" id="profile-avatar">
+                        <img id="profile-avatar-img" style="display:none;" alt="Avatar">
+                        <svg id="profile-avatar-placeholder" width="60" height="60" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v1c0 .55.45 1 1 1h14c.55 0 1-.45 1-1v-1c0-2.66-5.33-4-8-4z" fill="#4A90E2"/>
+                        </svg>
+                    </div>
+                </div>
                 <div class="achievement-grid">
-                    <div class="achievement-slot"></div>
-                    <div class="achievement-slot"></div>
+                    <div class="achievement-slot">
+                        <div class="achievement-placeholder"></div>
+                    </div>
+                    <div class="achievement-slot">
+                        <div class="achievement-placeholder"></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="profile-menu">
-                <div class="profile-menu-item">
-                    <div class="menu-item-icon">❓</div>
-                    <span>Помощь</span>
-                    <div class="menu-arrow">→</div>
+            <div class="profile-menu-block">
+                <div class="profile-menu-item" onclick="showHelp()">
+                    <div class="menu-item-left">
+                        <div class="menu-item-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="#4A90E2" stroke-width="2"/>
+                                <path d="M12 16v-1m0-3c0-1 1-2 2-2.5C15 9 15 8 14 7c-1.5-1.5-4-.5-4 1.5" stroke="#4A90E2" stroke-width="2" stroke-linecap="round"/>
+                                <circle cx="12" cy="19" r="1" fill="#4A90E2"/>
+                            </svg>
+                        </div>
+                        <span class="menu-item-text">Помощь</span>
+                    </div>
+                    <div class="menu-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 6L15 12L9 18" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
                 </div>
-                <div class="profile-menu-item">
-                    <div class="menu-item-icon">📱</div>
-                    <span>Поддержка Soul Near</span>
-                    <div class="menu-arrow">→</div>
+                <div class="profile-menu-item" onclick="showSupport()">
+                    <div class="menu-item-left">
+                        <div class="menu-item-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" fill="#4A90E2"/>
+                            </svg>
+                        </div>
+                        <span class="menu-item-text">Поддержка Soul Near</span>
+                    </div>
+                    <div class="menu-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 6L15 12L9 18" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
                 </div>
             </div>
         </div>
@@ -667,7 +700,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=1759086880"></script>
+    <script src="app.js?v=1759088700"></script>
     <script>
         // Auto-update month and greeting
         function updateContent() {

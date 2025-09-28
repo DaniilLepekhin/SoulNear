@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
+    // Load Telegram avatar on startup
+    loadTelegramAvatar();
+
     // Show splash screen for 3 seconds then go to onboarding
     setTimeout(() => {
         showScreen('onboarding-screen');
@@ -234,6 +237,30 @@ function showPractices() {
 function showProfile() {
     showScreen('profile-screen');
     updateNavigation('profile-screen');
+    loadTelegramAvatar();
+}
+
+function loadTelegramAvatar() {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+        const user = window.Telegram.WebApp.initDataUnsafe.user;
+        if (user.photo_url) {
+            const img = document.getElementById('profile-avatar-img');
+            const placeholder = document.getElementById('profile-avatar-placeholder');
+            if (img && placeholder) {
+                img.src = user.photo_url;
+                img.style.display = 'block';
+                placeholder.style.display = 'none';
+            }
+        }
+    }
+}
+
+function showHelp() {
+    alert('Раздел помощи в разработке');
+}
+
+function showSupport() {
+    alert('Поддержка Soul Near в разработке');
 }
 
 function showChat() {

@@ -525,12 +525,10 @@ body {
 }
 
 .chat-header {
-    background: white;
+    background: transparent;
     padding: 15px 20px;
-    border-bottom: 1px solid #E2E8F0;
     display: flex;
     align-items: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
 .back-btn {
@@ -1174,96 +1172,146 @@ img.emoji {
 
 /* Profile Screen */
 .profile-screen {
-    padding: 20px;
-    background: linear-gradient(135deg, #F8FCFF 0%, #F0F8FF 50%, #E8F4FD 100%);
+    padding: 0;
+    background: linear-gradient(135deg, #E8F4FD 0%, #D6E8FC 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .profile-header {
-    text-align: center;
-    margin-bottom: 30px;
+    padding: 20px;
+    margin-bottom: 20px;
 }
 
-.profile-header h2 {
-    font-size: 24px;
-    color: #2C5282;
-    margin-bottom: 20px;
+.profile-title {
+    font-size: 20px;
+    color: #4A90E2;
+    font-weight: 600;
+    margin: 0;
+}
+
+.profile-content {
+    padding: 0 20px;
+    flex: 1;
 }
 
 .profile-card {
     background: white;
     border-radius: 20px;
-    padding: 30px;
-    margin-bottom: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    text-align: center;
+    padding: 60px 20px 30px;
+    margin-bottom: 30px;
+    margin-top: 50px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    position: relative;
 }
 
-.avatar {
-    width: 80px;
-    height: 80px;
+.profile-avatar-container {
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    top: -50px;
+    left: 0;
+    right: 0;
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
     border: 3px solid #4A90E2;
-    margin: 0 auto 20px;
-    background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
-}
-
-.achievements {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-    margin-top: 20px;
-}
-
-.achievement {
-    background: linear-gradient(135deg, #F7FAFC 0%, #EDF2F7 100%);
-    border: 2px solid #E2E8F0;
-    border-radius: 15px;
-    padding: 20px;
-    text-align: center;
-}
-
-.achievement.earned {
-    border-color: #4A90E2;
-    background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
-}
-
-.profile-options {
-    margin-top: 20px;
-}
-
-.profile-option {
     background: white;
-    border: 1px solid #E2E8F0;
-    border-radius: 15px;
-    padding: 15px 20px;
-    margin-bottom: 10px;
     display: flex;
     align-items: center;
-    justify-content: between;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.achievement-grid {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.achievement-slot {
+    width: 80px;
+    height: 80px;
+    border: 2px solid #4A90E2;
+    border-radius: 12px;
+    position: relative;
+    background: #F7FAFC;
+}
+
+.achievement-placeholder {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #E8F4FD;
+    border: 2px solid #4A90E2;
+}
+
+.profile-menu-block {
+    background: linear-gradient(135deg, #F8FCFF 0%, #F0F8FF 100%);
+    border-radius: 20px;
+    padding: 8px;
+    margin-top: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.profile-menu-item {
+    background: transparent;
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
-.profile-option:hover {
-    background: #F7FAFC;
-    border-color: #4A90E2;
+.profile-menu-item:not(:last-child) {
+    border-bottom: 1px solid rgba(74, 144, 226, 0.1);
+    margin-bottom: 8px;
+    padding-bottom: 12px;
 }
 
-.profile-option .icon {
-    margin-right: 15px;
-    font-size: 18px;
-    color: #4A90E2;
+.profile-menu-item:hover {
+    background: rgba(255,255,255,0.5);
 }
 
-.profile-option .text {
-    flex: 1;
-    color: #2C5282;
+.menu-item-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.menu-item-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.menu-item-text {
+    font-size: 16px;
+    color: #2C3E50;
     font-weight: 500;
 }
 
-.profile-option .arrow {
-    color: #A0AEC0;
-    font-size: 16px;
+.menu-arrow {
+    width: 20px;
+    height: 20px;
 }
 
 /* Mood Tracking */
