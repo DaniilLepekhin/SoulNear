@@ -816,7 +816,7 @@ function drawMoodChart() {
     ctx.stroke();
 }
 
-// cache-bust 1758206594
+// cache-bust 1759000003
 
 // ========================================
 // ГОЛОСОВОЙ ЧАТ - НОВАЯ ЛОГИКА ПО ТЗ
@@ -975,3 +975,440 @@ function initVoiceChatEvents() {
 document.addEventListener('DOMContentLoaded', function() {
     initVoiceChatEvents();
 });
+
+// ========================================
+// МЕДИТАЦИОННЫЙ ПЛЕЕР - ФУНКЦИОНАЛЬНОСТЬ
+// ========================================
+
+let meditationTimer = null;
+let meditationSeconds = 0;
+let isPlaying = false;
+let breathingCycle = 'inhale'; // 'inhale' или 'exhale'
+let breathingInterval = null;
+
+// Запуск медитации
+function playMeditation() {
+    showScreen('practice-player-screen');
+    startMeditation();
+}
+
+// Показать экран практик
+function showPractices() {
+    showScreen('practices-screen');
+    updateNavigation('practices-screen');
+    stopMeditation();
+}
+
+// Запуск медитации
+function startMeditation() {
+    meditationSeconds = 94; // 1:34 в секундах
+    isPlaying = true;
+
+    // Сначала обновляем UI
+    updateMeditationTimer();
+    updatePlayPauseButton();
+
+    // Инициализируем обработчик кнопки если его еще нет
+    initMeditationPlayer();
+
+    // Запускаем анимацию
+    startBreathingAnimation();
+
+    // Запускаем таймер
+    meditationTimer = setInterval(() => {
+        if (meditationSeconds > 0) {
+            meditationSeconds--;
+            updateMeditationTimer();
+        } else {
+            stopMeditation();
+        }
+    }, 1000);
+
+    console.log('Meditation started, isPlaying:', isPlaying);
+}
+
+// Остановка медитации
+function stopMeditation() {
+    isPlaying = false;
+
+    if (meditationTimer) {
+        clearInterval(meditationTimer);
+        meditationTimer = null;
+    }
+
+    stopBreathingAnimation();
+    updatePlayPauseButton();
+
+    console.log('Meditation stopped');
+}
+
+// Переключение play/pause
+function toggleMeditationPlayback() {
+    console.log('Toggle clicked, current isPlaying:', isPlaying);
+    if (isPlaying) {
+        pauseMeditation();
+    } else {
+        resumeMeditation();
+    }
+}
+
+function pauseMeditation() {
+    console.log('Pausing meditation');
+    isPlaying = false;
+
+    if (meditationTimer) {
+        clearInterval(meditationTimer);
+        meditationTimer = null;
+    }
+
+    stopBreathingAnimation();
+    updatePlayPauseButton();
+    console.log('Meditation paused, isPlaying:', isPlaying);
+}
+
+function resumeMeditation() {
+    console.log('Resuming meditation');
+    isPlaying = true;
+    startBreathingAnimation();
+    updatePlayPauseButton();
+
+    meditationTimer = setInterval(() => {
+        if (meditationSeconds > 0) {
+            meditationSeconds--;
+            updateMeditationTimer();
+        } else {
+            stopMeditation();
+        }
+    }, 1000);
+    console.log('Meditation resumed, isPlaying:', isPlaying);
+}
+
+// Обновление таймера
+function updateMeditationTimer() {
+    const minutes = Math.floor(meditationSeconds / 60);
+    const seconds = meditationSeconds % 60;
+    const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+    const timerElement = document.querySelector('.player-timer');
+    if (timerElement) {
+        timerElement.textContent = timerText;
+    }
+}
+
+// Обновление кнопки play/pause
+function updatePlayPauseButton() {
+    const pauseBtn = document.querySelector('.player-pause-btn');
+    if (pauseBtn) {
+        if (isPlaying) {
+            pauseBtn.innerHTML = '⏸';
+            console.log('Button set to pause (⏸)');
+        } else {
+            pauseBtn.innerHTML = '▶';
+            console.log('Button set to play (▶)');
+        }
+    } else {
+        console.log('Pause button not found for update');
+    }
+}
+
+// Анимация дыхания
+function startBreathingAnimation() {
+    const orbElement = document.querySelector('.breathing-orb');
+    const textElement = document.querySelector('.breathing-text');
+
+    console.log('Starting breathing animation, orb found:', !!orbElement, 'text found:', !!textElement);
+
+    if (!orbElement || !textElement) {
+        console.log('Missing elements for breathing animation');
+        return;
+    }
+
+    // Очищаем предыдущий интервал если есть
+    if (breathingInterval) {
+        clearInterval(breathingInterval);
+    }
+
+    // Плавная анимация дыхания для шейдера
+    function animateBreathing() {
+        const cycleTime = 8000; // 8 секунд полный цикл
+        const halfCycle = cycleTime / 2; // 4 секунды на фазу
+        const startTime = Date.now();
+
+        function updateBreathing() {
+            if (!isPlaying) return;
+
+            const elapsed = (Date.now() - startTime) % cycleTime;
+            const phase = elapsed / halfCycle;
+
+            if (phase < 1) {
+                // Вдох (0 -> 1)
+                breathingIntensity = 0.5 + 0.5 * Math.sin((phase * Math.PI) - Math.PI/2);
+                if (textElement.textContent !== 'Вдох') {
+                    textElement.textContent = 'Вдох';
+                    console.log('Inhale phase');
+                }
+            } else {
+                // Выдох (1 -> 0)
+                const exhalePhase = phase - 1;
+                breathingIntensity = 1.0 - 0.5 * Math.sin((exhalePhase * Math.PI) - Math.PI/2);
+                if (textElement.textContent !== 'Выдох') {
+                    textElement.textContent = 'Выдох';
+                    console.log('Exhale phase');
+                }
+            }
+
+            requestAnimationFrame(updateBreathing);
+        }
+
+        updateBreathing();
+    }
+
+    // Запускаем анимацию
+    animateBreathing();
+}
+
+function stopBreathingAnimation() {
+    if (breathingInterval) {
+        clearInterval(breathingInterval);
+        breathingInterval = null;
+    }
+
+    // Сбрасываем интенсивность дыхания для шейдера
+    breathingIntensity = 1.0;
+
+    const orbElement = document.querySelector('.breathing-orb');
+    const textElement = document.querySelector('.breathing-text');
+
+    if (orbElement) {
+        orbElement.classList.remove('inhale', 'exhale');
+    }
+
+    if (textElement) {
+        textElement.textContent = 'Вдох';
+    }
+}
+
+// Инициализация медитационного плеера
+function initMeditationPlayer() {
+    // Удаляем старые обработчики чтобы избежать дублирования
+    const pauseBtn = document.querySelector('.player-pause-btn');
+    if (pauseBtn) {
+        pauseBtn.removeEventListener('click', toggleMeditationPlayback);
+        pauseBtn.addEventListener('click', toggleMeditationPlayback);
+        console.log('Play/pause button event listener attached');
+    } else {
+        console.log('Play/pause button not found');
+    }
+
+    // Инициализируем таймер и состояние кнопки
+    updateMeditationTimer();
+    updatePlayPauseButton();
+
+    console.log('Meditation player initialized, isPlaying:', isPlaying);
+}
+
+// Обновляем глобальные функции
+window.playMeditation = playMeditation;
+window.showPractices = showPractices;
+window.toggleMeditationPlayback = toggleMeditationPlayback;
+
+// Добавляем инициализацию плеера при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    initVoiceChatEvents();
+    initMeditationPlayer();
+});
+
+// ========================================
+// WEBGL ШЕЙДЕР ДЛЯ ДЫХАТЕЛЬНОЙ ФОРМЫ
+// ========================================
+
+let shaderGL = null;
+let shaderProgram = null;
+let startTime = performance.now();
+let breathingIntensity = 1.0;
+
+function initShaderOrb() {
+    const canvas = document.getElementById('shaderCanvas');
+    if (!canvas) return;
+
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) {
+        console.log('WebGL not supported, using CSS fallback');
+        return;
+    }
+
+    shaderGL = gl;
+
+    const vertexShaderSource = `
+        attribute vec4 position;
+        void main() {
+            gl_Position = position;
+        }
+    `;
+
+    const fragmentShaderSource = `
+        precision mediump float;
+        uniform float iTime;
+        uniform vec2 iResolution;
+        uniform float breathingPhase;
+
+        #define T iTime
+        #define r(v,t) { float a = (t)*T; float c=cos(a), s=sin(a); v = vec2(v.x*c-v.y*s, v.x*s+v.y*c); }
+
+        float hash(float n) {
+            return fract(sin(n)*43758.5453);
+        }
+
+        float noise(vec3 x) {
+            vec3 p = floor(x);
+            vec3 f = fract(x);
+            f = f*f*(3.0-2.0*f);
+            float n = p.x + p.y*57.0 + 113.0*p.z;
+            return mix(mix(mix(hash(n+0.0), hash(n+1.0), f.x),
+                          mix(hash(n+57.0), hash(n+58.0), f.x), f.y),
+                      mix(mix(hash(n+113.0), hash(n+114.0), f.x),
+                          mix(hash(n+170.0), hash(n+171.0), f.x), f.y), f.z);
+        }
+
+        float fbm(vec3 p) {
+            float f = 0.0;
+            f += 0.5000*noise(p); p = p*2.02;
+            f += 0.2500*noise(p); p = p*2.03;
+            f += 0.1250*noise(p); p = p*2.01;
+            f += 0.0625*noise(p);
+            return f;
+        }
+
+        vec3 sfbm3(vec3 p) {
+            return vec3(fbm(p), fbm(p-327.67), fbm(p+327.67))*2.0-1.0;
+        }
+
+        void main() {
+            vec2 uv = (gl_FragCoord.xy - 0.5*iResolution.xy) / iResolution.y;
+            vec3 p = vec3(uv, 0.0);
+
+            // Дыхательная анимация
+            float breathScale = 1.0 + 0.3 * breathingPhase;
+            p /= breathScale;
+
+            // Время для анимации
+            float time = T * 0.5;
+
+            // Создаем органическую форму
+            vec3 pos = p + vec3(0.0, 0.0, time);
+            pos += sfbm3(pos*2.0 + vec3(time*0.3, 0.0, 0.0)) * 0.2;
+
+            float dist = length(pos) - 0.4;
+            dist += fbm(pos*4.0 + vec3(time*0.8, 0.0, 0.0)) * 0.1;
+
+            // Мягкие края
+            float alpha = 1.0 - smoothstep(0.0, 0.2, dist);
+
+            // Пастельные цвета из картинки
+            vec3 color1 = vec3(0.97, 0.90, 1.0);  // #f7e6ff
+            vec3 color2 = vec3(0.81, 0.91, 1.0);  // #cfe9ff
+            vec3 color3 = vec3(0.98, 0.84, 0.95); // #f9d7f1
+            vec3 color4 = vec3(0.84, 0.83, 1.0);  // #d7d4ff
+
+            // Градиент на основе позиции и времени
+            float colorMix = (sin(time + pos.x*3.0)*0.5 + 0.5);
+            colorMix += (cos(time*1.3 + pos.y*2.0)*0.3);
+            colorMix = fract(colorMix);
+
+            vec3 finalColor;
+            if (colorMix < 0.33) {
+                finalColor = mix(color1, color2, colorMix*3.0);
+            } else if (colorMix < 0.66) {
+                finalColor = mix(color2, color3, (colorMix-0.33)*3.0);
+            } else {
+                finalColor = mix(color3, color4, (colorMix-0.66)*3.0);
+            }
+
+            // Добавляем переливы
+            float iridescence = sin(time*2.0 + length(pos)*8.0)*0.3 + 0.7;
+            finalColor *= iridescence;
+
+            gl_FragColor = vec4(finalColor, alpha * 0.9);
+        }
+    `;
+
+    function createShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+            return null;
+        }
+        return shader;
+    }
+
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+    shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+        console.error('Program link error:', gl.getProgramInfoLog(shaderProgram));
+        return;
+    }
+
+    // Создаем полноэкранный quad
+    const positions = new Float32Array([
+        -1, -1,
+         1, -1,
+        -1,  1,
+         1,  1
+    ]);
+
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+    const positionLocation = gl.getAttribLocation(shaderProgram, 'position');
+    const timeLocation = gl.getUniformLocation(shaderProgram, 'iTime');
+    const resolutionLocation = gl.getUniformLocation(shaderProgram, 'iResolution');
+    const breathingLocation = gl.getUniformLocation(shaderProgram, 'breathingPhase');
+
+    function render() {
+        if (!shaderGL || !shaderProgram) return;
+
+        const currentTime = (performance.now() - startTime) / 1000.0;
+
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        gl.useProgram(shaderProgram);
+
+        gl.enableVertexAttribArray(positionLocation);
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniform1f(timeLocation, currentTime);
+        gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+        gl.uniform1f(breathingLocation, breathingIntensity);
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        requestAnimationFrame(render);
+    }
+
+    render();
+    console.log('Shader orb initialized successfully');
+}
+
+// Запускаем шейдер при запуске медитации
+const originalStartMeditation = startMeditation;
+startMeditation = function() {
+    originalStartMeditation();
+    setTimeout(initShaderOrb, 100); // Небольшая задержка для загрузки DOM
+};
