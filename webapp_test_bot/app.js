@@ -1,5 +1,6 @@
 // Global state
 let currentScreen = 'splash-screen';
+let previousScreen = null;
 let isRecording = false;
 let selectedMood = null;
 let chatMessages = [];
@@ -244,6 +245,7 @@ function showVoiceChat() {
 }
 
 function showChatHistory() {
+    previousScreen = currentScreen;
     showScreen('chat-history-screen');
 }
 
@@ -1412,3 +1414,209 @@ startMeditation = function() {
     originalStartMeditation();
     setTimeout(initShaderOrb, 100); // Небольшая задержка для загрузки DOM
 };
+
+// ========================================
+// ИСТОРИЯ ЧАТОВ - УПРАВЛЕНИЕ СЕССИЯМИ
+// ========================================
+
+// Хранилище чатов
+let chatSessions = [
+    { id: 1, title: 'Как справляться со стрессом', date: new Date(), messages: [] },
+    { id: 2, title: 'Проблемы на работе', date: new Date(), messages: [] },
+    { id: 3, title: 'Поссорились с парнем', date: new Date(Date.now() - 86400000), messages: [] }
+];
+
+let currentChatId = null;
+
+// Создать новый чат
+function createNewChat() {
+    const newChat = {
+        id: Date.now(),
+        title: 'Новый диалог',
+        date: new Date(),
+        messages: []
+    };
+    chatSessions.unshift(newChat);
+    currentChatId = newChat.id;
+
+    // Очищаем сообщения в voice-messages
+    const voiceMessages = document.querySelector('.voice-messages');
+    if (voiceMessages) {
+        voiceMessages.innerHTML = '';
+    }
+
+    // Очищаем сообщения в chat-messages
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        chatMessages.innerHTML = '';
+    }
+
+    // Переходим в экран чата
+    showScreen('voice-chat-screen');
+    console.log('Created new chat:', newChat.id);
+}
+
+// Открыть существующий чат
+function openChat(chatId) {
+    currentChatId = chatId;
+    const chat = chatSessions.find(c => c.id === chatId);
+    
+    if (chat) {
+        console.log('Opening chat:', chat.title);
+        // Загружаем сообщения чата
+        loadChatMessages(chat);
+        // Переходим в экран чата
+        showScreen('voice-chat-screen');
+    }
+}
+
+// Загрузить сообщения чата
+function loadChatMessages(chat) {
+    const chatContent = document.querySelector('.chat-content');
+    if (!chatContent) return;
+    
+    // Очищаем текущие сообщения
+    chatContent.innerHTML = '';
+    
+    // Загружаем сообщения из истории
+    chat.messages.forEach(msg => {
+        addChatMessage(msg.text, msg.type);
+    });
+    
+    console.log(`Loaded ${chat.messages.length} messages for chat ${chat.id}`);
+}
+
+// Запуск голосового ввода
+function startVoiceInput() {
+    console.log('Starting voice input from history screen');
+    createNewChat();
+    // Здесь можно сразу активировать микрофон
+}
+
+// Обновить историю чатов в интерфейсе
+function updateChatHistory() {
+    const historyContent = document.querySelector('.history-content');
+    if (!historyContent) return;
+    
+    // Группируем чаты по датам
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const todayChats = chatSessions.filter(chat => {
+        const chatDate = new Date(chat.date);
+        chatDate.setHours(0, 0, 0, 0);
+        return chatDate.getTime() === today.getTime();
+    });
+    
+    const yesterdayChats = chatSessions.filter(chat => {
+        const chatDate = new Date(chat.date);
+        chatDate.setHours(0, 0, 0, 0);
+        return chatDate.getTime() === yesterday.getTime();
+    });
+    
+    const olderChats = chatSessions.filter(chat => {
+        const chatDate = new Date(chat.date);
+        chatDate.setHours(0, 0, 0, 0);
+        return chatDate.getTime() < yesterday.getTime();
+    });
+    
+    // Очищаем контент
+    historyContent.innerHTML = '';
+    
+    // Добавляем группу "Сегодня"
+    if (todayChats.length > 0) {
+        const todayGroup = document.createElement('div');
+        todayGroup.className = 'history-group';
+        todayGroup.innerHTML = '<h4 class="history-date">Сегодня</h4>';
+        
+        todayChats.forEach(chat => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.textContent = chat.title;
+            item.onclick = () => openChat(chat.id);
+            todayGroup.appendChild(item);
+        });
+        
+        historyContent.appendChild(todayGroup);
+    }
+    
+    // Добавляем группу "Вчера"
+    if (yesterdayChats.length > 0) {
+        const yesterdayGroup = document.createElement('div');
+        yesterdayGroup.className = 'history-group';
+        yesterdayGroup.innerHTML = '<h4 class="history-date">Вчера</h4>';
+        
+        yesterdayChats.forEach(chat => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.textContent = chat.title;
+            item.onclick = () => openChat(chat.id);
+            yesterdayGroup.appendChild(item);
+        });
+        
+        historyContent.appendChild(yesterdayGroup);
+    }
+    
+    // Добавляем группу "Раньше"
+    if (olderChats.length > 0) {
+        const olderGroup = document.createElement('div');
+        olderGroup.className = 'history-group';
+        olderGroup.innerHTML = '<h4 class="history-date">Раньше</h4>';
+        
+        olderChats.forEach(chat => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.textContent = chat.title;
+            item.onclick = () => openChat(chat.id);
+            olderGroup.appendChild(item);
+        });
+        
+        historyContent.appendChild(olderGroup);
+    }
+    
+    console.log('Chat history updated');
+}
+
+// Сохранить сообщение в текущий чат
+function saveChatMessage(text, type) {
+    if (!currentChatId) {
+        // Если нет текущего чата, создаём новый
+        createNewChat();
+    }
+    
+    const chat = chatSessions.find(c => c.id === currentChatId);
+    if (chat) {
+        chat.messages.push({ text, type, timestamp: new Date() });
+        
+        // Обновляем название чата на основе первого сообщения пользователя
+        if (chat.title === 'Новый диалог' && type === 'user' && chat.messages.length === 1) {
+            chat.title = text.substring(0, 50);
+            updateChatHistory();
+        }
+    }
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    updateChatHistory();
+});
+
+// Экспортируем функции в глобальную область
+window.createNewChat = createNewChat;
+window.openChat = openChat;
+window.startVoiceInput = startVoiceInput;
+
+// Вернуться из истории на предыдущий экран
+function goBackFromHistory() {
+    if (previousScreen && previousScreen !== 'chat-history-screen') {
+        showScreen(previousScreen);
+    } else {
+        showScreen('voice-chat-screen');
+    }
+    previousScreen = null;
+}
+
+window.goBackFromHistory = goBackFromHistory;
