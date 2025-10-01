@@ -1,6 +1,7 @@
 from .start import dp
 from .profile import dp
 from .analysis import dp
+from .webapp import dp
 from .helper import dp
 from .money import dp
 from .practice import dp
