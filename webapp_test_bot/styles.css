@@ -155,14 +155,14 @@ body {
 
 /* Main Screen */
 .main-screen {
-    padding: 20px 20px 20px 20px;
+    padding: 20px;
     min-height: 100vh;
     overflow: hidden;
 }
 
 .main-container {
     max-width: 400px;
-    margin: 20px auto 20px auto;
+    margin: 0 auto;
     padding: 24px;
     background: white;
     border-radius: 24px;
@@ -1367,6 +1367,15 @@ img.emoji {
     .achievements {
         grid-template-columns: 1fr;
     }
+
+    /* Уменьшаем отступы на мобильных для главного экрана */
+    .main-screen {
+        padding: 8px 8px 20px 8px !important;
+    }
+
+    .main-container {
+        padding: 16px !important;
+    }
 }
 
 /* Loading and transitions */
@@ -1433,7 +1442,7 @@ img.emoji {
 .chart-container { margin-top: 8px; margin-bottom: 10px; }
 /* ===== end spacing tweak ===== */
 /* ===== spacing tweak 2 (top/between calendar and greeting) ===== */
-.main-screen { padding-top: 8px; }
+.main-screen { padding: 8px 20px 20px 20px; }
 .calendar-section { padding-top: 8px; margin-bottom: 10px; }
 .month-label { margin-bottom: 8px; }
 .calendar-container { padding-bottom: 6px; }
