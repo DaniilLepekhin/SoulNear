@@ -5,6 +5,31 @@ let isRecording = false;
 let selectedMood = null;
 let chatMessages = [];
 
+// Analysis topics configuration
+const analysisTopics = {
+    relationships: {
+        title: 'Анализ отношений',
+        prompt: 'Сейчас мы наедине с твоими мыслями. Я задам тебе 10 вопросов, отвечай открыто и развернуто. По итогу тестирования, я помогу тебе лучше разобраться в твоих отношениях с людьми. 🫂\n\n<b>Пиши "Готов!"</b>',
+        color: '#4A90E2'
+    },
+    money: {
+        title: 'Анализ отношений с деньгами',
+        prompt: 'Сейчас мы наедине с твоими мыслями. Я задам 10 вопросов, отвечай открыто и развернуто. В конце тестирования я помогу тебе лучше разобраться в твоих отношениях с деньгами. 💸\n\n<b>Пиши "Готов!"</b>',
+        color: '#66BB6A'
+    },
+    confidence: {
+        title: 'Анализ уверенности',
+        prompt: 'Сейчас мы наедине с твоими мыслями. Я задам 10 вопросов, отвечай открыто и развернуто. В конце тестирования я помогу лучше понять себя и обрести уверенность. 😎\n\n<b>Пиши "Готов!"</b>',
+        color: '#FFA726'
+    },
+    fears: {
+        title: 'Анализ страхов',
+        prompt: 'Сейчас мы наедине с твоими мыслями. Я задам 10 вопросов, отвечай открыто и развернуто. Вместе мы выясним твои истинные страхи и я научу справляться с тревожностью. 🦾\n\n<b>Пиши "Готов!"</b>',
+        color: '#EF5350'
+    }
+};
+let currentAnalysisTopic = null;
+
 // Initialize Telegram WebApp
 if (window.Telegram && window.Telegram.WebApp) {
     window.Telegram.WebApp.ready();
@@ -54,6 +79,26 @@ function setupEventListeners() {
         chatInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 sendChatMessage();
+            }
+        });
+    }
+
+    // Analysis input handling
+    const analysisInput = document.getElementById('analysisInput');
+    if (analysisInput) {
+        analysisInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendAnalysisMessage();
+            }
+        });
+    }
+
+    // Dreams input handling
+    const dreamsInput = document.getElementById('dreamsInput');
+    if (dreamsInput) {
+        dreamsInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendDreamsMessage();
             }
         });
     }
@@ -224,6 +269,7 @@ function showMainScreen() {
 }
 
 function showVoiceChat() {
+    console.log('showVoiceChat called - showing agent selection screen');
     showScreen('voice-chat-screen');
     updateNavigation('voice-chat-screen');
 }
@@ -361,7 +407,7 @@ function selectDay(dayNumber) {
 }
 
 // Chat functionality
-function sendChatMessage() {
+async function sendChatMessage() {
     const input = document.getElementById('chatInput');
     const message = input.value.trim();
 
@@ -369,25 +415,53 @@ function sendChatMessage() {
         addChatMessage(message, 'user');
         input.value = '';
 
-        // Send message data to Telegram WebApp
-        if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.sendData(JSON.stringify({
-                action: 'chat_message',
-                message: message,
-                timestamp: new Date().toISOString()
-            }));
-        }
+        // Show typing indicator
+        const typingIndicator = addChatMessage('Печатает...', 'assistant');
+        typingIndicator.classList.add('typing-indicator');
 
-        // Simulate assistant response
-        setTimeout(() => {
-            simulateAssistantResponse(message);
-        }, 1000);
+        try {
+            // Get user ID from Telegram
+            let userId = 'anonymous';
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
+                const user = window.Telegram.WebApp.initDataUnsafe.user;
+                if (user && user.id) {
+                    userId = user.id;
+                }
+            }
+
+            // Send to API
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    message: message,
+                    assistant_type: currentAssistantType || 'helper'
+                })
+            });
+
+            // Remove typing indicator
+            typingIndicator.remove();
+
+            if (response.ok) {
+                const data = await response.json();
+                addChatMessage(data.response, 'assistant');
+            } else {
+                addChatMessage('Извините, произошла ошибка. Попробуйте еще раз.', 'assistant');
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            typingIndicator.remove();
+            addChatMessage('Не удалось отправить сообщение. Проверьте подключение к интернету.', 'assistant');
+        }
     }
 }
 
 function addChatMessage(message, type) {
     const messagesContainer = document.getElementById('chatMessages');
-    if (!messagesContainer) return;
+    if (!messagesContainer) return null;
 
     const messageElement = document.createElement('div');
     messageElement.className = `message ${type}`;
@@ -415,22 +489,14 @@ function addChatMessage(message, type) {
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+    return messageElement;
+
     // Add fade-in animation
     messageElement.classList.add('fade-in');
 }
 
-function simulateAssistantResponse(userMessage) {
-    const responses = [
-        "Понимаю твои чувства. Расскажи больше о том, что тебя беспокоит.",
-        "Это важный шаг - обратиться за поддержкой. Как ты себя чувствуешь прямо сейчас?",
-        "Давай разберем эту ситуацию вместе. Что для тебя сейчас самое важное?",
-        "Твои эмоции абсолютно нормальны. Хочешь поговорить о том, что привело к этому состоянию?",
-        "Я здесь, чтобы тебя поддержать. Что бы ты хотел изменить в своей жизни?"
-    ];
-
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    addChatMessage(randomResponse, 'assistant');
-}
+// Track current assistant type
+let currentAssistantType = 'helper';
 
 // Voice functionality
 function startVoiceRecording() {
@@ -1647,3 +1713,304 @@ function goBackFromHistory() {
 }
 
 window.goBackFromHistory = goBackFromHistory;
+
+// ===== ANALYSIS SCREENS =====
+
+function showAnalysis() {
+    showScreen('analysis-screen');
+}
+
+function startAnalysis(topic) {
+    currentAnalysisTopic = topic;
+    const topicData = analysisTopics[topic];
+
+    // Set assistant type based on topic
+    currentAssistantType = topic; // 'relationships', 'money', 'confidence', 'fears'
+
+    // Update title for both screens
+    const chatTitleEl = document.getElementById('analysisTopicTitle');
+    if (chatTitleEl) {
+        chatTitleEl.textContent = topicData.title;
+    }
+    const voiceTitleEl = document.getElementById('analysisVoiceTitle');
+    if (voiceTitleEl) {
+        voiceTitleEl.textContent = topicData.title;
+    }
+
+    // Clear previous messages
+    const messagesContainer = document.getElementById('analysisChatMessages');
+    if (messagesContainer) {
+        messagesContainer.innerHTML = '';
+    }
+    const voiceMessagesContainer = document.getElementById('analysisVoiceMessages');
+    if (voiceMessagesContainer) {
+        voiceMessagesContainer.innerHTML = '';
+    }
+
+    // Show voice screen first (like Soul Near GPT)
+    showScreen('analysis-voice-screen');
+}
+
+async function sendAnalysisMessage() {
+    const input = document.getElementById('analysisInput');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    // Add user message using addChatMessage with custom container
+    const messagesContainer = document.getElementById('analysisChatMessages');
+    addMessageToContainer(messagesContainer, message, 'user');
+
+    // Clear input
+    input.value = '';
+
+    // Add typing indicator
+    const typingIndicator = addMessageToContainer(messagesContainer, 'Печатает...', 'assistant');
+    typingIndicator.classList.add('typing-indicator');
+
+    try {
+        // Get user ID
+        let userId = 'anonymous';
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
+            const user = window.Telegram.WebApp.initDataUnsafe.user;
+            if (user && user.id) {
+                userId = user.id;
+            }
+        }
+
+        // Send to API
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                message: message,
+                assistant_type: currentAssistantType
+            })
+        });
+
+        // Remove typing indicator
+        typingIndicator.remove();
+
+        if (response.ok) {
+            const data = await response.json();
+            addMessageToContainer(messagesContainer, data.response, 'assistant');
+        } else {
+            addMessageToContainer(messagesContainer, 'Извините, произошла ошибка. Попробуйте еще раз.', 'assistant');
+        }
+    } catch (error) {
+        console.error('Error sending analysis message:', error);
+        typingIndicator.remove();
+        addMessageToContainer(messagesContainer, 'Не удалось отправить сообщение. Проверьте подключение к интернету.', 'assistant');
+    }
+}
+
+// Helper function to add messages to any container
+function addMessageToContainer(container, message, type) {
+    if (!container) return null;
+
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${type}`;
+
+    const contentElement = document.createElement('div');
+    contentElement.className = 'message-content';
+
+    if (type === 'assistant' && message.includes('\n')) {
+        const paragraphs = message.split('\n').filter(p => p.trim());
+        paragraphs.forEach(paragraph => {
+            const p = document.createElement('p');
+            p.textContent = paragraph;
+            contentElement.appendChild(p);
+        });
+    } else {
+        const p = document.createElement('p');
+        p.textContent = message;
+        contentElement.appendChild(p);
+    }
+
+    messageElement.appendChild(contentElement);
+    container.appendChild(messageElement);
+    container.scrollTop = container.scrollHeight;
+
+    return messageElement;
+}
+
+function switchToAnalysisVoice() {
+    showScreen('analysis-voice-screen');
+}
+
+function toggleAnalysisVoiceRecording() {
+    isRecording = !isRecording;
+    const btn = document.querySelector('#analysis-voice-screen .voice-mic-btn');
+
+    if (isRecording) {
+        btn.style.background = '#EF5350';
+        // TODO: Start recording
+    } else {
+        btn.style.background = '#4A90E2';
+        // TODO: Stop recording and send
+    }
+}
+
+// ===== DREAMS SCREENS =====
+function showDreams() {
+    showScreen('dreams-screen');
+}
+
+function startDreamsChat() {
+    showScreen('dreams-chat-screen');
+}
+
+function startDreamsVoice() {
+    showScreen('dreams-voice-screen');
+}
+
+async function sendDreamsMessage() {
+    const input = document.getElementById('dreamsInput');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    // Add user message
+    const messagesContainer = document.getElementById('dreamsChatMessages');
+    addMessageToContainer(messagesContainer, message, 'user');
+
+    // Clear input
+    input.value = '';
+
+    // Add typing indicator
+    const typingIndicator = addMessageToContainer(messagesContainer, 'Печатает...', 'assistant');
+    typingIndicator.classList.add('typing-indicator');
+
+    try {
+        // Get user ID
+        let userId = 'anonymous';
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
+            const user = window.Telegram.WebApp.initDataUnsafe.user;
+            if (user && user.id) {
+                userId = user.id;
+            }
+        }
+
+        // Send to API
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                message: message,
+                assistant_type: 'sleeper'
+            })
+        });
+
+        // Remove typing indicator
+        typingIndicator.remove();
+
+        if (response.ok) {
+            const data = await response.json();
+            addMessageToContainer(messagesContainer, data.response, 'assistant');
+        } else {
+            addMessageToContainer(messagesContainer, 'Извините, произошла ошибка. Попробуйте еще раз.', 'assistant');
+        }
+    } catch (error) {
+        console.error('Error sending dreams message:', error);
+        typingIndicator.remove();
+        addMessageToContainer(messagesContainer, 'Не удалось отправить сообщение. Проверьте подключение к интернету.', 'assistant');
+    }
+}
+
+// Remove old mock code
+function startDreamsChat() {
+    showScreen('dreams-chat-screen');
+    // Clear previous messages
+    const messagesContainer = document.getElementById('dreamsChatMessages');
+    if (messagesContainer) {
+        messagesContainer.innerHTML = '';
+    }
+}
+
+function startDreamsVoice() {
+    showScreen('dreams-voice-screen');
+}
+
+// Skip old mock simulation below
+if (false) {
+    setTimeout(() => {
+        const aiMsg = document.createElement('div');
+        aiMsg.className = 'dreams-message assistant';
+        aiMsg.innerHTML = `<div class="message-content">Это очень интересный сон. Позволь разобрать его символику...</div>`;
+        messagesContainer.appendChild(aiMsg);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }, 1000);
+}
+
+function switchToDreamsVoice() {
+    showScreen('dreams-voice-screen');
+}
+
+function toggleDreamsVoiceRecording() {
+    isRecording = !isRecording;
+    const btn = document.querySelector('#dreams-voice-screen .voice-mic-btn');
+
+    if (isRecording) {
+        btn.style.background = '#EF5350';
+        // TODO: Start recording
+    } else {
+        btn.style.background = '#7E57C2';
+        // TODO: Stop recording and send
+    }
+}
+
+// ===== AGENT SELECTION =====
+function selectAgent(agentType) {
+    switch(agentType) {
+        case 'general':
+            // Обычный чат - показываем голосовой экран
+            currentAssistantType = 'helper';
+            showScreen('general-voice-screen');
+            break;
+        case 'analysis':
+            // Анализ личности - показываем экран выбора категории
+            showScreen('analysis-screen');
+            break;
+        case 'dreams':
+            // Сны - сразу показываем голосовой экран
+            currentAssistantType = 'sleeper';
+            showScreen('dreams-voice-screen');
+            break;
+    }
+}
+
+function toggleGeneralVoiceRecording() {
+    isRecording = !isRecording;
+    const btn = document.querySelector('#general-voice-screen .voice-mic-btn');
+
+    if (isRecording) {
+        btn.style.background = '#EF5350';
+        // TODO: Start recording
+    } else {
+        btn.style.background = '#4A90E2';
+        // TODO: Stop recording and send
+    }
+}
+
+// Export new functions to window
+window.selectAgent = selectAgent;
+window.toggleGeneralVoiceRecording = toggleGeneralVoiceRecording;
+
+window.showAnalysis = showAnalysis;
+window.startAnalysis = startAnalysis;
+window.sendAnalysisMessage = sendAnalysisMessage;
+window.switchToAnalysisVoice = switchToAnalysisVoice;
+window.toggleAnalysisVoiceRecording = toggleAnalysisVoiceRecording;
+
+window.showDreams = showDreams;
+window.startDreamsChat = startDreamsChat;
+window.startDreamsVoice = startDreamsVoice;
+window.sendDreamsMessage = sendDreamsMessage;
+window.switchToDreamsVoice = switchToDreamsVoice;
+window.toggleDreamsVoiceRecording = toggleDreamsVoiceRecording;

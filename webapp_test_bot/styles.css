@@ -1804,7 +1804,9 @@ img.emoji {
     transform: scale(1.1);
 }
 
-#chatInput {
+#chatInput,
+#dreamsInput,
+#analysisInput {
     flex: 1;
     border: none;
     outline: none;
@@ -1814,7 +1816,9 @@ img.emoji {
     padding: 12px 8px;
 }
 
-#chatInput::placeholder {
+#chatInput::placeholder,
+#dreamsInput::placeholder,
+#analysisInput::placeholder {
     color: #4A90E2;
     opacity: 0.7;
 }
@@ -2918,4 +2922,500 @@ img.emoji {
         height: 44px;
         font-size: 14px;
     }
+}
+
+/* ===== ANALYSIS SCREEN ===== */
+.analysis-screen {
+    background: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%);
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.analysis-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.analysis-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1A237E;
+    margin: 0;
+}
+
+.analysis-description {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.analysis-description p {
+    margin: 8px 0;
+    line-height: 1.6;
+    color: #333;
+}
+
+.analysis-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.analysis-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.analysis-card:active {
+    transform: scale(0.95);
+}
+
+.analysis-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.analysis-card h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A237E;
+    margin: 8px 0;
+}
+
+.analysis-card p {
+    font-size: 13px;
+    color: #666;
+    margin: 0;
+}
+
+/* Analysis Chat Screen */
+.analysis-chat-screen,
+.analysis-voice-screen {
+    background: #E3F2FD;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.analysis-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.analysis-chat-header h2 {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A237E;
+    margin: 0;
+}
+
+.analysis-chat-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.analysis-chat-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.analysis-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.analysis-message {
+    margin-bottom: 16px;
+    display: flex;
+}
+
+.analysis-message.assistant {
+    justify-content: flex-start;
+}
+
+.analysis-message.user {
+    justify-content: flex-end;
+}
+
+.analysis-message .message-content {
+    background: white;
+    padding: 16px;
+    border-radius: 16px;
+    max-width: 80%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.analysis-message.user .message-content {
+    background: #4A90E2;
+    color: white;
+}
+
+.analysis-chat-input-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: white;
+    border-top: 1px solid #E0E0E0;
+}
+
+.analysis-chat-input-container input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #E0E0E0;
+    border-radius: 24px;
+    font-size: 15px;
+    outline: none;
+}
+
+.analysis-chat-input-container input:focus {
+    border-color: #4A90E2;
+}
+
+/* ===== DREAMS SCREEN ===== */
+.dreams-screen {
+    background: linear-gradient(135deg, #E8EAF6 0%, #C5CAE9 100%);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.dreams-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.dreams-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1A237E;
+    margin: 0;
+}
+
+.dreams-description {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.dreams-description p {
+    margin: 12px 0;
+    line-height: 1.6;
+    color: #333;
+}
+
+.dreams-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.dreams-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border: none;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.dreams-btn.primary {
+    background: #4A90E2;
+    color: white;
+}
+
+.dreams-btn.secondary {
+    background: #7E57C2;
+    color: white;
+}
+
+.dreams-btn:active {
+    transform: scale(0.95);
+}
+
+/* Dreams Chat Screen */
+.dreams-chat-screen,
+.dreams-voice-screen {
+    background: #E8EAF6;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.dreams-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.dreams-chat-header h2 {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A237E;
+    margin: 0;
+}
+
+.dreams-chat-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.dreams-chat-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.dreams-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.dreams-message {
+    margin-bottom: 16px;
+    display: flex;
+}
+
+.dreams-message.assistant {
+    justify-content: flex-start;
+}
+
+.dreams-message.user {
+    justify-content: flex-end;
+}
+
+.dreams-message .message-content {
+    background: white;
+    padding: 16px;
+    border-radius: 16px;
+    max-width: 80%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.dreams-message.user .message-content {
+    background: #7E57C2;
+    color: white;
+}
+
+.dreams-chat-input-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: white;
+    border-top: 1px solid #E0E0E0;
+}
+
+.dreams-chat-input-container input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #E0E0E0;
+    border-radius: 24px;
+    font-size: 15px;
+    outline: none;
+}
+
+.dreams-chat-input-container input:focus {
+    border-color: #7E57C2;
+}
+
+/* Back Button Shared Styles */
+.back-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #F5F5F5;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1A237E;
+    transition: all 0.3s ease;
+}
+
+.back-btn:active {
+    transform: scale(0.9);
+    background: #E0E0E0;
+}
+
+.chat-send-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #4A90E2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.chat-send-btn:active {
+    transform: scale(0.9);
+}
+
+/* Quick Access Section */
+.quick-access-section {
+    padding: 20px;
+    margin-bottom: 80px;
+}
+
+.quick-access-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A237E;
+    margin-bottom: 16px;
+}
+
+.quick-access-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.quick-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.quick-card:active {
+    transform: scale(0.95);
+}
+
+.quick-icon {
+    font-size: 32px;
+}
+
+.quick-card span {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    text-align: center;
+}
+
+/* Agent Selection Screen */
+.agent-selection-screen {
+    background: #e3f3fd !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow-y: auto;
+}
+
+.agent-description {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin: 0 20px 24px 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    text-align: center;
+}
+
+.agent-description p {
+    font-size: 16px;
+    color: #333;
+    margin: 0;
+}
+
+.agent-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 0 20px 20px 20px;
+}
+
+.agent-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border-left: 4px solid transparent;
+}
+
+.agent-card.general {
+    border-left-color: #4A90E2;
+}
+
+.agent-card.analysis {
+    border-left-color: #9C27B0;
+}
+
+.agent-card.dreams {
+    border-left-color: #7E57C2;
+}
+
+.agent-card:active {
+    transform: scale(0.98);
+}
+
+.agent-card-icon {
+    font-size: 40px;
+    min-width: 56px;
+    text-align: center;
+}
+
+.agent-card-content h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A237E;
+    margin: 0 0 4px 0;
+}
+
+.agent-card-content p {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
 }
