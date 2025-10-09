@@ -6,17 +6,17 @@ import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
+from typing import Optional
 from sqlalchemy import URL, select, update
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-from sqlalchemy import VARCHAR, DateTime, Integer, Boolean
+from sqlalchemy import VARCHAR, DateTime, Integer, Boolean, TEXT
 from datetime import datetime as dt
 
 # Load environment variables
 load_dotenv()
 
 app = Quart(__name__)
-app.config["PROVIDE_AUTOMATIC_OPTIONS"] = True
 cors(app, allow_origin="*", allow_methods=["GET", "POST", "OPTIONS"])
 
 # Setup logging
@@ -39,7 +39,7 @@ POSTGRES_USER = os.getenv('POSTGRES_USER', 'postgres')
 POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', '')
 POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'localhost')
 POSTGRES_PORT = int(os.getenv('POSTGRES_PORT', '5432'))
-POSTGRES_DB = os.getenv('POSTGRES_DB', 'soul_test_bot')
+POSTGRES_DB = os.getenv('POSTGRES_DB', 'soul_bot')
 
 engine = create_async_engine(
     URL(
@@ -83,6 +83,31 @@ class User(Base):
     real_name: Mapped[str] = mapped_column(VARCHAR(length=32), nullable=True)
     age: Mapped[int] = mapped_column(Integer, nullable=True)
     gender: Mapped[bool] = mapped_column(Boolean, nullable=True)
+
+class MediaCategory(Base):
+    __tablename__ = 'media_categories'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    position: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(VARCHAR(length=32))
+    text: Mapped[str] = mapped_column(VARCHAR(length=2048))
+    category: Mapped[str] = mapped_column(VARCHAR(length=32))
+    media_type: Mapped[str] = mapped_column(VARCHAR(length=8), nullable=True)
+    media_id: Mapped[str] = mapped_column(VARCHAR(length=128), nullable=True)
+    destination: Mapped[str] = mapped_column(VARCHAR(length=128), nullable=True)
+
+class Media(Base):
+    __tablename__ = 'medias'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category_id: Mapped[int] = mapped_column(Integer)
+    position: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(VARCHAR(length=64))
+    text: Mapped[str] = mapped_column(VARCHAR(length=2048), nullable=True)
+    media_type: Mapped[str] = mapped_column(VARCHAR(length=8), nullable=True)
+    media_id: Mapped[str] = mapped_column(VARCHAR(length=128), nullable=True)
+    destination: Mapped[str] = mapped_column(VARCHAR(length=128), nullable=True)
+    file_url: Mapped[Optional[str]] = mapped_column(TEXT(), nullable=True)
 
 # Helper functions (copied from bot's ChatGPT.py)
 async def get_user_from_db(user_id: int):
@@ -328,6 +353,153 @@ async def reset_context():
     except Exception as e:
         logger.error(f"Error in reset endpoint: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+# Ханг музыка из sounds.py
+HANG_MUSIC = [
+    {"name": "Macadamia", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Macadamia.mp3", "duration": "3:47"},
+    {"name": "New Horizons", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_New_Horizons.mp3", "duration": "2:21"},
+    {"name": "Sunny Way", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Sunny_Way.mp3", "duration": "5:23"},
+    {"name": "Seven Wonders", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Seven_Wonders.mp3", "duration": "3:05"},
+    {"name": "The Flow", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_The_Flow.mp3", "duration": "5:18"},
+    {"name": "Immersion", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Immersion.mp3", "duration": "3:46"},
+    {"name": "Spring", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Spring.mp3", "duration": "3:32"},
+    {"name": "Rainbow", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Rainbow.mp3", "duration": "4:33"},
+    {"name": "Blissful", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Blissful.mp3", "duration": "5:14"},
+    {"name": "Ocean Inside", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Ocean_Inside.mp3", "duration": "2:32"},
+    {"name": "Gravity", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Gravity.mp3", "duration": "3:06"},
+    {"name": "Cappadocia", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Cappadocia.mp3", "duration": "4:06"},
+    {"name": "Reggae", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Reggae.mp3", "duration": "3:12"},
+    {"name": "Macadamia Remix", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Macadamia_Remix.mp3", "duration": "4:31"},
+    {"name": "Sunny Way Remix", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Sunny_Way_Remix.mp3", "duration": "5:12"},
+    {"name": "Breath of Spring Remix", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Breath_of_Spring_Remix.mp3", "duration": "3:31"},
+    {"name": "Ocean Inside Remix", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_Ocean_Inside_Remix.mp3", "duration": "5:11"},
+    {"name": "J. Remix", "url": "https://storage.daniillepekhin.com/soulnear/audio/hang_J_Remix.mp3", "duration": "3:46"},
+]
+
+@app.route('/api/practices', methods=['GET', 'OPTIONS'])
+async def get_practices():
+    """Get all practices from database"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        async with AsyncSessionLocal() as session:
+            # Get all media categories
+            categories_result = await session.execute(
+                select(MediaCategory).order_by(MediaCategory.position)
+            )
+            categories = categories_result.scalars().all()
+
+            logger.info(f"Found {len(categories)} categories")
+
+            # Get all media items
+            media_result = await session.execute(
+                select(Media).order_by(Media.category_id, Media.position)
+            )
+            media_items = media_result.scalars().all()
+
+            logger.info(f"Found {len(media_items)} media items")
+
+            # Organize data by category type
+            practices_data = {
+                'practices': [],  # Медитации
+                'videos': [],     # Йога и видео
+                'music': []       # Ханг музыка
+            }
+
+            # Group by category
+            for category in categories:
+                logger.info(f"Processing category: {category.name} ({category.category})")
+                category_media = [m for m in media_items if m.category_id == category.id]
+
+                category_data = {
+                    'id': category.id,
+                    'name': category.name,
+                    'text': category.text,
+                    'category': category.category,
+                    'media_type': category.media_type,
+                    'media_id': category.media_id,
+                    'items': []
+                }
+
+                for media in category_media:
+                    media_dict = {
+                        'id': media.id,
+                        'name': media.name,
+                        'text': media.text,
+                        'media_type': media.media_type,
+                        'media_id': media.media_id,
+                        'position': media.position
+                    }
+                    # Add file_url if available (from S3)
+                    if hasattr(media, 'file_url') and media.file_url:
+                        media_dict['url'] = media.file_url
+                    category_data['items'].append(media_dict)
+
+                # Add to appropriate section
+                if category.category == 'practices':
+                    practices_data['practices'].append(category_data)
+                elif category.category == 'videos':
+                    practices_data['videos'].append(category_data)
+
+            # Add Hang music
+            for track in HANG_MUSIC:
+                practices_data['music'].append({
+                    'name': track['name'],
+                    'url': track['url'],
+                    'duration': track['duration'],
+                    'media_type': 'audio'
+                })
+
+            return jsonify({
+                'status': 'success',
+                'data': practices_data
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Error in get_practices: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/audio/<file_id>', methods=['GET', 'OPTIONS'])
+async def get_audio_url(file_id):
+    """Get audio file URL from Telegram file_id"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        import httpx
+
+        # Получаем информацию о файле от Telegram Bot API
+        bot_token = os.getenv('BOT_TOKEN', '')
+        if not bot_token:
+            return jsonify({'status': 'error', 'error': 'Bot token not configured'}), 500
+
+        async with httpx.AsyncClient() as client:
+            # Получаем file_path
+            response = await client.get(
+                f'https://api.telegram.org/bot{bot_token}/getFile',
+                params={'file_id': file_id}
+            )
+            data = response.json()
+
+            if data.get('ok') and data.get('result'):
+                file_path = data['result']['file_path']
+                # Формируем прямую ссылку на файл
+                file_url = f'https://api.telegram.org/file/bot{bot_token}/{file_path}'
+
+                logger.info(f"Got audio URL for {file_id}: {file_url}")
+
+                return jsonify({
+                    'status': 'success',
+                    'url': file_url
+                }), 200
+            else:
+                logger.error(f"Failed to get file info: {data}")
+                return jsonify({'status': 'error', 'error': 'File not found'}), 404
+
+    except Exception as e:
+        logger.error(f"Error getting audio URL: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 @app.route('/health')
 async def health_check():

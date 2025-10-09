@@ -631,7 +631,6 @@ body {
     height: 100vh; /* Фиксированная высота для скролла */
     max-height: 100vh;
     padding: 16px;
-    padding-bottom: 120px; /* Увеличили нижний отступ */
     padding-top: 20px; /* Уменьшили верхний отступ с 40px до 20px */
     overflow-y: auto;
     overflow-x: hidden; /* Предотвращаем горизонтальный скролл */
@@ -739,8 +738,22 @@ body {
     flex-direction: column;
     gap: 12px; /* Более плотная композиция по ТЗ */
     flex: 1;
-    overflow-y: visible; /* Позволяем содержимому выходить за пределы для скролла родителя */
+    overflow-y: visible; /* Позволяем содержимою выходить за пределы для скролла родителя */
     min-height: 0; /* Важно для работы flex overflow */
+}
+
+/* Прозрачный блок-спейсер снизу чтобы последняя карточка не перекрывалась меню */
+.practices-content::after {
+    content: '🔵 КОНЕЦ КОНТЕНТА 🔵';
+    display: block;
+    text-align: center;
+    padding: 32px; /* Уменьшили с 40px на 20% */
+    background: transparent; /* Полностью прозрачный */
+    color: transparent; /* Текст прозрачный */
+    font-size: 20px;
+    font-weight: bold;
+    margin-top: 16px; /* Уменьшили с 20px на 20% */
+    opacity: 0; /* Еще слой прозрачности для надежности */
 }
 
 /* 4. Ряд карточек - точно по макету */
@@ -852,7 +865,7 @@ body {
     border-radius: 20px;
     padding: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    margin-bottom: 2px;
+    margin-bottom: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -3507,8 +3520,8 @@ img.emoji {
 }
 
 .practice-favorite-btn {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     border: none;
     background: transparent;
@@ -3516,15 +3529,24 @@ img.emoji {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    z-index: 20;
+    padding: 0;
 }
 
 .practice-favorite-btn:hover {
-    background: rgba(74, 144, 226, 0.1);
+    transform: scale(1.15);
+}
+
+.practice-favorite-btn:active {
+    transform: scale(0.9);
 }
 
 .practice-favorite-btn.active {
-    background: rgba(74, 144, 226, 0.1);
+    /* No background - just change fill color in SVG */
 }
 
 .practice-premium-btn {
@@ -3575,4 +3597,64 @@ img.emoji {
 .practice-category:has(.practice-items:empty) .category-description {
     font-style: italic;
     color: #999;
+}
+
+/* Category Header Styles */
+.category-header {
+    margin: 20px 0 12px 0;
+}
+
+.category-header:first-child {
+    margin-top: 0;
+}
+
+.category-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #4A90E2;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Practice Favorite Button styles moved above to avoid duplication */
+
+/* Card Favorite Button (for yoga/practice cards) */
+.card-favorite-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.card-favorite-btn:hover {
+    background: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
+}
+
+.card-favorite-btn:active {
+    transform: scale(0.95);
+}
+
+/* Practice category styles */
+.practice-category {
+    margin-bottom: 0;
+}
+
+/* Remove background from practice-category to use transparent background */
+.practice-category {
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
 }

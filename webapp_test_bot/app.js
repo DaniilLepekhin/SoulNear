@@ -49,6 +49,10 @@ function initializeApp() {
     // Load Telegram avatar on startup
     loadTelegramAvatar();
 
+    // Load practices from API
+    console.log('🚀 Initializing app - loading practices...');
+    loadPractices();
+
     // Show splash screen for 3 seconds then go to onboarding
     setTimeout(() => {
         showScreen('onboarding-screen');
@@ -272,12 +276,6 @@ function showVoiceChat() {
     console.log('showVoiceChat called - showing agent selection screen');
     showScreen('voice-chat-screen');
     updateNavigation('voice-chat-screen');
-}
-
-
-function showPractices() {
-    showScreen('practices-screen');
-    updateNavigation('practices-screen');
 }
 
 function showProfile() {
@@ -594,9 +592,9 @@ function startBreathingAnimation() {
     const breathingText = document.querySelector('.breathing-text');
     if (breathingText) {
         let isInhale = true;
-        const breathingInterval = setInterval(() => {
+        const breathingAnimInterval = setInterval(() => {
             if (currentScreen !== 'practice-player-screen') {
-                clearInterval(breathingInterval);
+                clearInterval(breathingAnimInterval);
                 return;
             }
 
@@ -703,14 +701,14 @@ function drawMoodChart() {
 }
 
 // Practice filters
-function filterPractices(filter) {
+function filterPractices(filter, event) {
     // Update filter buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('active');
     });
 
     // Find the button element (event.target might be SVG or other child element)
-    let targetButton = event.target;
+    let targetButton = event ? event.target : null;
     while (targetButton && !targetButton.classList.contains('filter-btn')) {
         targetButton = targetButton.parentElement;
     }
@@ -719,15 +717,39 @@ function filterPractices(filter) {
         targetButton.classList.add('active');
     }
 
-    // Send filter data to Telegram WebApp
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.sendData(JSON.stringify({
-            action: 'practice_filter',
-            filter: filter,
-            timestamp: new Date().toISOString()
-        }));
-    }
+    // Filter practice items
+    const practiceItems = document.querySelectorAll('.practice-item');
 
+    practiceItems.forEach(item => {
+        const itemCategory = item.getAttribute('data-category');
+        const isFavorite = item.getAttribute('data-favorite') === 'true';
+
+        if (filter === 'all') {
+            item.style.display = '';
+        } else if (filter === 'favorites') {
+            item.style.display = isFavorite ? '' : 'none';
+        } else {
+            item.style.display = itemCategory === filter ? '' : 'none';
+        }
+    });
+
+    // Also handle category sections
+    const categorySections = document.querySelectorAll('.practice-category');
+    categorySections.forEach(section => {
+        const categoryType = section.getAttribute('data-category');
+
+        if (filter === 'all') {
+            section.style.display = '';
+        } else if (filter === 'favorites') {
+            // Check if any items in this category are favorites
+            const favoriteItems = section.querySelectorAll('.practice-item[data-favorite="true"]');
+            section.style.display = favoriteItems.length > 0 ? '' : 'none';
+        } else {
+            section.style.display = categoryType === filter ? '' : 'none';
+        }
+    });
+
+    vibrate([50]);
     console.log('Filter selected:', filter);
 }
 
@@ -744,6 +766,36 @@ function showNotification(message, type = 'info') {
     // Уведомления отключены для лучшего UX
     console.log(`Notification (${type}):`, message);
     return; // Просто логируем, не показываем уведомление
+}
+
+// Toggle favorite for practice/meditation/music
+function toggleFavorite(button) {
+    const card = button.closest('.practice-item');
+    if (!card) return;
+
+    const isFavorite = card.getAttribute('data-favorite') === 'true';
+    const newState = !isFavorite;
+
+    // Update state
+    card.setAttribute('data-favorite', newState.toString());
+
+    // Update button visual state
+    if (newState) {
+        button.classList.add('active');
+        const svg = button.querySelector('path');
+        if (svg) {
+            svg.setAttribute('fill', '#4A90E2');
+        }
+    } else {
+        button.classList.remove('active');
+        const svg = button.querySelector('path');
+        if (svg) {
+            svg.setAttribute('fill', 'none');
+        }
+    }
+
+    vibrate([50]);
+    console.log('Favorite toggled:', newState);
 }
 
 // Функция для выбора элемента плана на день
@@ -763,7 +815,24 @@ function selectPlanItem(button) {
     button.style.background = '#2E6BEB';
     button.style.color = 'white';
 
-    console.log('Selected plan item:', button.textContent);
+    // Получаем тип практики из текста кнопки
+    const practiceType = button.textContent.trim();
+    console.log('Selected plan item:', practiceType);
+
+    // Только для кнопки "Медитация" переключаем на фильтр медитаций
+    if (practiceType === 'Медитация') {
+        const meditationFilterBtn = document.querySelector('.filter-btn[onclick*="meditation"]');
+        if (meditationFilterBtn) {
+            // Активируем кнопку "Медитации"
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            meditationFilterBtn.classList.add('active');
+
+            // Фильтруем практики
+            filterPractices('meditation');
+        }
+    }
+
+    vibrate([30]);
 }
 
 // Performance optimization
@@ -987,9 +1056,9 @@ function showUserVoiceMessage() {
 
 // Переключение Play/Pause для голосовых сообщений
 function toggleVoicePlayback(button) {
-    const isPlaying = button.innerHTML.includes('rect');
+    const voiceIsPlaying = button.innerHTML.includes('rect');
 
-    if (isPlaying) {
+    if (voiceIsPlaying) {
         // Остановить воспроизведение - показать иконку Play
         button.innerHTML = `
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -1080,23 +1149,88 @@ let meditationSeconds = 0;
 let isPlaying = false;
 let breathingCycle = 'inhale'; // 'inhale' или 'exhale'
 let breathingInterval = null;
+let audioPlayer = null; // HTML5 Audio элемент
 
 // Запуск медитации
-function playMeditation() {
+function playMeditation(mediaId, name, duration) {
+    console.log('🎵 Playing:', name || 'Unknown', 'Duration:', duration);
+
+    // Сохраняем данные текущего трека
+    window.currentTrack = {
+        mediaId: mediaId,
+        name: name || 'Медитация',
+        duration: duration || '0:00'
+    };
+
+    // Обновляем заголовок плеера
+    const playerTitle = document.querySelector('.player-header h3');
+    if (playerTitle) {
+        playerTitle.textContent = window.currentTrack.name;
+    }
+
+    // Показываем экран плеера
     showScreen('practice-player-screen');
-    startMeditation();
+
+    // Получаем URL аудио файла и запускаем воспроизведение
+    if (mediaId) {
+        playAudioFile(mediaId);
+    }
+
+    startMeditation(duration);
+}
+
+// Воспроизведение с прямым URL (для музыки с S3)
+function playMeditationWithUrl(audioUrl, name, duration) {
+    console.log('🎵 Playing from URL:', name || 'Unknown', 'URL:', audioUrl);
+
+    // Сохраняем данные текущего трека
+    window.currentTrack = {
+        audioUrl: audioUrl,
+        name: name || 'Медитация',
+        duration: duration || '0:00'
+    };
+
+    // Обновляем заголовок плеера
+    const playerTitle = document.querySelector('.player-header h3');
+    if (playerTitle) {
+        playerTitle.textContent = window.currentTrack.name;
+    }
+
+    // Показываем экран плеера
+    showScreen('practice-player-screen');
+
+    // Запускаем воспроизведение напрямую с URL
+    if (audioUrl) {
+        playAudioFromUrl(audioUrl);
+    }
+
+    startMeditation(duration);
 }
 
 // Показать экран практик
 function showPractices() {
+    console.log('🎯 showPractices() called');
     showScreen('practices-screen');
     updateNavigation('practices-screen');
     stopMeditation();
+    console.log('📞 Calling loadPractices()...');
+    loadPractices();
 }
 
 // Запуск медитации
-function startMeditation() {
-    meditationSeconds = 94; // 1:34 в секундах
+function startMeditation(duration) {
+    // Парсим длительность из строки формата "3:47" в секунды
+    if (duration && typeof duration === 'string') {
+        const parts = duration.split(':');
+        if (parts.length === 2) {
+            const minutes = parseInt(parts[0], 10);
+            const seconds = parseInt(parts[1], 10);
+            meditationSeconds = minutes * 60 + seconds;
+        }
+    } else {
+        meditationSeconds = 94; // 1:34 по умолчанию
+    }
+
     isPlaying = true;
 
     // Сначала обновляем UI
@@ -1119,7 +1253,87 @@ function startMeditation() {
         }
     }, 1000);
 
-    console.log('Meditation started, isPlaying:', isPlaying);
+    console.log('Meditation started, isPlaying:', isPlaying, 'duration:', meditationSeconds, 's');
+}
+
+// Воспроизведение аудио файла
+async function playAudioFile(mediaId) {
+    try {
+        console.log('🎧 Fetching audio URL for:', mediaId);
+
+        // Получаем URL аудио файла через API
+        const response = await fetch(`/api/audio/${mediaId}`);
+        const data = await response.json();
+
+        if (data.status === 'success' && data.url) {
+            console.log('🎧 Got audio URL:', data.url);
+
+            // Создаем или используем существующий audio элемент
+            if (!audioPlayer) {
+                audioPlayer = new Audio();
+
+                // Обработчики событий
+                audioPlayer.addEventListener('ended', () => {
+                    console.log('🎧 Audio ended');
+                    stopMeditation();
+                });
+
+                audioPlayer.addEventListener('error', (e) => {
+                    console.error('🎧 Audio error:', e);
+                });
+
+                audioPlayer.addEventListener('loadedmetadata', () => {
+                    console.log('🎧 Audio duration:', audioPlayer.duration);
+                });
+            }
+
+            // Устанавливаем источник и запускаем
+            audioPlayer.src = data.url;
+            audioPlayer.play().catch(err => {
+                console.error('🎧 Play error:', err);
+            });
+
+        } else {
+            console.error('🎧 Failed to get audio URL:', data);
+        }
+    } catch (error) {
+        console.error('🎧 Error playing audio:', error);
+    }
+}
+
+// Воспроизведение аудио с прямого URL (для S3)
+function playAudioFromUrl(audioUrl) {
+    try {
+        console.log('🎧 Playing from URL:', audioUrl);
+
+        // Создаем или используем существующий audio элемент
+        if (!audioPlayer) {
+            audioPlayer = new Audio();
+
+            // Обработчики событий
+            audioPlayer.addEventListener('ended', () => {
+                console.log('🎧 Audio ended');
+                stopMeditation();
+            });
+
+            audioPlayer.addEventListener('error', (e) => {
+                console.error('🎧 Audio error:', e);
+            });
+
+            audioPlayer.addEventListener('loadedmetadata', () => {
+                console.log('🎧 Audio duration:', audioPlayer.duration);
+            });
+        }
+
+        // Устанавливаем источник и запускаем
+        audioPlayer.src = audioUrl;
+        audioPlayer.play().catch(err => {
+            console.error('🎧 Play error:', err);
+        });
+
+    } catch (error) {
+        console.error('🎧 Error playing audio:', error);
+    }
 }
 
 // Остановка медитации
@@ -1129,6 +1343,12 @@ function stopMeditation() {
     if (meditationTimer) {
         clearInterval(meditationTimer);
         meditationTimer = null;
+    }
+
+    // Останавливаем аудио
+    if (audioPlayer) {
+        audioPlayer.pause();
+        audioPlayer.currentTime = 0;
     }
 
     stopBreathingAnimation();
@@ -1156,6 +1376,11 @@ function pauseMeditation() {
         meditationTimer = null;
     }
 
+    // Ставим аудио на паузу
+    if (audioPlayer && !audioPlayer.paused) {
+        audioPlayer.pause();
+    }
+
     stopBreathingAnimation();
     updatePlayPauseButton();
     console.log('Meditation paused, isPlaying:', isPlaying);
@@ -1166,6 +1391,13 @@ function resumeMeditation() {
     isPlaying = true;
     startBreathingAnimation();
     updatePlayPauseButton();
+
+    // Возобновляем воспроизведение аудио
+    if (audioPlayer && audioPlayer.paused) {
+        audioPlayer.play().catch(err => {
+            console.error('🎧 Resume play error:', err);
+        });
+    }
 
     meditationTimer = setInterval(() => {
         if (meditationSeconds > 0) {
@@ -2014,3 +2246,230 @@ window.startDreamsVoice = startDreamsVoice;
 window.sendDreamsMessage = sendDreamsMessage;
 window.switchToDreamsVoice = switchToDreamsVoice;
 window.toggleDreamsVoiceRecording = toggleDreamsVoiceRecording;
+
+// Load practices from API
+async function loadPractices() {
+    console.log('🔄 loadPractices() called');
+    try {
+        console.log('📡 Fetching from API...');
+        const response = await fetch('/api/practices');
+        console.log('📦 Response received:', response.status);
+        const result = await response.json();
+        console.log('📊 Data parsed:', result);
+
+        if (result.status === 'success') {
+            console.log('✅ Success! Rendering practices...');
+            renderPractices(result.data);
+        } else {
+            console.error('❌ Failed to load practices:', result);
+        }
+    } catch (error) {
+        console.error('💥 Error loading practices:', error);
+    }
+}
+
+function renderPractices(data) {
+    console.log('🎨 renderPractices() called with data:', data);
+    const practicesContent = document.querySelector('.practices-content');
+    if (!practicesContent) {
+        console.error('❌ .practices-content not found!');
+        return;
+    }
+    console.log('✅ Found .practices-content element');
+
+    // Clear existing dynamic content but keep Plan card
+    const planCard = practicesContent.querySelector('.practice-category[data-category="all"]');
+    console.log('📋 Plan card found:', !!planCard);
+    practicesContent.innerHTML = '';
+    if (planCard) {
+        practicesContent.appendChild(planCard);
+        console.log('✅ Plan card re-added');
+    }
+
+    // Render meditation practices (category: practices)
+    if (data.practices && data.practices.length > 0) {
+        data.practices.forEach(category => {
+            // Skip empty categories
+            if (category.items.length === 0) return;
+
+            const categorySection = document.createElement('div');
+            categorySection.className = 'practice-category';
+            categorySection.setAttribute('data-category', 'meditation');
+
+            // Add category header
+            const header = document.createElement('div');
+            header.className = 'category-header';
+            header.innerHTML = `<h3 class="category-title">${category.name}</h3>`;
+            categorySection.appendChild(header);
+
+            // Add media items
+            category.items.forEach(item => {
+                const card = createMeditationCard(item);
+                categorySection.appendChild(card);
+            });
+
+            practicesContent.appendChild(categorySection);
+        });
+    }
+
+    // Render yoga videos (category: videos)
+    if (data.videos && data.videos.length > 0) {
+        const yogaCategory = data.videos.find(cat => cat.name === '🧘 Йога');
+        if (yogaCategory && yogaCategory.items.length > 0) {
+            const yogaSection = document.createElement('div');
+            yogaSection.className = 'practice-category';
+            yogaSection.setAttribute('data-category', 'yoga');
+
+            const header = document.createElement('div');
+            header.className = 'category-header';
+            header.innerHTML = '<h3 class="category-title">🧘 Йога практики</h3>';
+            yogaSection.appendChild(header);
+
+            yogaCategory.items.forEach(item => {
+                const card = createYogaCard(item, yogaCategory.name);
+                yogaSection.appendChild(card);
+            });
+
+            practicesContent.appendChild(yogaSection);
+        }
+    }
+
+    // Render music
+    if (data.music && data.music.length > 0) {
+        console.log('Rendering music section with', data.music.length, 'tracks');
+        const musicSection = document.createElement('div');
+        musicSection.className = 'practice-category';
+        musicSection.setAttribute('data-category', 'music');
+
+        const header = document.createElement('div');
+        header.className = 'category-header';
+        header.innerHTML = '<h3 class="category-title">🎵 Ханг музыка</h3>';
+        musicSection.appendChild(header);
+
+        data.music.forEach((track, index) => {
+            console.log(`Creating music card ${index + 1}:`, track.name);
+            const card = createMusicCard(track);
+            musicSection.appendChild(card);
+        });
+
+        practicesContent.appendChild(musicSection);
+        console.log('Music section appended to practices content');
+    }
+}
+
+function createMeditationCard(item) {
+    const card = document.createElement('div');
+    card.className = 'meditation-card practice-item';
+    card.setAttribute('data-category', 'meditation');
+    card.setAttribute('data-favorite', 'false');
+    card.setAttribute('data-media-id', item.media_id || '');
+
+    // Создаем кнопку play с обработчиком
+    const playBtn = document.createElement('button');
+    playBtn.className = 'meditation-play-btn';
+
+    // Если есть url - используем прямое воспроизведение, иначе через API
+    if (item.url) {
+        playBtn.onclick = () => playMeditationWithUrl(item.url, item.name, '5:00');
+    } else {
+        playBtn.onclick = () => playMeditation(item.media_id || '', item.name, '5:00');
+    }
+
+    card.innerHTML = `
+        <button class="practice-favorite-btn" onclick="toggleFavorite(this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="#4A90E2" stroke-width="1.5" fill="none"/>
+            </svg>
+        </button>
+        <div class="meditation-info">
+            <h4 class="meditation-title">${item.name}</h4>
+            <div class="meditation-tags">
+                <span class="tag">Медитация</span>
+            </div>
+        </div>
+    `;
+
+    playBtn.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M8 5V19L19 12L8 5Z" fill="white"/>
+        </svg>
+    `;
+    card.appendChild(playBtn);
+
+    return card;
+}
+
+function createYogaCard(item, categoryName) {
+    const card = document.createElement('div');
+    card.className = 'practice-card evening-card practice-item';
+    card.setAttribute('data-category', 'yoga');
+    card.setAttribute('data-favorite', 'false');
+    card.setAttribute('data-media-id', item.media_id || '');
+
+    const emoji = item.name.includes('Утренняя') ? '☀️' : '🌙';
+    const displayName = item.name.replace('практика', '<br>практика');
+
+    card.innerHTML = `
+        <h3 class="evening-title">${emoji} ${displayName}</h3>
+        <button class="card-favorite-btn" onclick="toggleFavorite(this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="#4A90E2" stroke-width="1.5" fill="none"/>
+            </svg>
+        </button>
+    `;
+
+    // Добавляем обработчик клика на всю карточку для воспроизведения видео
+    card.addEventListener('click', (e) => {
+        // Игнорируем клик на кнопку избранного
+        if (e.target.closest('.card-favorite-btn')) {
+            return;
+        }
+
+        // Если есть URL - используем его, иначе media_id
+        if (item.url) {
+            playMeditationWithUrl(item.url, item.name, '10:00');
+        } else if (item.media_id) {
+            playMeditation(item.media_id, item.name, '10:00');
+        }
+    });
+
+    return card;
+}
+
+function createMusicCard(track) {
+    const card = document.createElement('div');
+    card.className = 'meditation-card practice-item';
+    card.setAttribute('data-category', 'music');
+    card.setAttribute('data-favorite', 'false');
+    card.setAttribute('data-media-id', track.media_id || '');
+    card.setAttribute('data-audio-url', track.url || '');
+
+    // Для обработки клика на play используем data-атрибуты
+    const playBtn = document.createElement('button');
+    playBtn.className = 'meditation-play-btn';
+    playBtn.onclick = () => playMeditationWithUrl(track.url || '', track.name, track.duration || '0:00');
+
+    card.innerHTML = `
+        <button class="practice-favorite-btn" onclick="toggleFavorite(this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="#4A90E2" stroke-width="1.5" fill="none"/>
+            </svg>
+        </button>
+        <div class="meditation-info">
+            <h4 class="meditation-title">${track.name}</h4>
+            <div class="meditation-tags">
+                <span class="tag">${track.duration}</span>
+                <span class="tag">Релакс</span>
+            </div>
+        </div>
+    `;
+
+    playBtn.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M8 5V19L19 12L8 5Z" fill="white"/>
+        </svg>
+    `;
+    card.appendChild(playBtn);
+
+    return card;
+}

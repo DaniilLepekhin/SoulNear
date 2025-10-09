@@ -17,3 +17,4 @@ class Media(Base):
     media_type: Mapped[str] = mapped_column(VARCHAR(length=8), nullable=True)
     media_id: Mapped[str] = mapped_column(VARCHAR(length=128), nullable=True)
     destination: Mapped[Optional[str]] = mapped_column(VARCHAR(length=128), nullable=True)
+    file_url: Mapped[Optional[str]] = mapped_column(TEXT(), nullable=True)
