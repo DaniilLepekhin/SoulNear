@@ -1,0 +1,87 @@
+/* ==========================================
+   Button Styles
+   ========================================== */
+
+.btn {
+  border: none;
+  border-radius: 30px;
+  font-weight: 200;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Primary variant */
+.btn-primary {
+  background: linear-gradient(145deg, #0256b9 0%, #137af3 100%);
+  color: white;
+  box-shadow: 0 10px 25px rgba(2, 86, 185, 0.3);
+}
+
+.btn-primary:hover:not(.btn-disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(2, 86, 185, 0.4);
+  background: linear-gradient(145deg, #137af3 0%, #0256b9 100%);
+}
+
+/* Secondary variant */
+.btn-secondary {
+  background: linear-gradient(145deg, #6BA3D6 0%, #4A90E2 100%);
+  color: white;
+  box-shadow: 0 8px 20px rgba(74, 144, 226, 0.3);
+}
+
+.btn-secondary:hover:not(.btn-disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(74, 144, 226, 0.4);
+}
+
+/* Outline variant */
+.btn-outline {
+  background: white;
+  color: #4A90E2;
+  border: 2px solid #4A90E2;
+  box-shadow: 0 5px 15px rgba(74, 144, 226, 0.2);
+}
+
+.btn-outline:hover:not(.btn-disabled) {
+  background: #f0f7ff;
+  transform: translateY(-2px);
+}
+
+/* Sizes */
+.btn-small {
+  padding: 8px 20px;
+  font-size: 14px;
+}
+
+.btn-medium {
+  padding: 14px 40px;
+  font-size: 18px;
+}
+
+.btn-large {
+  padding: 18px 50px;
+  font-size: 20px;
+}
+
+/* Full width */
+.btn-full-width {
+  width: 100%;
+}
+
+/* Disabled state */
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Active state */
+.btn:active:not(.btn-disabled) {
+  transform: scale(0.98);
+}
