@@ -11,17 +11,25 @@ export const FullscreenPlayer = () => {
     activeTrack,
     isPlaying,
     duration,
+    sleepTimer,
     togglePlayPause,
     seek,
     closePlayer,
+    setSleepTimer,
+    getSleepTimerRemaining,
     audioRef,
   } = useAudioPlayer();
 
   const [currentTime, setCurrentTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(0);
+  const [showTimerMenu, setShowTimerMenu] = useState(false);
+  const [timerRemaining, setTimerRemaining] = useState<number | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>(0);
+  const timerIntervalRef = useRef<number>(0);
+
+  const timerOptions = [1, 3, 5, 10, 15, 30, 60];
 
   // Update current time smoothly using requestAnimationFrame
   useEffect(() => {
@@ -53,6 +61,48 @@ export const FullscreenPlayer = () => {
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [closePlayer]);
 
+  // Update timer remaining every second
+  useEffect(() => {
+    if (!sleepTimer) {
+      setTimerRemaining(null);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = 0;
+      }
+      return;
+    }
+
+    const updateRemaining = () => {
+      const remaining = getSleepTimerRemaining();
+      setTimerRemaining(remaining);
+    };
+
+    updateRemaining();
+    timerIntervalRef.current = setInterval(updateRemaining, 1000) as unknown as number;
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = 0;
+      }
+    };
+  }, [sleepTimer, getSleepTimerRemaining]);
+
+  // Close timer menu when clicking outside
+  useEffect(() => {
+    if (!showTimerMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.player-timer-btn') && !target.closest('.timer-menu')) {
+        setShowTimerMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showTimerMenu]);
+
   if (!activeTrack) return null;
 
   const formatTime = (seconds: number): string => {
@@ -60,6 +110,18 @@ export const FullscreenPlayer = () => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatTimerRemaining = (minutes: number | null): string => {
+    if (minutes === null) return '';
+    const mins = Math.floor(minutes);
+    const secs = Math.floor((minutes - mins) * 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleTimerSelect = (minutes: number | null) => {
+    setSleepTimer(minutes);
+    setShowTimerMenu(false);
   };
 
   // Use dragging time if dragging, otherwise use current time
@@ -125,6 +187,47 @@ export const FullscreenPlayer = () => {
             <path d="M15 18l-6-6 6-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
+
+        <div className="player-header-spacer" />
+
+        <button
+          className={`player-timer-btn ${sleepTimer ? 'active' : ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowTimerMenu(!showTimerMenu);
+          }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="13" r="9" stroke="white" strokeWidth="2"/>
+            <path d="M12 9v4l3 3" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M9 2h6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          {timerRemaining !== null && (
+            <span className="timer-remaining">{formatTimerRemaining(timerRemaining)}</span>
+          )}
+        </button>
+
+        {/* Timer Menu */}
+        {showTimerMenu && (
+          <div className="timer-menu">
+            {timerOptions.map((minutes) => (
+              <button
+                key={minutes}
+                className={`timer-option ${sleepTimer === minutes ? 'active' : ''}`}
+                onClick={() => handleTimerSelect(minutes)}
+              >
+                {minutes} мин
+              </button>
+            ))}
+            <button
+              className={`timer-option ${!sleepTimer ? 'active' : ''}`}
+              onClick={() => handleTimerSelect(null)}
+            >
+              Выкл
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main content */}

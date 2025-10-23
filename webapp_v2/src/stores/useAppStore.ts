@@ -40,6 +40,8 @@ interface AppState {
   isPlaying: boolean;
   duration: number;
   showPlayer: boolean;
+  sleepTimer: number | null; // Minutes until auto-stop (null = disabled)
+  sleepTimerStartTime: number | null; // Timestamp when timer was set
 
   // Actions
   setScreen: (screen: Screen) => void;
@@ -60,6 +62,7 @@ interface AppState {
   setIsPlaying: (isPlaying: boolean) => void;
   setDuration: (duration: number) => void;
   setShowPlayer: (show: boolean) => void;
+  setSleepTimer: (minutes: number | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -86,6 +89,8 @@ export const useAppStore = create<AppState>((set) => ({
   isPlaying: false,
   duration: 0,
   showPlayer: false,
+  sleepTimer: null,
+  sleepTimerStartTime: null,
 
   // Actions
   setScreen: (screen) =>
@@ -142,4 +147,8 @@ export const useAppStore = create<AppState>((set) => ({
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setDuration: (duration) => set({ duration }),
   setShowPlayer: (show) => set({ showPlayer: show }),
+  setSleepTimer: (minutes) => set({
+    sleepTimer: minutes,
+    sleepTimerStartTime: minutes !== null ? Date.now() : null
+  }),
 }));

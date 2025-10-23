@@ -15,16 +15,30 @@ export const useAudioPlayer = () => {
     isPlaying,
     duration,
     showPlayer,
+    sleepTimer,
+    sleepTimerStartTime,
     setActiveTrack,
     setIsPlaying,
     setDuration,
     setShowPlayer,
+    setSleepTimer,
   } = useAppStore();
 
   // Get current time directly from audio element
   const getCurrentTime = useCallback(() => {
     return audioRef.current?.currentTime || 0;
   }, []);
+
+  // Get remaining sleep timer time in minutes
+  const getSleepTimerRemaining = useCallback(() => {
+    if (!sleepTimer || !sleepTimerStartTime) return null;
+
+    const elapsed = Date.now() - sleepTimerStartTime;
+    const elapsedMinutes = elapsed / 1000 / 60;
+    const remaining = sleepTimer - elapsedMinutes;
+
+    return Math.max(0, remaining);
+  }, [sleepTimer, sleepTimerStartTime]);
 
   // Initialize audio element when track changes
   useEffect(() => {
@@ -89,6 +103,24 @@ export const useAudioPlayer = () => {
       audio.load();
     };
   }, [activeTrack?.url, activeTrack?.name, setDuration, setIsPlaying]);
+
+  // Sleep timer - check every second
+  useEffect(() => {
+    if (!sleepTimer || !sleepTimerStartTime || !isPlaying) return;
+
+    const checkTimer = setInterval(() => {
+      const elapsed = Date.now() - sleepTimerStartTime;
+      const elapsedMinutes = elapsed / 1000 / 60;
+
+      if (elapsedMinutes >= sleepTimer) {
+        console.log('Sleep timer expired, stopping playback');
+        setIsPlaying(false);
+        setSleepTimer(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(checkTimer);
+  }, [sleepTimer, sleepTimerStartTime, isPlaying, setIsPlaying, setSleepTimer]);
 
   // Play/pause based on isPlaying state
   useEffect(() => {
@@ -170,13 +202,16 @@ export const useAudioPlayer = () => {
     isPlaying,
     duration,
     showPlayer,
+    sleepTimer,
     playTrack,
     togglePlayPause,
     seek,
     closePlayer,
     stopAndClose,
     setShowPlayer,
+    setSleepTimer,
     getCurrentTime,
+    getSleepTimerRemaining,
     audioRef,
   };
 };
