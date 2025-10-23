@@ -27,50 +27,60 @@ export const useAudioPlayer = () => {
 
   // Initialize audio element when track changes
   useEffect(() => {
+    // Cleanup old audio element
+    if (audioRef.current) {
+      console.log('Cleaning up old audio element');
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current.load(); // Force release
+      audioRef.current = null;
+    }
+
     if (!activeTrack?.url) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
       return;
     }
+
+    console.log('Creating new audio element for:', activeTrack.name);
 
     // Create new audio element
     const audio = new Audio(activeTrack.url);
     audioRef.current = audio;
 
     // Setup event listeners
-    audio.addEventListener('loadedmetadata', () => {
+    const handleLoadedMetadata = () => {
+      console.log('Audio loaded, duration:', audio.duration);
       setDuration(audio.duration);
-    });
+    };
 
-    audio.addEventListener('ended', () => {
+    const handleEnded = () => {
+      console.log('Audio ended');
       setIsPlaying(false);
       audio.currentTime = 0;
-    });
+    };
 
-    audio.addEventListener('play', () => {
-      setIsPlaying(true);
-    });
-
-    audio.addEventListener('pause', () => {
-      setIsPlaying(false);
-    });
-
-    audio.addEventListener('error', (e) => {
+    const handleError = (e: ErrorEvent) => {
       console.error('Audio playback error:', e);
       setIsPlaying(false);
-    });
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError as any);
 
     // Load audio
     audio.load();
 
     // Cleanup
     return () => {
+      console.log('useEffect cleanup: removing audio element');
       audio.pause();
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError as any);
       audio.src = '';
+      audio.load();
     };
-  }, [activeTrack?.url, setDuration, setIsPlaying]);
+  }, [activeTrack?.url, activeTrack?.name, setDuration, setIsPlaying]);
 
   // Play/pause based on isPlaying state
   useEffect(() => {

@@ -81,32 +81,30 @@ export const FullscreenPlayer = () => {
     setIsDragging(true);
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (isDragging) {
-      const newTime = calculateTimeFromMouse(e as any);
-      setDragTime(newTime);
-    }
-  };
+  useEffect(() => {
+    if (!isDragging) return;
 
-  const handleMouseUp = (e: MouseEvent) => {
-    if (isDragging) {
+    const handleMouseMove = (e: MouseEvent) => {
       const newTime = calculateTimeFromMouse(e as any);
       setDragTime(newTime);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      const newTime = calculateTimeFromMouse(e as any);
+      setDragTime(newTime);
+      console.log('Seeking to:', newTime);
       seek(newTime);
       setIsDragging(false);
-    }
-  };
+    };
 
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, dragTime, duration]);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, seek, duration]);
 
   return (
     <div className="fullscreen-player">
