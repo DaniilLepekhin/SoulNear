@@ -61,6 +61,34 @@ ADMINS = [580613548, 946195257, 73744901, 389209990]
 # Опциональные ключи (для расширенных фич)
 ELEVEN_LABS_KEY = os.getenv('ELEVEN_LABS_KEY')
 
+# ==========================================
+# 🚩 FEATURE FLAGS
+# ==========================================
+# Все новые фичи разрабатываются за feature flags
+# для возможности быстрого включения/выключения
+FEATURE_FLAGS = {
+    # Этап 1: Миграция на ChatCompletion API
+    'USE_CHAT_COMPLETION': os.getenv('USE_CHAT_COMPLETION', 'false').lower() == 'true',
+    
+    # Этап 2: Настройка стиля ответов
+    'ENABLE_STYLE_SETTINGS': os.getenv('ENABLE_STYLE_SETTINGS', 'false').lower() == 'true',
+    
+    # Этап 3: Профайл пользователя
+    'ENABLE_USER_PROFILES': os.getenv('ENABLE_USER_PROFILES', 'false').lower() == 'true',
+    'ENABLE_PATTERN_ANALYSIS': os.getenv('ENABLE_PATTERN_ANALYSIS', 'false').lower() == 'true',
+    
+    # Этап 4: Динамический квиз
+    'ENABLE_DYNAMIC_QUIZ': os.getenv('ENABLE_DYNAMIC_QUIZ', 'false').lower() == 'true',
+    
+    # Этап 6: Файнтюнинг стиля
+    'ENABLE_TUNE_STYLE': os.getenv('ENABLE_TUNE_STYLE', 'false').lower() == 'true',
+}
+
+# Хелпер для проверки фичи
+def is_feature_enabled(feature_name: str) -> bool:
+    """Проверяет, включена ли фича"""
+    return FEATURE_FLAGS.get(feature_name, False)
+
 # Лог текущей конфигурации (для отладки)
 if __name__ == '__main__':
     print(f"\n📋 Текущая конфигурация ({ENV}):")
@@ -69,4 +97,8 @@ if __name__ == '__main__':
     print(f"  POSTGRES_DB: {POSTGRES_DB}")
     print(f"  OPENAI_API_KEY: {'*' * 10}{OPENAI_API_KEY[-10:] if OPENAI_API_KEY else 'НЕТ'}")
     print(f"  HELPER_ID: {HELPER_ID}")
+    print(f"\n🚩 Feature Flags:")
+    for feature, enabled in FEATURE_FLAGS.items():
+        status = "✅ ON" if enabled else "⭕ OFF"
+        print(f"  {feature}: {status}")
 
