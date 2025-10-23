@@ -31,6 +31,13 @@ export const useAudioPlayer = () => {
     // Cleanup old audio element
     if (audioRef.current) {
       console.log('Cleaning up old audio element');
+
+      // Cancel any pending play promise
+      if (playPromiseRef.current) {
+        playPromiseRef.current.catch(() => {});
+        playPromiseRef.current = null;
+      }
+
       audioRef.current.pause();
       audioRef.current.src = '';
       audioRef.current.load(); // Force release
