@@ -8,4 +8,5 @@ from .premium import dp
 from .relationships import dp
 from .sleeper import dp
 from .sounds import dp
+from .webapp import dp
 __all__ = ['dp']
