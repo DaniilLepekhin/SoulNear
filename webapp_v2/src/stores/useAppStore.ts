@@ -38,7 +38,6 @@ interface AppState {
   // Audio Player
   activeTrack: Track | null;
   isPlaying: boolean;
-  currentTime: number;
   duration: number;
   showPlayer: boolean;
 
@@ -59,7 +58,6 @@ interface AppState {
   updateCalendarDay: (day: number, mood: Mood) => void;
   setActiveTrack: (track: Track | null) => void;
   setIsPlaying: (isPlaying: boolean) => void;
-  setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   setShowPlayer: (show: boolean) => void;
 }
@@ -86,7 +84,6 @@ export const useAppStore = create<AppState>((set) => ({
   isLoading: false,
   activeTrack: null,
   isPlaying: false,
-  currentTime: 0,
   duration: 0,
   showPlayer: false,
 
@@ -143,7 +140,6 @@ export const useAppStore = create<AppState>((set) => ({
 
   setActiveTrack: (track) => set({ activeTrack: track }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
-  setCurrentTime: (time) => set({ currentTime: time }),
   setDuration: (duration) => set({ duration }),
   setShowPlayer: (show) => set({ showPlayer: show }),
 }));

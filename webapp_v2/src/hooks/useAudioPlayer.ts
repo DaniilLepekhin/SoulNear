@@ -8,20 +8,22 @@ import type { Track } from '../types';
 
 export const useAudioPlayer = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isSeekingRef = useRef(false);
 
   const {
     activeTrack,
     isPlaying,
-    currentTime,
     duration,
     showPlayer,
     setActiveTrack,
     setIsPlaying,
-    setCurrentTime,
     setDuration,
     setShowPlayer,
   } = useAppStore();
+
+  // Get current time directly from audio element
+  const getCurrentTime = useCallback(() => {
+    return audioRef.current?.currentTime || 0;
+  }, []);
 
   // Initialize audio element when track changes
   useEffect(() => {
@@ -42,25 +44,8 @@ export const useAudioPlayer = () => {
       setDuration(audio.duration);
     });
 
-    audio.addEventListener('timeupdate', () => {
-      // Don't update during seeking to prevent jumping
-      if (!isSeekingRef.current) {
-        setCurrentTime(audio.currentTime);
-      }
-    });
-
-    audio.addEventListener('seeking', () => {
-      isSeekingRef.current = true;
-    });
-
-    audio.addEventListener('seeked', () => {
-      isSeekingRef.current = false;
-      setCurrentTime(audio.currentTime);
-    });
-
     audio.addEventListener('ended', () => {
       setIsPlaying(false);
-      setCurrentTime(0);
       audio.currentTime = 0;
     });
 
@@ -85,7 +70,7 @@ export const useAudioPlayer = () => {
       audio.pause();
       audio.src = '';
     };
-  }, [activeTrack?.url, setDuration, setCurrentTime, setIsPlaying]);
+  }, [activeTrack?.url, setDuration, setIsPlaying]);
 
   // Play/pause based on isPlaying state
   useEffect(() => {
@@ -116,12 +101,9 @@ export const useAudioPlayer = () => {
 
   const seek = useCallback((time: number) => {
     if (audioRef.current && isFinite(time)) {
-      // Immediately update UI
-      setCurrentTime(time);
-      // Then seek audio
       audioRef.current.currentTime = time;
     }
-  }, [setCurrentTime]);
+  }, []);
 
   const closePlayer = useCallback(() => {
     setShowPlayer(false);
@@ -135,15 +117,13 @@ export const useAudioPlayer = () => {
     }
     setActiveTrack(null);
     setIsPlaying(false);
-    setCurrentTime(0);
     setDuration(0);
     setShowPlayer(false);
-  }, [setActiveTrack, setIsPlaying, setCurrentTime, setDuration, setShowPlayer]);
+  }, [setActiveTrack, setIsPlaying, setDuration, setShowPlayer]);
 
   return {
     activeTrack,
     isPlaying,
-    currentTime,
     duration,
     showPlayer,
     playTrack,
@@ -152,5 +132,7 @@ export const useAudioPlayer = () => {
     closePlayer,
     stopAndClose,
     setShowPlayer,
+    getCurrentTime,
+    audioRef,
   };
 };

@@ -10,16 +10,36 @@ export const FullscreenPlayer = () => {
   const {
     activeTrack,
     isPlaying,
-    currentTime,
     duration,
     togglePlayPause,
     seek,
     closePlayer,
+    audioRef,
   } = useAudioPlayer();
 
+  const [currentTime, setCurrentTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(0);
   const progressBarRef = useRef<HTMLDivElement>(null);
+  const animationFrameRef = useRef<number>(0);
+
+  // Update current time smoothly using requestAnimationFrame
+  useEffect(() => {
+    const updateTime = () => {
+      if (!isDragging && audioRef.current) {
+        setCurrentTime(audioRef.current.currentTime);
+      }
+      animationFrameRef.current = requestAnimationFrame(updateTime);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(updateTime);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isDragging, audioRef]);
 
   // Handle Escape key
   useEffect(() => {
