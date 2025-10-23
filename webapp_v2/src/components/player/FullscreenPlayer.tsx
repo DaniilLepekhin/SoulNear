@@ -2,7 +2,7 @@
 // Fullscreen Audio Player Component
 // ==========================================
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import './FullscreenPlayer.css';
 
@@ -16,6 +16,9 @@ export const FullscreenPlayer = () => {
     seek,
     closePlayer,
   } = useAudioPlayer();
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTime, setDragTime] = useState(0);
 
   // Handle Escape key
   useEffect(() => {
@@ -38,15 +41,50 @@ export const FullscreenPlayer = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  // Use dragging time if dragging, otherwise use current time
+  const displayTime = isDragging ? dragTime : currentTime;
+  const progress = duration > 0 ? (displayTime / duration) * 100 : 0;
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    const newTime = percentage * duration;
-    seek(newTime);
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    updateTimeFromMouse(e);
   };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      updateTimeFromMouse(e as any);
+    }
+  };
+
+  const handleMouseUp = (e: MouseEvent) => {
+    if (isDragging) {
+      updateTimeFromMouse(e as any);
+      seek(dragTime);
+      setIsDragging(false);
+    }
+  };
+
+  const updateTimeFromMouse = (e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
+    const target = e.currentTarget || document.querySelector('.player-progress-bar');
+    if (!target) return;
+
+    const rect = (target as HTMLElement).getBoundingClientRect();
+    const x = (e as MouseEvent).clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
+    const newTime = percentage * duration;
+    setDragTime(newTime);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragTime, duration]);
 
   return (
     <div className="fullscreen-player">
@@ -88,7 +126,7 @@ export const FullscreenPlayer = () => {
 
         {/* Progress bar */}
         <div className="player-progress-section">
-          <div className="player-progress-bar" onClick={handleSeek}>
+          <div className="player-progress-bar" onMouseDown={handleMouseDown}>
             <div
               className="player-progress-fill"
               style={{ width: `${progress}%` }}
@@ -99,7 +137,7 @@ export const FullscreenPlayer = () => {
             />
           </div>
           <div className="player-time">
-            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(displayTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>

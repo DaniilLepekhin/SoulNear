@@ -137,6 +137,7 @@
   border-radius: 3px;
   cursor: pointer;
   margin-bottom: 0.75rem;
+  user-select: none;
 }
 
 .player-progress-fill {
@@ -146,7 +147,8 @@
   height: 100%;
   background: white;
   border-radius: 3px;
-  transition: width 0.1s linear;
+  pointer-events: none;
+  transition: none;
 }
 
 .player-progress-handle {
@@ -158,7 +160,8 @@
   background: white;
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: left 0.1s linear;
+  pointer-events: none;
+  transition: none;
 }
 
 .player-time {
