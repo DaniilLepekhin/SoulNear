@@ -2,7 +2,7 @@
 // Fullscreen Audio Player Component
 // ==========================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import './FullscreenPlayer.css';
 
@@ -19,6 +19,7 @@ export const FullscreenPlayer = () => {
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(0);
+  const progressBarRef = useRef<HTMLDivElement>(null);
 
   // Handle Escape key
   useEffect(() => {
@@ -46,10 +47,9 @@ export const FullscreenPlayer = () => {
   const progress = duration > 0 ? (displayTime / duration) * 100 : 0;
 
   const calculateTimeFromMouse = (e: React.MouseEvent<HTMLDivElement> | MouseEvent): number => {
-    const target = e.currentTarget || document.querySelector('.player-progress-bar');
-    if (!target) return 0;
+    if (!progressBarRef.current) return 0;
 
-    const rect = (target as HTMLElement).getBoundingClientRect();
+    const rect = progressBarRef.current.getBoundingClientRect();
     const x = (e as MouseEvent).clientX - rect.left;
     const percentage = Math.max(0, Math.min(1, x / rect.width));
     return percentage * duration;
@@ -128,7 +128,11 @@ export const FullscreenPlayer = () => {
 
         {/* Progress bar */}
         <div className="player-progress-section">
-          <div className="player-progress-bar" onMouseDown={handleMouseDown}>
+          <div
+            ref={progressBarRef}
+            className="player-progress-bar"
+            onMouseDown={handleMouseDown}
+          >
             <div
               className="player-progress-fill"
               style={{ width: `${progress}%` }}
