@@ -8,6 +8,7 @@ import type { Track } from '../types';
 
 export const useAudioPlayer = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isSeekingRef = useRef(false);
 
   const {
     activeTrack,
@@ -42,6 +43,18 @@ export const useAudioPlayer = () => {
     });
 
     audio.addEventListener('timeupdate', () => {
+      // Don't update during seeking to prevent jumping
+      if (!isSeekingRef.current) {
+        setCurrentTime(audio.currentTime);
+      }
+    });
+
+    audio.addEventListener('seeking', () => {
+      isSeekingRef.current = true;
+    });
+
+    audio.addEventListener('seeked', () => {
+      isSeekingRef.current = false;
       setCurrentTime(audio.currentTime);
     });
 
@@ -56,8 +69,6 @@ export const useAudioPlayer = () => {
     });
 
     audio.addEventListener('pause', () => {
-      // Don't update state if paused at the very beginning (this happens during seeking)
-      if (audio.currentTime < 0.5) return;
       setIsPlaying(false);
     });
 
@@ -104,9 +115,11 @@ export const useAudioPlayer = () => {
   }, [isPlaying, setIsPlaying]);
 
   const seek = useCallback((time: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
+    if (audioRef.current && isFinite(time)) {
+      // Immediately update UI
       setCurrentTime(time);
+      // Then seek audio
+      audioRef.current.currentTime = time;
     }
   }, [setCurrentTime]);
 
