@@ -45,34 +45,36 @@ export const FullscreenPlayer = () => {
   const displayTime = isDragging ? dragTime : currentTime;
   const progress = duration > 0 ? (displayTime / duration) * 100 : 0;
 
+  const calculateTimeFromMouse = (e: React.MouseEvent<HTMLDivElement> | MouseEvent): number => {
+    const target = e.currentTarget || document.querySelector('.player-progress-bar');
+    if (!target) return 0;
+
+    const rect = (target as HTMLElement).getBoundingClientRect();
+    const x = (e as MouseEvent).clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
+    return percentage * duration;
+  };
+
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const newTime = calculateTimeFromMouse(e);
+    setDragTime(newTime);
     setIsDragging(true);
-    updateTimeFromMouse(e);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (isDragging) {
-      updateTimeFromMouse(e as any);
+      const newTime = calculateTimeFromMouse(e as any);
+      setDragTime(newTime);
     }
   };
 
   const handleMouseUp = (e: MouseEvent) => {
     if (isDragging) {
-      updateTimeFromMouse(e as any);
-      seek(dragTime);
+      const newTime = calculateTimeFromMouse(e as any);
+      setDragTime(newTime);
+      seek(newTime);
       setIsDragging(false);
     }
-  };
-
-  const updateTimeFromMouse = (e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
-    const target = e.currentTarget || document.querySelector('.player-progress-bar');
-    if (!target) return;
-
-    const rect = (target as HTMLElement).getBoundingClientRect();
-    const x = (e as MouseEvent).clientX - rect.left;
-    const percentage = Math.max(0, Math.min(1, x / rect.width));
-    const newTime = percentage * duration;
-    setDragTime(newTime);
   };
 
   useEffect(() => {
