@@ -1,0 +1,143 @@
+/* ==========================================
+   Mini Player Styles
+   ========================================== */
+
+.mini-player {
+  position: fixed;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  left: 1rem;
+  right: 1rem;
+  z-index: 20;
+  cursor: pointer;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s ease;
+}
+
+.mini-player:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
+}
+
+.mini-player:active {
+  transform: translateY(0);
+}
+
+.mini-player-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    #2E6BEB,
+    #4A90E2
+  );
+  transition: width 0.1s linear;
+  z-index: 1;
+}
+
+.mini-player-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  gap: 1rem;
+}
+
+.mini-player-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.mini-player-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(46, 107, 235, 0.1), rgba(74, 144, 226, 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-player-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.mini-player-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.125rem;
+}
+
+.mini-player-time {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #666;
+}
+
+.mini-player-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.mini-player-play-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(46, 107, 235, 0.1);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mini-player-play-btn:hover {
+  background: rgba(46, 107, 235, 0.15);
+  transform: scale(1.05);
+}
+
+.mini-player-play-btn:active {
+  transform: scale(0.95);
+}
+
+.mini-player-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mini-player-close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.05);
+}
+
+.mini-player-close-btn:active {
+  transform: scale(0.95);
+}

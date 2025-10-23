@@ -18,10 +18,14 @@ import { AnalysisVoiceScreen } from './components/screens/AnalysisVoiceScreen';
 import { DreamsScreen } from './components/screens/DreamsScreen';
 import { DreamsChatScreen } from './components/screens/DreamsChatScreen';
 import { DreamsVoiceScreen } from './components/screens/DreamsVoiceScreen';
+import { FullscreenPlayer } from './components/player/FullscreenPlayer';
+import { MiniPlayer } from './components/player/MiniPlayer';
 
 function App() {
   const currentScreen = useAppStore((state) => state.currentScreen);
   const setUser = useAppStore((state) => state.setUser);
+  const showPlayer = useAppStore((state) => state.showPlayer);
+  const activeTrack = useAppStore((state) => state.activeTrack);
 
   useEffect(() => {
     const user = telegram.getUser();
@@ -51,6 +55,10 @@ function App() {
       <DreamsScreen isActive={currentScreen === 'dreams'} />
       <DreamsChatScreen isActive={currentScreen === 'dreamsChat'} />
       <DreamsVoiceScreen isActive={currentScreen === 'dreamsVoice'} />
+
+      {/* Audio Players */}
+      {showPlayer && activeTrack && <FullscreenPlayer />}
+      {!showPlayer && activeTrack && <MiniPlayer />}
     </>
   );
 }

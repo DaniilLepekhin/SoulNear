@@ -65,3 +65,11 @@ export interface ChatHistory {
   preview: string;
   messages: Message[];
 }
+
+export interface Track {
+  media_id: string;
+  name: string;
+  duration?: string;
+  url?: string;
+  category?: string;
+}

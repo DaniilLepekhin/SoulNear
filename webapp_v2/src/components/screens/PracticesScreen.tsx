@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { api } from '../../services/api';
+import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import type { Track } from '../../types';
 
 interface PracticesScreenProps {
   isActive: boolean;
@@ -9,6 +11,7 @@ interface PracticesScreenProps {
 export const PracticesScreen = ({ isActive }: PracticesScreenProps) => {
   const setScreen = useAppStore((state) => state.setScreen);
   const [practicesData, setPracticesData] = useState<{ practices: any[]; music?: any[]; videos?: any[] } | null>(null);
+  const { playTrack } = useAudioPlayer();
 
   useEffect(() => {
     loadPractices();
@@ -139,7 +142,15 @@ export const PracticesScreen = ({ isActive }: PracticesScreenProps) => {
                       <span className="tag">Медитация</span>
                     </div>
                   </div>
-                  <button className="meditation-play-btn" onClick={() => console.log('Play:', item.name)}>
+                  <button className="meditation-play-btn" onClick={() => {
+                    const track: Track = {
+                      media_id: item.media_id || String(itemIdx),
+                      name: item.name,
+                      url: item.url,
+                      category: 'Медитация'
+                    };
+                    playTrack(track);
+                  }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                       <path d="M8 5V19L19 12L8 5Z" fill="white"/>
                     </svg>
@@ -170,7 +181,13 @@ export const PracticesScreen = ({ isActive }: PracticesScreenProps) => {
                     data-media-id={item.media_id || ''}
                     onClick={(e) => {
                       if (!(e.target as HTMLElement).closest('.card-favorite-btn')) {
-                        console.log('Play yoga:', item.name);
+                        const track: Track = {
+                          media_id: item.media_id || String(idx),
+                          name: item.name,
+                          url: item.url,
+                          category: 'Йога'
+                        };
+                        playTrack(track);
                       }
                     }}
                   >
@@ -214,7 +231,16 @@ export const PracticesScreen = ({ isActive }: PracticesScreenProps) => {
                     <span className="tag">Релакс</span>
                   </div>
                 </div>
-                <button className="meditation-play-btn" onClick={() => console.log('Play music:', track.name)}>
+                <button className="meditation-play-btn" onClick={() => {
+                  const audioTrack: Track = {
+                    media_id: track.media_id || String(idx),
+                    name: track.name,
+                    url: track.url,
+                    duration: track.duration,
+                    category: 'Музыка'
+                  };
+                  playTrack(audioTrack);
+                }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M8 5V19L19 12L8 5Z" fill="white"/>
                   </svg>
