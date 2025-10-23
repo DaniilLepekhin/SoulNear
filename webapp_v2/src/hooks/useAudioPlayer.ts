@@ -8,6 +8,7 @@ import type { Track } from '../types';
 
 export const useAudioPlayer = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
 
   const {
     activeTrack,
@@ -86,16 +87,42 @@ export const useAudioPlayer = () => {
   useEffect(() => {
     if (!audioRef.current) return;
 
+    const audio = audioRef.current;
+
     if (isPlaying) {
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.error('Playback failed:', error);
-          setIsPlaying(false);
-        });
-      }
+      // Wait for any previous play promise to complete
+      const startPlayback = async () => {
+        try {
+          // If there's a pending play promise, wait for it
+          if (playPromiseRef.current) {
+            await playPromiseRef.current.catch(() => {
+              // Ignore errors from previous play attempt
+            });
+          }
+
+          // Start new playback
+          playPromiseRef.current = audio.play();
+          await playPromiseRef.current;
+          playPromiseRef.current = null;
+        } catch (error: any) {
+          playPromiseRef.current = null;
+          if (error?.name !== 'AbortError') {
+            console.error('Playback failed:', error);
+            setIsPlaying(false);
+          }
+        }
+      };
+
+      startPlayback();
     } else {
-      audioRef.current.pause();
+      // Cancel any pending play
+      if (playPromiseRef.current) {
+        playPromiseRef.current.catch(() => {
+          // Ignore abort errors
+        });
+        playPromiseRef.current = null;
+      }
+      audio.pause();
     }
   }, [isPlaying, setIsPlaying]);
 
