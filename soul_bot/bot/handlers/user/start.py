@@ -100,6 +100,52 @@ async def delete_context_message(message: Message, state: FSMContext):
         print(f"Ошибка в deletecontext: {e}")
 
 
+@dp.message(Command('settings'))
+async def settings_message(message: Message):
+    """Команда /settings - быстрый доступ к настройкам стиля"""
+    from bot.handlers.user.profile import style_settings_callback
+    from bot.keyboards.profile import style_settings_menu
+    from config import is_feature_enabled
+    import database.repository.user_profile as db_user_profile
+    
+    if not is_feature_enabled('ENABLE_STYLE_SETTINGS'):
+        await message.answer("⚠️ Настройки стиля временно недоступны")
+        return
+    
+    user_id = message.from_user.id
+    profile = await db_user_profile.get_or_create(user_id)
+    
+    tone_map = {
+        'formal': '🎩 Формальный',
+        'friendly': '😊 Дружелюбный',
+        'sarcastic': '😏 Ироничный',
+        'motivating': '🔥 Мотивирующий'
+    }
+    
+    personality_map = {
+        'mentor': '🧙‍♂️ Мудрый наставник',
+        'friend': '👥 Поддерживающий друг',
+        'coach': '💪 Строгий коуч'
+    }
+    
+    length_map = {
+        'brief': '⚡ Кратко',
+        'medium': '📝 Средне',
+        'detailed': '📚 Подробно'
+    }
+    
+    text = (
+        f'🎨 <b>Настройки стиля общения</b>\n\n'
+        f'Текущие настройки:\n'
+        f'├ Тон: <code>{tone_map.get(profile.tone_style, profile.tone_style)}</code>\n'
+        f'├ Личность: <code>{personality_map.get(profile.personality, profile.personality)}</code>\n'
+        f'└ Длина ответов: <code>{length_map.get(profile.message_length, profile.message_length)}</code>\n\n'
+        f'💡 <i>Изменения применяются сразу ко всем ассистентам</i>'
+    )
+    
+    await message.answer(text=text, reply_markup=style_settings_menu)
+
+
 @dp.callback_query(F.data == 'menu')
 async def menu_callback(callback: CallbackQuery, state: FSMContext):
     try:

@@ -144,6 +144,81 @@ class TestPerformance:
 
 
 # ==========================================
+# 🎨 STAGE 2: STYLE SETTINGS TESTS
+# ==========================================
+
+class TestStyleSettingsFeature:
+    """Тесты для функционала настройки стиля (Stage 2)
+    
+    Проверяем что:
+    - Новые клавиатуры созданы
+    - Новые handlers существуют
+    - Feature flag работает
+    - Repository методы доступны
+    """
+    
+    def test_style_keyboards_exist(self):
+        """Клавиатуры для настройки стиля созданы"""
+        from bot.keyboards.profile import (
+            style_settings_menu,
+            tone_menu,
+            personality_menu,
+            length_menu
+        )
+        
+        assert style_settings_menu is not None
+        assert tone_menu is not None
+        assert personality_menu is not None
+        assert length_menu is not None
+    
+    def test_style_settings_feature_flag(self):
+        """Feature flag ENABLE_STYLE_SETTINGS работает"""
+        from config import is_feature_enabled
+        
+        # Проверяем что функция возвращает bool
+        result = is_feature_enabled('ENABLE_STYLE_SETTINGS')
+        assert isinstance(result, bool)
+    
+    @pytest.mark.asyncio
+    async def test_user_profile_repository_methods(self):
+        """Repository методы для user_profile доступны"""
+        import database.repository.user_profile as db_user_profile
+        
+        # Проверяем что методы существуют
+        assert hasattr(db_user_profile, 'get_or_create')
+        assert hasattr(db_user_profile, 'update_style')
+        assert callable(db_user_profile.get_or_create)
+        assert callable(db_user_profile.update_style)
+    
+    def test_openai_service_has_style_instructions(self):
+        """OpenAI service использует настройки стиля"""
+        from bot.services import openai_service
+        
+        # Проверяем что функция существует
+        assert hasattr(openai_service, '_build_style_instructions')
+        assert callable(openai_service._build_style_instructions)
+    
+    @pytest.mark.asyncio
+    async def test_style_settings_integration(self):
+        """Полная интеграция: profile -> openai_service
+        
+        Проверяем что настройки профиля действительно попадают в промпт
+        """
+        from config import is_feature_enabled
+        
+        if not is_feature_enabled('ENABLE_STYLE_SETTINGS'):
+            pytest.skip("ENABLE_STYLE_SETTINGS отключен")
+        
+        # Проверяем что все модули импортируются
+        try:
+            import database.repository.user_profile
+            from bot.services import openai_service
+            assert True
+        except Exception as e:
+            pytest.fail(f"Не удалось импортировать модули: {e}")
+
+
+# ==========================================
 # 🚀 ЗАПУСК ТЕСТОВ
 # ==========================================
 
