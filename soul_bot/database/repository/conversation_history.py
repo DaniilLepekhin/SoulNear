@@ -5,6 +5,7 @@ Repository для работы с историей сообщений (Conversat
 - add_message() - добавить сообщение в историю
 - get_history() - получить последние N сообщений
 - get_context() - получить контекст для ChatCompletion
+- count_messages() - посчитать количество сообщений пользователя
 - clear_history() - очистить историю (для тестирования)
 """
 from datetime import datetime, timedelta

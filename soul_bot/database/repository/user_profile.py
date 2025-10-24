@@ -94,6 +94,28 @@ async def update_style(
         await session.commit()
 
 
+async def update_patterns(user_id: int, patterns: list) -> None:
+    """
+    ЗАМЕНИТЬ паттерны полностью (для работы с Moderate структурой)
+    
+    Args:
+        user_id: Telegram ID пользователя
+        patterns: Полный список паттернов (с embeddings)
+    """
+    async with db() as session:
+        await session.execute(
+            update(UserProfile)
+            .where(UserProfile.user_id == user_id)
+            .values(
+                patterns={'patterns': patterns},
+                updated_at=datetime.utcnow(),
+                pattern_analysis_count=UserProfile.pattern_analysis_count + 1,
+                last_analysis_at=datetime.utcnow()
+            )
+        )
+        await session.commit()
+
+
 async def add_patterns(user_id: int, new_patterns: list) -> None:
     """
     Добавить новые паттерны к профилю
@@ -124,6 +146,26 @@ async def add_patterns(user_id: int, new_patterns: list) -> None:
             profile.pattern_analysis_count += 1
             profile.last_analysis_at = datetime.utcnow()
         
+        await session.commit()
+
+
+async def update_insights(user_id: int, insights: list) -> None:
+    """
+    ЗАМЕНИТЬ инсайты полностью (для работы с Moderate структурой)
+    
+    Args:
+        user_id: Telegram ID пользователя
+        insights: Полный список инсайтов
+    """
+    async with db() as session:
+        await session.execute(
+            update(UserProfile)
+            .where(UserProfile.user_id == user_id)
+            .values(
+                insights={'insights': insights},
+                updated_at=datetime.utcnow()
+            )
+        )
         await session.commit()
 
 

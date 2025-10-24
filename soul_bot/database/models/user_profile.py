@@ -35,38 +35,131 @@ class UserProfile(Base):
     message_length: Mapped[str] = mapped_column(VARCHAR(length=32), default='medium')
 
     # ==========================================
-    # 🧠 ПАТТЕРНЫ И ИНСАЙТЫ
+    # 🧠 ПАТТЕРНЫ (MODERATE STRUCTURE)
     # ==========================================
-    # Выявленные паттерны поведения
-    # Формат: [
-    #   {
-    #     "type": "emotional_pattern",
-    #     "description": "Часто упоминает одиночество",
-    #     "frequency": "high",
-    #     "detected_at": "2025-10-20"
-    #   },
-    #   ...
-    # ]
-    patterns: Mapped[dict] = mapped_column(JSONB, default={})
-    
-    # Инсайты из анализа
-    # Формат: [
-    #   {
-    #     "insight": "Пользователь избегает конфликтов",
-    #     "confidence": 0.8,
-    #     "source": "quiz_relationships",
-    #     "created_at": "2025-10-20"
-    #   },
-    #   ...
-    # ]
-    insights: Mapped[dict] = mapped_column(JSONB, default={})
-    
-    # Дополнительные предпочтения и метаданные
+    # Выявленные паттерны поведения с embeddings
     # Формат: {
+    #   "patterns": [
+    #     {
+    #       "id": "uuid",
+    #       "type": "behavioral|emotional|cognitive",
+    #       "title": "Прокрастинация при монотонной работе",
+    #       "description": "Откладывает задачи когда работа кажется скучной",
+    #       "evidence": ["мне грустно дождь идёт", "опять прокрастинирую"],
+    #       "embedding": [0.1, 0.2, ...],  # 1536-dim vector
+    #       "frequency": "high|medium|low",
+    #       "first_detected": "2025-10-20T10:00:00",
+    #       "last_detected": "2025-10-24T15:30:00",
+    #       "occurrences": 5,
+    #       "tags": ["работа", "мотивация", "погода"],
+    #       "related_patterns": ["pattern_uuid_2", "pattern_uuid_3"],
+    #       "confidence": 0.85
+    #     }
+    #   ]
+    # }
+    patterns: Mapped[dict] = mapped_column(JSONB, default=lambda: {"patterns": []})
+    
+    # ==========================================
+    # 💡 ИНСАЙТЫ (MODERATE STRUCTURE)
+    # ==========================================
+    # Инсайты из глубокого анализа
+    # Формат: {
+    #   "insights": [
+    #     {
+    #       "id": "uuid",
+    #       "category": "personality|behavior|emotional",
+    #       "title": "Склонность к самокритике",
+    #       "description": "Часто винит себя за отсутствие продуктивности",
+    #       "impact": "negative|neutral|positive",
+    #       "recommendations": [
+    #         "Напоминать о достижениях",
+    #         "Фокусироваться на прогрессе"
+    #       ],
+    #       "derived_from": ["pattern_uuid_1", "pattern_uuid_3"],
+    #       "created_at": "2025-10-24T10:00:00",
+    #       "last_updated": "2025-10-24T15:00:00",
+    #       "priority": "high|medium|low"
+    #     }
+    #   ]
+    # }
+    insights: Mapped[dict] = mapped_column(JSONB, default=lambda: {"insights": []})
+    
+    # ==========================================
+    # 😊 ЭМОЦИОНАЛЬНОЕ СОСТОЯНИЕ
+    # ==========================================
+    # Текущее эмоциональное состояние и история
+    # Формат: {
+    #   "current_mood": "slightly_down|neutral|good|energetic",
+    #   "mood_history": [
+    #     {"date": "2025-10-24", "mood": "slightly_down", "triggers": ["дождь", "работа"]},
+    #     {"date": "2025-10-23", "mood": "neutral"}
+    #   ],
+    #   "stress_level": "low|medium|high",
+    #   "energy_level": "low|medium|high"
+    # }
+    emotional_state: Mapped[dict] = mapped_column(
+        JSONB,
+        default=lambda: {
+            "current_mood": "neutral",
+            "mood_history": [],
+            "stress_level": "medium",
+            "energy_level": "medium"
+        }
+    )
+    
+    # ==========================================
+    # 📊 МЕТРИКИ РАЗГОВОРОВ
+    # ==========================================
+    # Статистика и метрики коммуникации
+    # Формат: {
+    #   "total_messages": 150,
+    #   "avg_session_length": 12,
+    #   "most_discussed_topics": [
+    #     {"topic": "работа", "count": 45},
+    #     {"topic": "отношения", "count": 30}
+    #   ],
+    #   "question_types": {
+    #     "advice_seeking": 60,
+    #     "venting": 30,
+    #     "clarification": 10
+    #   }
+    # }
+    conversation_metrics: Mapped[dict] = mapped_column(
+        JSONB,
+        default=lambda: {
+            "total_messages": 0,
+            "avg_session_length": 0,
+            "most_discussed_topics": [],
+            "question_types": {}
+        }
+    )
+    
+    # ==========================================
+    # 🎓 LEARNING PREFERENCES
+    # ==========================================
+    # Что работает/не работает для пользователя
+    # Формат: {
+    #   "best_response_length": "brief|medium|detailed",
+    #   "preferred_communication_style": "direct_with_empathy|formal|casual",
+    #   "works_well": ["конкретные шаги", "примеры из жизни"],
+    #   "doesnt_work": ["общие фразы", "слишком много текста"]
+    # }
+    learning_preferences: Mapped[dict] = mapped_column(
+        JSONB,
+        default=lambda: {
+            "works_well": [],
+            "doesnt_work": []
+        }
+    )
+    
+    # ==========================================
+    # ⚙️ ДОПОЛНИТЕЛЬНЫЕ ПРЕДПОЧТЕНИЯ
+    # ==========================================
+    # Custom instructions и другие настройки
+    # Формат: {
+    #   "custom_instructions": "Будь более конкретным в советах",
     #   "preferred_topics": ["relationships", "personal_growth"],
-    #   "avoid_topics": ["politics"],
-    #   "communication_style": "direct",
-    #   "custom_instructions": "Будь более конкретным в советах"
+    #   "avoid_topics": ["politics"]
     # }
     preferences: Mapped[dict] = mapped_column(JSONB, default={})
 

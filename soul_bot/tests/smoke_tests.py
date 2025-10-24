@@ -219,6 +219,67 @@ class TestStyleSettingsFeature:
 
 
 # ==========================================
+# 🧠 STAGE 3: PATTERN ANALYSIS TESTS
+# ==========================================
+
+class TestPatternAnalysisFeature:
+    """Тесты для автоматического анализа паттернов (Stage 3)
+    
+    Проверяем что:
+    - Embedding service доступен
+    - Pattern analyzer создан
+    - Feature flag работает
+    - Новые поля в модели
+    """
+    
+    def test_embedding_service_exists(self):
+        """Embedding service существует"""
+        try:
+            from bot.services import embedding_service
+            assert hasattr(embedding_service, 'get_embedding')
+            assert hasattr(embedding_service, 'cosine_similarity')
+            assert hasattr(embedding_service, 'is_duplicate')
+        except Exception as e:
+            pytest.fail(f"Embedding service не работает: {e}")
+    
+    def test_pattern_analyzer_exists(self):
+        """Pattern analyzer существует"""
+        try:
+            from bot.services import pattern_analyzer
+            assert hasattr(pattern_analyzer, 'quick_analysis')
+            assert hasattr(pattern_analyzer, 'deep_analysis')
+            assert hasattr(pattern_analyzer, 'analyze_if_needed')
+        except Exception as e:
+            pytest.fail(f"Pattern analyzer не работает: {e}")
+    
+    def test_pattern_analysis_feature_flag(self):
+        """Feature flag ENABLE_PATTERN_ANALYSIS работает"""
+        from config import is_feature_enabled
+        
+        result = is_feature_enabled('ENABLE_PATTERN_ANALYSIS')
+        assert isinstance(result, bool)
+    
+    def test_user_profile_has_new_fields(self):
+        """UserProfile модель имеет новые поля"""
+        from database.models.user_profile import UserProfile
+        
+        # Проверяем что поля определены
+        assert hasattr(UserProfile, 'emotional_state')
+        assert hasattr(UserProfile, 'conversation_metrics')
+        assert hasattr(UserProfile, 'learning_preferences')
+    
+    @pytest.mark.asyncio
+    async def test_user_profile_repository_has_new_methods(self):
+        """Repository имеет методы для Moderate структуры"""
+        import database.repository.user_profile as db_user_profile
+        
+        assert hasattr(db_user_profile, 'update_patterns')
+        assert hasattr(db_user_profile, 'update_insights')
+        assert callable(db_user_profile.update_patterns)
+        assert callable(db_user_profile.update_insights)
+
+
+# ==========================================
 # 🚀 ЗАПУСК ТЕСТОВ
 # ==========================================
 

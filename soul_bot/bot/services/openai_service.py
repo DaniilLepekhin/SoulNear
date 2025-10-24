@@ -91,15 +91,22 @@ async def build_system_prompt(
             prompt_parts.append("\n## 👤 О пользователе:\n" + "\n".join(user_info))
     
     # ==========================================
-    # ПАТТЕРНЫ И ИНСАЙТЫ
+    # ПАТТЕРНЫ И ИНСАЙТЫ (MODERATE)
     # ==========================================
     patterns = profile.patterns.get('patterns', [])
     if patterns and len(patterns) > 0:
-        # Берём последние 5 паттернов
-        recent_patterns = patterns[-5:]
+        # Берём паттерны с высокой частотой/важностью
+        top_patterns = sorted(
+            patterns,
+            key=lambda p: (p.get('occurrences', 1), p.get('confidence', 0.5)),
+            reverse=True
+        )[:5]
+        
         patterns_text = "\n".join([
-            f"- {p.get('description', 'Без описания')}"
-            for p in recent_patterns
+            f"- [{p.get('type', 'behavioral')}] {p.get('title', 'Без названия')}: "
+            f"{p.get('description', 'Без описания')} "
+            f"(встречается {p.get('occurrences', 1)}x)"
+            for p in top_patterns
         ])
         prompt_parts.append(
             f"\n## 🧠 Выявленные паттерны пользователя:\n{patterns_text}\n"
@@ -108,16 +115,57 @@ async def build_system_prompt(
     
     insights = profile.insights.get('insights', [])
     if insights and len(insights) > 0:
-        # Берём последние 3 инсайта
-        recent_insights = insights[-3:]
+        # Берём инсайты с высоким приоритетом
+        high_priority = [i for i in insights if i.get('priority') == 'high']
+        recent_insights = (high_priority if high_priority else insights)[-3:]
+        
         insights_text = "\n".join([
-            f"- {i.get('insight', 'Без описания')}"
+            f"- {i.get('title', 'Инсайт')}: {i.get('description', 'Без описания')}\n"
+            f"  Рекомендации: {', '.join(i.get('recommendations', []))}"
             for i in recent_insights
         ])
         prompt_parts.append(
             f"\n## 💡 Ключевые инсайты:\n{insights_text}\n"
-            "Используй эти инсайты для более глубокого понимания пользователя."
+            "Используй эти инсайты и рекомендации в своих ответах."
         )
+    
+    # ==========================================
+    # 😊 ЭМОЦИОНАЛЬНОЕ СОСТОЯНИЕ (MODERATE)
+    # ==========================================
+    emotional_state = profile.emotional_state
+    if emotional_state and emotional_state.get('current_mood') != 'neutral':
+        mood_info = f"\n## 😊 Текущее состояние:\n"
+        mood_info += f"Настроение: {emotional_state.get('current_mood', 'neutral')}\n"
+        mood_info += f"Уровень стресса: {emotional_state.get('stress_level', 'medium')}\n"
+        mood_info += f"Уровень энергии: {emotional_state.get('energy_level', 'medium')}\n"
+        
+        # Добавляем последние триггеры
+        mood_history = emotional_state.get('mood_history', [])
+        if mood_history:
+            last_entry = mood_history[-1]
+            triggers = last_entry.get('triggers', [])
+            if triggers:
+                mood_info += f"Триггеры: {', '.join(triggers)}\n"
+        
+        mood_info += "⚠️ Учитывай текущее состояние пользователя в своих ответах."
+        prompt_parts.append(mood_info)
+    
+    # ==========================================
+    # 🎓 LEARNING PREFERENCES (MODERATE)
+    # ==========================================
+    learning_prefs = profile.learning_preferences
+    if learning_prefs:
+        works_well = learning_prefs.get('works_well', [])
+        doesnt_work = learning_prefs.get('doesnt_work', [])
+        
+        if works_well or doesnt_work:
+            learning_info = "\n## 🎓 Что работает для этого пользователя:\n"
+            if works_well:
+                learning_info += f"✅ Работает: {', '.join(works_well[:5])}\n"
+            if doesnt_work:
+                learning_info += f"❌ Не работает: {', '.join(doesnt_work[:5])}\n"
+            learning_info += "⚠️ Адаптируй свой подход согласно этим предпочтениям."
+            prompt_parts.append(learning_info)
     
     # ==========================================
     # ДОПОЛНИТЕЛЬНЫЕ ПРЕДПОЧТЕНИЯ
@@ -333,7 +381,12 @@ async def get_chat_completion(
             tokens_used=response.usage.total_tokens if response.usage else None
         )
         
-        # 7. Обновляем статистику
+        # 7. ⭐ STAGE 3: Анализ паттернов (в фоне, не блокирует ответ)
+        if is_feature_enabled('ENABLE_PATTERN_ANALYSIS'):
+            from bot.services import pattern_analyzer
+            asyncio.create_task(pattern_analyzer.analyze_if_needed(user_id, assistant_type))
+        
+        # 8. Обновляем статистику
         asyncio.create_task(_update_statistics(assistant_type, success=True))
         
         return assistant_message
