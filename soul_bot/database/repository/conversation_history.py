@@ -32,7 +32,7 @@ async def add_message(
         content: Текст сообщения
         extra_metadata: Дополнительные метаданные (токены, модель, и т.д.)
     """
-    async with db.begin() as session:
+    async with db() as session:
         message = ConversationHistory(
             user_id=user_id,
             assistant_type=assistant_type,
@@ -63,7 +63,7 @@ async def get_history(
     Returns:
         Список объектов ConversationHistory, отсортированных по времени (от старых к новым)
     """
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.execute(
             select(ConversationHistory)
             .where(
@@ -135,7 +135,7 @@ async def get_recent_messages_for_analysis(
     Returns:
         Список объектов ConversationHistory
     """
-    async with db.begin() as session:
+    async with db() as session:
         query = (
             select(ConversationHistory)
             .where(
@@ -172,7 +172,7 @@ async def count_messages(
     Returns:
         Количество сообщений
     """
-    async with db.begin() as session:
+    async with db() as session:
         from sqlalchemy import func
         
         query = select(func.count(ConversationHistory.id)).where(
@@ -203,7 +203,7 @@ async def clear_history(
     Returns:
         Количество удалённых сообщений
     """
-    async with db.begin() as session:
+    async with db() as session:
         query = delete(ConversationHistory).where(
             ConversationHistory.user_id == user_id
         )
@@ -232,7 +232,7 @@ async def cleanup_old_messages(days: int = 30) -> int:
     """
     cutoff_date = datetime.utcnow() - timedelta(days=days)
     
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.execute(
             delete(ConversationHistory)
             .where(ConversationHistory.timestamp < cutoff_date)

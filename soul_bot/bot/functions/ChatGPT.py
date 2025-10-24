@@ -5,9 +5,12 @@ import logging
 from openai import AsyncOpenAI
 
 from bot.loader import bot
-from config import OPENAI_API_KEY, HELPER_ID, SOULSLEEP_ID, RELATIONSHIPS_ID, MONEY_ID, CONFIDENCE_ID, FEARS_ID
+from config import OPENAI_API_KEY, HELPER_ID, SOULSLEEP_ID, RELATIONSHIPS_ID, MONEY_ID, CONFIDENCE_ID, FEARS_ID, is_feature_enabled
 import database.repository.user as db_user
 import database.repository.statistic_day as db_statistic_day
+
+# Новый сервис с ChatCompletion API
+from bot.services import openai_service
 
 client = AsyncOpenAI(
     api_key=OPENAI_API_KEY,
@@ -26,6 +29,24 @@ async def send_error(function, error):
 async def get_assistant_response(user_id: int,
                                  prompt: str,
                                  assistant: str) -> str | None:
+    # ==========================================
+    # 🚩 FEATURE FLAG: ChatCompletion API
+    # ==========================================
+    # Если включен новый API - используем его
+    if is_feature_enabled('USE_CHAT_COMPLETION'):
+        try:
+            return await openai_service.get_chat_completion(
+                user_id=user_id,
+                message=prompt,
+                assistant_type=assistant
+            )
+        except Exception as e:
+            logging.error(f"ChatCompletion API failed, falling back to Assistant API: {e}")
+            # Если новый API упал - падаем на старый (fallback)
+    
+    # ==========================================
+    # 📜 СТАРАЯ ЛОГИКА (Assistant API)
+    # ==========================================
     user = await db_user.get(user_id=user_id)
 
     match assistant:

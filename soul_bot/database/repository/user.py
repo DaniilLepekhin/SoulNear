@@ -22,7 +22,7 @@ async def new(user_id: int,
 
     asyncio.get_event_loop().create_task(db_statistic_day.increment('new_users'))
 
-    async with db.begin() as session:
+    async with db() as session:
         session.add(User(user_id=user_id,
                          username=username,
                          name=name,
@@ -33,34 +33,34 @@ async def new(user_id: int,
 
 
 async def is_exist(user_id: int) -> bool:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(select(User).
                                       where(User.user_id == user_id))
         return bool(result)
 
 
 async def get(user_id: int) -> User | None:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(select(User).
                                       where(User.user_id == user_id))
         return result
 
 
 async def get_all() -> list[User]:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalars(select(User))
         return result.all()
 
 
 async def get_all_active_users_id() -> list[int]:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalars(select(User.user_id).
                                        where(User.block_date.is_(None)))
         return result.all()
 
 
 async def panel() -> (int, int):
-    async with db.begin() as session:
+    async with db() as session:
         users = await session.scalar(select(func.count(User.user_id)))
 
         block_ = await session.scalar(select(func.count(User.user_id)).
@@ -78,7 +78,7 @@ async def update_active(user_id: int) -> None:
     if user.block_date:
         asyncio.get_event_loop().create_task(db_statistic_day.increment('return_users'))
 
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(update(User).
                               where(User.user_id == user_id).
                               values(active_date=datetime.now(),
@@ -99,7 +99,7 @@ async def update_sub_date(user_id: int,
     sub_date = sub_date + timedelta(weeks=weeks)
     sub_date = sub_date + timedelta(days=days)
 
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(update(User).
                               where(User.user_id == user_id).
                               values(sub_date=sub_date))
@@ -109,7 +109,7 @@ async def update_sub_date(user_id: int,
 async def block(user_id: int) -> None:
     asyncio.get_event_loop().create_task(db_statistic_day.increment('block_users'))
 
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(update(User).
                               where(User.user_id == user_id).
                               values(block_date=datetime.now()))
@@ -117,7 +117,7 @@ async def block(user_id: int) -> None:
 
 
 async def update_helper_thread(user_id: int, thread_id: str) -> None:
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(update(User).
                               where(User.user_id == user_id).
                               values(helper_thread_id=thread_id))
@@ -125,7 +125,7 @@ async def update_helper_thread(user_id: int, thread_id: str) -> None:
 
 
 async def update_assistant_thread(user_id: int, thread_id: str) -> None:
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(update(User).
                               where(User.user_id == user_id).
                               values(assistant_thread_id=thread_id))
@@ -133,7 +133,7 @@ async def update_assistant_thread(user_id: int, thread_id: str) -> None:
 
 
 async def update_sleeper_thread(user_id: int, thread_id: str) -> None:
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(update(User).
                               where(User.user_id == user_id).
                               values(sleeper_thread_id=thread_id))
@@ -158,13 +158,13 @@ async def decrement_requests(user_id: int, assistant: str):
                 where(User.user_id == user_id). \
                 values(assistant_requests=User.assistant_requests - 1)
 
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(execute)
         await session.commit()
 
 
 async def refresh_requests():
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(update(User).
                               values(helper_requests=10,
                                      sleeper_requests=3,
@@ -172,7 +172,7 @@ async def refresh_requests():
 
 
 async def update_info(user_id: int, real_name: str, age: int, gender: bool) -> None:
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(update(User).
                               values(real_name=real_name,
                                      age=age,

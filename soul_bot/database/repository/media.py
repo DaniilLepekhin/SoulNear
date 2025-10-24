@@ -7,20 +7,20 @@ from database.models.media import Media
 
 
 async def get(id: int) -> Media:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(select(Media).
                                       where(Media.id == id))
         return result
 
 
 async def get_all() -> List[Media]:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalars(select(Media))
         return result.all()
 
 
 async def get_all_by_category(category_id: int) -> List[Media]:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalars(select(Media).
                                        where(Media.category_id==category_id).
                                        order_by(Media.position))
@@ -35,7 +35,7 @@ async def new(name: str,
               destination: str) -> None:
     medias = await get_all()
 
-    async with db.begin() as session:
+    async with db() as session:
         session.add(Media(name=name,
                           text=text,
                           position=len(medias) + 1,
@@ -58,7 +58,7 @@ async def delete(id: int) -> None:
         p.position = i
         tmp_medias.append(p)
 
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(delete_(Media))
 
         for p in tmp_medias:
@@ -89,7 +89,7 @@ async def update_position(now_position: int, need_position: int) -> None:
         p.position = i
         tmp_medias.append(p)
 
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(delete_(Media))
 
         for p in tmp_medias:

@@ -32,7 +32,7 @@ async def create(
     Returns:
         Созданная сессия QuizSession
     """
-    async with db.begin() as session:
+    async with db() as session:
         quiz_session = QuizSession(
             user_id=user_id,
             quiz_type=quiz_type,
@@ -44,7 +44,6 @@ async def create(
         )
         session.add(quiz_session)
         await session.commit()
-        await session.refresh(quiz_session)
         
         return quiz_session
 
@@ -60,7 +59,7 @@ async def get_active(user_id: int, quiz_type: str) -> QuizSession | None:
     Returns:
         QuizSession или None, если активной сессии нет
     """
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(
             select(QuizSession)
             .where(
@@ -77,7 +76,7 @@ async def get_active(user_id: int, quiz_type: str) -> QuizSession | None:
 
 async def get_by_id(session_id: int) -> QuizSession | None:
     """Получить сессию по ID"""
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(
             select(QuizSession).where(QuizSession.id == session_id)
         )
@@ -99,7 +98,7 @@ async def add_answer(
         question_text: Текст вопроса
         answer: Ответ пользователя
     """
-    async with db.begin() as session:
+    async with db() as session:
         quiz_session = await session.scalar(
             select(QuizSession).where(QuizSession.id == session_id)
         )
@@ -135,7 +134,7 @@ async def complete(
         session_id: ID сессии квиза
         insights: Словарь с финальными инсайтами
     """
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(
             update(QuizSession)
             .where(QuizSession.id == session_id)
@@ -165,7 +164,7 @@ async def get_completed(
     Returns:
         Список QuizSession, отсортированный по дате (новые первые)
     """
-    async with db.begin() as session:
+    async with db() as session:
         query = (
             select(QuizSession)
             .where(
@@ -199,7 +198,7 @@ async def get_all_for_user(
     Returns:
         Список QuizSession
     """
-    async with db.begin() as session:
+    async with db() as session:
         query = select(QuizSession).where(QuizSession.user_id == user_id)
         
         if not include_incomplete:
@@ -218,7 +217,7 @@ async def cancel(session_id: int) -> None:
     Args:
         session_id: ID сессии квиза
     """
-    async with db.begin() as session:
+    async with db() as session:
         quiz_session = await session.scalar(
             select(QuizSession).where(QuizSession.id == session_id)
         )
@@ -239,7 +238,7 @@ async def update_extra_metadata(
         session_id: ID сессии квиза
         extra_metadata: Словарь с метаданными
     """
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(
             update(QuizSession)
             .where(QuizSession.id == session_id)

@@ -26,7 +26,7 @@ async def get_or_create(user_id: int) -> UserProfile:
     Returns:
         UserProfile объект
     """
-    async with db.begin() as session:
+    async with db() as session:
         # Пытаемся найти существующий профиль
         result = await session.scalar(
             select(UserProfile).where(UserProfile.user_id == user_id)
@@ -47,14 +47,14 @@ async def get_or_create(user_id: int) -> UserProfile:
         )
         session.add(new_profile)
         await session.commit()
-        await session.refresh(new_profile)
         
+        # После commit объект все еще в сессии, можем его вернуть
         return new_profile
 
 
 async def get(user_id: int) -> UserProfile | None:
     """Получить профиль пользователя"""
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(
             select(UserProfile).where(UserProfile.user_id == user_id)
         )
@@ -76,7 +76,7 @@ async def update_style(
         personality: Личность (mentor, friend, coach)
         message_length: Длина (brief, medium, detailed)
     """
-    async with db.begin() as session:
+    async with db() as session:
         update_data = {'updated_at': datetime.utcnow()}
         
         if tone_style:
@@ -102,7 +102,7 @@ async def add_patterns(user_id: int, new_patterns: list) -> None:
         user_id: Telegram ID пользователя
         new_patterns: Список новых паттернов
     """
-    async with db.begin() as session:
+    async with db() as session:
         profile = await session.scalar(
             select(UserProfile).where(UserProfile.user_id == user_id)
         )
@@ -135,7 +135,7 @@ async def add_insights(user_id: int, new_insights: list) -> None:
         user_id: Telegram ID пользователя
         new_insights: Список новых инсайтов
     """
-    async with db.begin() as session:
+    async with db() as session:
         profile = await session.scalar(
             select(UserProfile).where(UserProfile.user_id == user_id)
         )
@@ -164,7 +164,7 @@ async def update_preferences(user_id: int, preferences: dict) -> None:
         user_id: Telegram ID пользователя
         preferences: Словарь с предпочтениями
     """
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(
             update(UserProfile)
             .where(UserProfile.user_id == user_id)
@@ -178,7 +178,7 @@ async def update_preferences(user_id: int, preferences: dict) -> None:
 
 async def clear_patterns(user_id: int) -> None:
     """Очистить паттерны пользователя (для тестирования)"""
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(
             update(UserProfile)
             .where(UserProfile.user_id == user_id)
@@ -192,7 +192,7 @@ async def clear_patterns(user_id: int) -> None:
 
 async def clear_insights(user_id: int) -> None:
     """Очистить инсайты пользователя (для тестирования)"""
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(
             update(UserProfile)
             .where(UserProfile.user_id == user_id)
