@@ -29,10 +29,20 @@ async def send_error(function, error):
 async def get_assistant_response(user_id: int,
                                  prompt: str,
                                  assistant: str) -> str | None:
+    """
+    Получить ответ от ассистента через ChatCompletion API
+    
+    Args:
+        user_id: Telegram ID пользователя
+        prompt: Сообщение пользователя
+        assistant: Тип ассистента (helper, sleeper, etc.)
+        
+    Returns:
+        Ответ ассистента или None при ошибке
+    """
     # ==========================================
     # 🚩 FEATURE FLAG: ChatCompletion API
     # ==========================================
-    # Если включен новый API - используем его
     if is_feature_enabled('USE_CHAT_COMPLETION'):
         try:
             return await openai_service.get_chat_completion(
@@ -41,125 +51,100 @@ async def get_assistant_response(user_id: int,
                 assistant_type=assistant
             )
         except Exception as e:
-            logging.error(f"ChatCompletion API failed, falling back to Assistant API: {e}")
-            # Если новый API упал - падаем на старый (fallback)
+            logging.error(f"ChatCompletion API failed: {e}")
+            await send_error(function='get_assistant_response', error=e)
+            return None
     
     # ==========================================
-    # 📜 СТАРАЯ ЛОГИКА (Assistant API)
+    # ⚠️ LEGACY: Assistant API (DEPRECATED)
     # ==========================================
+    # Если USE_CHAT_COMPLETION=false, используем старый API
+    # НО: этот код устарел и будет удалён в будущем
+    logging.warning("⚠️ Using deprecated Assistant API. Please enable USE_CHAT_COMPLETION flag.")
+    
     user = await db_user.get(user_id=user_id)
-
-    match assistant:
-        case 'helper':
-            assistant_id = HELPER_ID
-        case 'sleeper':
-            assistant_id = SOULSLEEP_ID
-        case 'relationships':
-            assistant_id = RELATIONSHIPS_ID
-        case 'money':
-            assistant_id = MONEY_ID
-        case 'confidence':
-            assistant_id = CONFIDENCE_ID
-        case 'fears':
-            assistant_id = FEARS_ID
+    
+    # Определяем assistant_id по типу
+    assistant_ids = {
+        'helper': HELPER_ID,
+        'sleeper': SOULSLEEP_ID,
+        'relationships': RELATIONSHIPS_ID,
+        'money': MONEY_ID,
+        'confidence': CONFIDENCE_ID,
+        'fears': FEARS_ID
+    }
+    assistant_id = assistant_ids.get(assistant, HELPER_ID)
+    
+    # Получаем или создаём thread_id
     if assistant == 'helper':
-        thread_id = user.helper_thread_id if user.helper_thread_id else await new_context(user_id=user_id,
-                                                                                          assistant=assistant)
+        thread_id = user.helper_thread_id or await new_context(user_id, assistant)
         asyncio.get_event_loop().create_task(db_statistic_day.increment('helper'))
-
     elif assistant == 'sleeper':
-        thread_id = user.sleeper_thread_id if user.sleeper_thread_id else await new_context(user_id=user_id,
-                                                                                            assistant=assistant)
+        thread_id = user.sleeper_thread_id or await new_context(user_id, assistant)
         asyncio.get_event_loop().create_task(db_statistic_day.increment('sleeper'))
-
     else:
-        thread_id = user.assistant_thread_id if user.assistant_thread_id else await new_context(user_id=user_id,
-                                                                                                assistant=assistant)
+        thread_id = user.assistant_thread_id or await new_context(user_id, assistant)
         asyncio.get_event_loop().create_task(db_statistic_day.increment('assistant'))
-
-    await client.beta.threads.messages.create(
-        thread_id=thread_id,
-        role="user",
-        content=[
-            {
-                "type": "text",
-                "text": prompt
-            }
-        ]
-    )
-
+    
     try:
+        # Отправляем сообщение в thread
+        await client.beta.threads.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=[{"type": "text", "text": prompt}]
+        )
+        
+        # Запускаем ассистент
         run = await client.beta.threads.runs.create_and_poll(
             thread_id=thread_id,
             assistant_id=assistant_id,
             model='gpt-4-turbo-preview'
         )
-
-    except Exception as e:
-        asyncio.get_event_loop().create_task(db_statistic_day.increment('bad_requests'))
-        asyncio.get_event_loop().create_task(send_error(function='get_assistant_response',
-                                                        error=e))
-
-        return None
-
-    # Получение сообщений в потоке
-    max_attempts = 5
-    attempt = 0
-    while attempt < max_attempts:
-        try:
-            while run.status != 'completed':
-                if run.status == 'failed':
-                    await client.beta.threads.messages.create(
-                        thread_id=thread_id,
-                        role="user",
-                        content=[
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
-                    )
-                    run = await client.beta.threads.runs.create(
-                        thread_id=thread_id,
-                        assistant_id=assistant_id,
-                        model='gpt-4-turbo-preview'
-                    )
-                    attempt += 1
-                    if attempt >= max_attempts:
-                        asyncio.get_event_loop().create_task(send_error(function='get_assistant_response',
-                                                                        error='Достигнут максимальный лимит попыток. Прерывание.'))
-                        asyncio.get_event_loop().create_task(db_statistic_day.increment('bad_requests'))
-                        return None
-                    break
-                run = await client.beta.threads.runs.get(run_id=run.id)
+        
+        # Ожидаем завершения (с retry логикой)
+        max_attempts = 5
+        for attempt in range(max_attempts):
             if run.status == 'completed':
                 break
-        except Exception as e:
-            asyncio.get_event_loop().create_task(send_error(function='get_assistant_response',
-                                                            error=e))
-            asyncio.get_event_loop().create_task(db_statistic_day.increment('bad_requests'))
-
-            return None
-
-    messages = await client.beta.threads.messages.list(thread_id=thread_id)
-    messages = messages.data
-
-    assistant_messages = [msg for msg in messages if msg.role == 'assistant']
-
-    if not assistant_messages:
+            elif run.status == 'failed':
+                logging.warning(f"Run failed, retrying ({attempt + 1}/{max_attempts})...")
+                await client.beta.threads.messages.create(
+                    thread_id=thread_id,
+                    role="user",
+                    content=[{"type": "text", "text": prompt}]
+                )
+                run = await client.beta.threads.runs.create(
+                    thread_id=thread_id,
+                    assistant_id=assistant_id,
+                    model='gpt-4-turbo-preview'
+                )
+            else:
+                await asyncio.sleep(1)
+                run = await client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+        
+        if run.status != 'completed':
+            raise Exception(f"Run did not complete after {max_attempts} attempts")
+        
+        # Получаем ответ
+        messages = await client.beta.threads.messages.list(thread_id=thread_id)
+        assistant_messages = [msg for msg in messages.data if msg.role == 'assistant']
+        
+        if not assistant_messages:
+            raise Exception("No assistant messages found")
+        
+        response_text = assistant_messages[0].content[0].text.value
+        
+        # Статистика
+        asyncio.get_event_loop().create_task(db_statistic_day.increment('good_requests'))
+        asyncio.get_event_loop().create_task(db_user.decrement_requests(user_id=user_id, assistant=assistant))
+        
+        return response_text.replace('*', '').replace('#', '').strip()
+        
+    except Exception as e:
+        logging.error(f"Assistant API error: {e}")
         asyncio.get_event_loop().create_task(db_statistic_day.increment('bad_requests'))
-        asyncio.get_event_loop().create_task(send_error(function='get_assistant_response',
-                                                        error="Не удалось получить ответ от ассистента."))
+        asyncio.get_event_loop().create_task(send_error(function='get_assistant_response', error=e))
         return None
-
-    last_message = assistant_messages[0]
-    response_text = last_message.content[0].text.value if isinstance(last_message.content, list) else ""
-
-    asyncio.get_event_loop().create_task(db_statistic_day.increment('good_requests'))
-
-    asyncio.get_event_loop().create_task(db_user.decrement_requests(user_id=user_id, assistant=assistant))
-
-    return response_text.replace('*', '').replace('#', '').strip()
 
 
 async def new_context(user_id: int, assistant: str) -> str:
