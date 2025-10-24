@@ -295,6 +295,90 @@ class TestPatternAnalysisFeature:
 
 
 # ==========================================
+# 🎯 STAGE 4: DYNAMIC QUIZ TESTS
+# ==========================================
+
+class TestDynamicQuizFeature:
+    """Тесты для динамических квизов (Stage 4)
+    
+    Проверяем:
+    - Модель QuizSession создана
+    - FSM states для квиза
+    - Quiz service (generator + analyzer)
+    - Feature flag работает
+    - Handlers зарегистрированы
+    """
+    
+    def test_quiz_session_model_exists(self):
+        """QuizSession модель существует"""
+        from database.models.quiz_session import QuizSession
+        
+        assert hasattr(QuizSession, 'id')
+        assert hasattr(QuizSession, 'user_id')
+        assert hasattr(QuizSession, 'category')
+        assert hasattr(QuizSession, 'status')
+        assert hasattr(QuizSession, 'data')
+        assert hasattr(QuizSession, 'results')
+    
+    def test_quiz_fsm_states_exist(self):
+        """FSM states для квиза существуют"""
+        from bot.states.states import QuizStates
+        
+        assert hasattr(QuizStates, 'waiting_for_answer')
+        assert hasattr(QuizStates, 'confirming_cancel')
+    
+    def test_quiz_generator_exists(self):
+        """Quiz generator существует"""
+        from bot.services.quiz_service import generator
+        
+        assert hasattr(generator, 'generate_questions')
+        assert hasattr(generator, 'QUIZ_CATEGORIES')
+        assert hasattr(generator, 'format_question_for_telegram')
+        assert callable(generator.generate_questions)
+    
+    def test_quiz_analyzer_exists(self):
+        """Quiz analyzer существует"""
+        from bot.services.quiz_service import analyzer
+        
+        assert hasattr(analyzer, 'analyze_quiz_results')
+        assert hasattr(analyzer, 'format_results_for_telegram')
+        assert callable(analyzer.analyze_quiz_results)
+    
+    def test_quiz_repository_exists(self):
+        """Quiz session repository существует"""
+        import database.repository.quiz_session as db_quiz_session
+        
+        assert hasattr(db_quiz_session, 'create')
+        assert hasattr(db_quiz_session, 'get')
+        assert hasattr(db_quiz_session, 'get_active')
+        assert hasattr(db_quiz_session, 'update_answer')
+        assert hasattr(db_quiz_session, 'complete')
+        assert callable(db_quiz_session.create)
+    
+    def test_quiz_feature_flag(self):
+        """Feature flag ENABLE_DYNAMIC_QUIZ работает"""
+        from config import is_feature_enabled
+        
+        result = is_feature_enabled('ENABLE_DYNAMIC_QUIZ')
+        assert isinstance(result, bool)
+    
+    def test_quiz_handlers_exist(self):
+        """Quiz handlers существуют (проверка через файл)"""
+        import os
+        quiz_handler_path = 'bot/handlers/user/quiz.py'
+        
+        assert os.path.exists(quiz_handler_path)
+        
+        # Проверяем что код содержит нужные функции
+        with open(quiz_handler_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            assert 'quiz_command' in content
+            assert 'start_quiz_callback' in content
+            assert 'handle_quiz_answer' in content
+            assert 'cancel_quiz_callback' in content
+
+
+# ==========================================
 # 🚀 ЗАПУСК ТЕСТОВ
 # ==========================================
 

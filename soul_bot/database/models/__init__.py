@@ -11,3 +11,4 @@ from .media_category import Media_category
 from .user_profile import UserProfile
 from .conversation_history import ConversationHistory
 from .quiz_session import QuizSession
+from .quiz_session import QuizSession
