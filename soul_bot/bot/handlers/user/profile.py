@@ -1,5 +1,6 @@
 from datetime import datetime
 from aiogram import F
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
@@ -14,6 +15,199 @@ import database.repository.user as db_user
 import database.repository.user_profile as db_user_profile
 from bot.states.states import Update_user_info
 from config import is_feature_enabled
+from openai import AsyncOpenAI
+from config import OPENAI_API_KEY
+import json
+
+client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+
+# ==========================================
+# 🧠 КОМАНДА /MY_PROFILE (STAGE 3)
+# ==========================================
+
+async def _format_profile_with_gpt(profile_data: dict) -> str:
+    """
+    Форматировать профиль через GPT-4 для красивого вывода
+    
+    Args:
+        profile_data: Данные профиля (patterns, insights, mood, etc.)
+        
+    Returns:
+        Красиво отформатированный текст на русском
+    """
+    prompt = f"""
+Ты — дружелюбный ассистент, который помогает пользователю увидеть свой психологический профиль.
+
+Перед тобой данные профиля пользователя в JSON формате. Твоя задача — представить эту информацию 
+красиво, понятно и на русском языке.
+
+ДАННЫЕ ПРОФИЛЯ:
+{json.dumps(profile_data, ensure_ascii=False, indent=2)}
+
+ИНСТРУКЦИИ:
+1. Используй эмодзи для наглядности (🎨 🧠 💡 😊 🎓)
+2. Структурируй информацию по блокам
+3. Если данных нет — скажи что профиль ещё формируется
+4. Будь дружелюбным и воодушевляющим
+5. Паттерны и инсайты объясняй простым языком
+6. Для настроения используй образные описания
+7. Максимум 3000 символов (Telegram лимит)
+
+ФОРМАТ ВЫВОДА:
+```
+🧠 <b>Ваш психологический профиль</b>
+
+🎨 <b>Стиль общения:</b>
+[описание стиля]
+
+🧠 <b>Выявленные паттерны:</b>
+[список паттернов с частотой]
+
+💡 <b>Инсайты:</b>
+[ключевые инсайты с рекомендациями]
+
+😊 <b>Текущее состояние:</b>
+[настроение, стресс, энергия]
+
+🎓 <b>Что работает для вас:</b>
+[learning preferences]
+
+📊 <b>Статистика:</b>
+[количество анализов, последний анализ]
+```
+
+Верни ТОЛЬКО отформатированный текст, без дополнительных комментариев.
+"""
+    
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",  # Дешевле для форматирования
+            messages=[
+                {"role": "system", "content": "Ты помогаешь форматировать психологические профили."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=1500
+        )
+        
+        formatted_text = response.choices[0].message.content
+        return formatted_text
+        
+    except Exception as e:
+        return f"⚠️ Ошибка форматирования профиля: {e}"
+
+
+@dp.message(Command('my_profile'))
+async def my_profile_command(message: Message):
+    """
+    Команда /my_profile - показать свой психологический профиль
+    
+    Форматирует профиль через GPT-4 для красивого отображения
+    """
+    user_id = message.from_user.id
+    
+    # Отправляем "печатаю..." пока GPT обрабатывает
+    status_msg = await message.answer("🔄 Формирую ваш профиль...")
+    
+    try:
+        # Получаем профиль
+        profile = await db_user_profile.get_or_create(user_id)
+        user = await db_user.get(user_id)
+        
+        # Собираем данные для GPT
+        profile_data = {
+            "style": {
+                "tone": profile.tone_style,
+                "personality": profile.personality,
+                "message_length": profile.message_length
+            },
+            "patterns": profile.patterns.get('patterns', [])[-10:],  # Последние 10
+            "insights": profile.insights.get('insights', [])[-5:],  # Последние 5
+            "emotional_state": profile.emotional_state,
+            "learning_preferences": profile.learning_preferences,
+            "stats": {
+                "analysis_count": profile.pattern_analysis_count,
+                "last_analysis": profile.last_analysis_at.isoformat() if profile.last_analysis_at else None,
+                "created_at": profile.created_at.isoformat()
+            },
+            "user_info": {
+                "name": user.real_name,
+                "age": user.age
+            }
+        }
+        
+        # Форматируем через GPT
+        formatted_profile = await _format_profile_with_gpt(profile_data)
+        
+        # Удаляем "печатаю..."
+        await status_msg.delete()
+        
+        # Отправляем профиль
+        await message.answer(
+            text=formatted_profile,
+            parse_mode='HTML'
+        )
+        
+    except Exception as e:
+        await status_msg.delete()
+        await message.answer(
+            f"⚠️ Не удалось загрузить профиль: {e}\n\n"
+            f"Попробуйте позже или обратитесь в поддержку."
+        )
+
+
+@dp.callback_query(F.data == 'view_psychological_profile')
+async def view_psychological_profile_callback(call: CallbackQuery):
+    """
+    Callback для кнопки "Мой психологический профиль"
+    
+    Показывает детальный анализ через GPT-4
+    """
+    user_id = call.from_user.id
+    
+    # Отправляем "печатаю..." пока GPT обрабатывает
+    await call.answer("🔄 Формирую профиль...", show_alert=False)
+    
+    try:
+        # Получаем профиль
+        profile = await db_user_profile.get_or_create(user_id)
+        user = await db_user.get(user_id)
+        
+        # Собираем данные для GPT
+        profile_data = {
+            "style": {
+                "tone": profile.tone_style,
+                "personality": profile.personality,
+                "message_length": profile.message_length
+            },
+            "patterns": profile.patterns.get('patterns', [])[-10:],  # Последние 10
+            "insights": profile.insights.get('insights', [])[-5:],  # Последние 5
+            "emotional_state": profile.emotional_state,
+            "learning_preferences": profile.learning_preferences,
+            "stats": {
+                "analysis_count": profile.pattern_analysis_count,
+                "last_analysis": profile.last_analysis_at.isoformat() if profile.last_analysis_at else None,
+                "created_at": profile.created_at.isoformat()
+            },
+            "user_info": {
+                "name": user.real_name,
+                "age": user.age
+            }
+        }
+        
+        # Форматируем через GPT
+        formatted_profile = await _format_profile_with_gpt(profile_data)
+        
+        # Удаляем старое сообщение и отправляем профиль
+        await call.message.delete()
+        await call.message.answer(
+            text=formatted_profile,
+            parse_mode='HTML'
+        )
+        
+    except Exception as e:
+        await call.answer(f"⚠️ Ошибка: {e}", show_alert=True)
 
 
 @dp.callback_query(F.data == 'profile')

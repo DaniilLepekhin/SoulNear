@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 profile_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='🧠 Мой психологический профиль', callback_data='view_psychological_profile')],
     [InlineKeyboardButton(text='🛠 Изменить информацию', callback_data='update_user_info')],
     [InlineKeyboardButton(text='🎨 Настройки стиля', callback_data='style_settings')],
     [InlineKeyboardButton(text='💳 Подписка', callback_data='premium')],

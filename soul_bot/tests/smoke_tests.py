@@ -277,6 +277,21 @@ class TestPatternAnalysisFeature:
         assert hasattr(db_user_profile, 'update_insights')
         assert callable(db_user_profile.update_patterns)
         assert callable(db_user_profile.update_insights)
+    
+    def test_my_profile_command_exists(self):
+        """Команда /my_profile существует (проверка через файл)"""
+        import os
+        profile_handler_path = 'bot/handlers/user/profile.py'
+        
+        assert os.path.exists(profile_handler_path)
+        
+        # Проверяем что код содержит нужные функции
+        with open(profile_handler_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            assert 'my_profile_command' in content
+            assert '_format_profile_with_gpt' in content
+            assert '@dp.message(Command(\'my_profile\'))' in content
+            assert 'view_psychological_profile' in content
 
 
 # ==========================================
