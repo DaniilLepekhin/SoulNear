@@ -9,13 +9,13 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: linear-gradient(135deg, #F0F7FF 0%, #E6F2FF 100%);
+  background: #e3f3fd;
 }
 
 .player-background {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #F0F7FF 0%, #E6F2FF 100%);
+  background: #e3f3fd;
   z-index: -1;
 }
 
@@ -59,9 +59,9 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(46, 107, 235, 0.15);
   backdrop-filter: blur(8px);
-  border: none;
+  border: 2px solid rgba(46, 107, 235, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -70,20 +70,32 @@
 }
 
 .player-timer-btn.active {
-  background: rgba(255, 255, 255, 0.25);
+  background: #2E6BEB;
+  border-color: #2E6BEB;
+  box-shadow: 0 4px 16px rgba(46, 107, 235, 0.3);
 }
 
 .player-timer-btn:hover {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(46, 107, 235, 0.25);
+  border-color: rgba(46, 107, 235, 0.5);
   transform: scale(1.05);
 }
 
 .player-timer-btn.active:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: #1E5BE0;
+  border-color: #1E5BE0;
 }
 
 .player-timer-btn:active {
   transform: scale(0.95);
+}
+
+.player-timer-btn svg {
+  color: #2E6BEB;
+}
+
+.player-timer-btn.active svg {
+  color: white;
 }
 
 .timer-remaining {

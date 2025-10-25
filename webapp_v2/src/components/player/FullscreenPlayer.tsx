@@ -199,9 +199,9 @@ export const FullscreenPlayer = () => {
           }}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="13" r="9" stroke="white" strokeWidth="2"/>
-            <path d="M12 9v4l3 3" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M9 2h6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+            <circle cx="12" cy="13" r="9" stroke="currentColor" strokeWidth="2"/>
+            <path d="M12 9v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M9 2h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
           {timerRemaining !== null && (
             <span className="timer-remaining">{formatTimerRemaining(timerRemaining)}</span>
