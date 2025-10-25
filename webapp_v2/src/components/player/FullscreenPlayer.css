@@ -185,6 +185,9 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.3s ease;
+  background: transparent;
+  overflow: hidden;
+  border-radius: 50%;
 }
 
 .breathing-orb.playing {
@@ -203,8 +206,9 @@
 .bubble-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.3));
+  object-fit: cover;
+  filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.2));
+  border-radius: 50%;
 }
 
 .player-info {
@@ -286,7 +290,8 @@
   justify-content: center;
   gap: 1.5rem;
   flex-shrink: 0;
-  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 0;
 }
 
 .player-control-btn {
