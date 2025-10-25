@@ -171,7 +171,9 @@ export const PracticesScreen = ({ isActive }: PracticesScreenProps) => {
               </div>
               {yogaCategory.items.map((item: any, idx: number) => {
                 const emoji = item.name.includes('Утренняя') ? '☀️' : '🌙';
-                const displayName = item.name.replace('практика', '<br>практика');
+                // Remove existing emojis from the name
+                const cleanName = item.name.replace(/[☀️🌙]/g, '').trim();
+                const displayName = cleanName.replace('практика', '<br>практика');
                 return (
                   <div
                     key={idx}
