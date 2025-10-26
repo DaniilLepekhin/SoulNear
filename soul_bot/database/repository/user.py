@@ -169,6 +169,7 @@ async def refresh_requests():
                               values(helper_requests=10,
                                      sleeper_requests=3,
                                      assistant_requests=11))
+        await session.commit()  # ⚠️ FIX: Commit изменений в БД!
 
 
 async def update_info(user_id: int, real_name: str, age: int, gender: bool) -> None:
@@ -178,3 +179,4 @@ async def update_info(user_id: int, real_name: str, age: int, gender: bool) -> N
                                      age=age,
                                      gender=gender).
                               where(User.user_id == user_id))
+        await session.commit()  # ⚠️ FIX: Commit изменений в БД!

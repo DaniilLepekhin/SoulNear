@@ -308,12 +308,14 @@ async def update_user_gender(call: CallbackQuery, state: FSMContext):
                               real_name=data['real_name'],
                               age=data['age'],
                               gender=gender)
+    
+    # ⚠️ FIX: Очищаем state ПЕРЕД menu_callback, чтобы избежать race condition
+    await state.clear()
+    
     if data['is_profile']:
         await profile_callback(call, state)
     else:
         await menu_callback(call, state)
-
-    await state.clear()
 
 
 # ==========================================
