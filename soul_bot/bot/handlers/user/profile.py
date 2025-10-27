@@ -26,6 +26,59 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 # 🧠 КОМАНДА /MY_PROFILE (STAGE 3)
 # ==========================================
 
+def _clean_profile_for_display(profile_data: dict) -> dict:
+    """
+    Удалить embeddings и сократить данные для GPT форматирования
+    
+    Embeddings нужны только для similarity checks, не для форматирования!
+    Каждый embedding = 1536 чисел = ~7.6KB → после 10 паттернов = 76KB!
+    
+    Args:
+        profile_data: Сырые данные профиля
+        
+    Returns:
+        Очищенные данные (БЕЗ embeddings, сокращённые evidence)
+    """
+    cleaned = profile_data.copy()
+    
+    # Очищаем patterns
+    if 'patterns' in cleaned and cleaned['patterns']:
+        cleaned_patterns = []
+        for pattern in cleaned['patterns']:
+            clean_pattern = {
+                'type': pattern.get('type'),
+                'title': pattern.get('title'),
+                'description': pattern.get('description'),
+                'evidence': pattern.get('evidence', [])[:2],  # Только 2 примера (не все!)
+                'tags': pattern.get('tags', [])[:3],  # Топ-3 тега
+                'confidence': pattern.get('confidence'),
+                'occurrences': pattern.get('occurrences'),
+                'first_detected': pattern.get('first_detected'),
+                'last_detected': pattern.get('last_detected')
+                # ❌ НЕ включаем: embedding, related_patterns (не нужны для display)
+            }
+            cleaned_patterns.append(clean_pattern)
+        cleaned['patterns'] = cleaned_patterns
+    
+    # Очищаем insights (обычно уже без embeddings, но на всякий случай)
+    if 'insights' in cleaned and cleaned['insights']:
+        cleaned_insights = []
+        for insight in cleaned['insights']:
+            clean_insight = {
+                'category': insight.get('category'),
+                'title': insight.get('title'),
+                'description': insight.get('description'),
+                'impact': insight.get('impact'),
+                'recommendations': insight.get('recommendations', [])[:3],  # Топ-3
+                'priority': insight.get('priority')
+                # ❌ НЕ включаем: derived_from (ID паттернов - не нужны юзеру)
+            }
+            cleaned_insights.append(clean_insight)
+        cleaned['insights'] = cleaned_insights
+    
+    return cleaned
+
+
 async def _format_profile_with_gpt(profile_data: dict) -> str:
     """
     Форматировать профиль через GPT-4 для красивого вывода
@@ -122,8 +175,8 @@ async def my_profile_command(message: Message):
                 "personality": profile.personality,
                 "message_length": profile.message_length
             },
-            "patterns": profile.patterns.get('patterns', [])[-10:],  # Последние 10
-            "insights": profile.insights.get('insights', [])[-5:],  # Последние 5
+            "patterns": profile.patterns.get('patterns', [])[-5:],  # Последние 5 (было 10)
+            "insights": profile.insights.get('insights', [])[-3:],  # Последние 3 (было 5)
             "emotional_state": profile.emotional_state,
             "learning_preferences": profile.learning_preferences,
             "stats": {
@@ -137,8 +190,11 @@ async def my_profile_command(message: Message):
             }
         }
         
+        # ⚠️ FIX: Удаляем embeddings перед отправкой в GPT (экономим ~76KB!)
+        cleaned_data = _clean_profile_for_display(profile_data)
+        
         # Форматируем через GPT
-        formatted_profile = await _format_profile_with_gpt(profile_data)
+        formatted_profile = await _format_profile_with_gpt(cleaned_data)
         
         # Удаляем "печатаю..."
         await status_msg.delete()
@@ -181,8 +237,8 @@ async def view_psychological_profile_callback(call: CallbackQuery):
                 "personality": profile.personality,
                 "message_length": profile.message_length
             },
-            "patterns": profile.patterns.get('patterns', [])[-10:],  # Последние 10
-            "insights": profile.insights.get('insights', [])[-5:],  # Последние 5
+            "patterns": profile.patterns.get('patterns', [])[-5:],  # Последние 5 (было 10)
+            "insights": profile.insights.get('insights', [])[-3:],  # Последние 3 (было 5)
             "emotional_state": profile.emotional_state,
             "learning_preferences": profile.learning_preferences,
             "stats": {
@@ -196,8 +252,11 @@ async def view_psychological_profile_callback(call: CallbackQuery):
             }
         }
         
+        # ⚠️ FIX: Удаляем embeddings перед отправкой в GPT (экономим ~76KB!)
+        cleaned_data = _clean_profile_for_display(profile_data)
+        
         # Форматируем через GPT
-        formatted_profile = await _format_profile_with_gpt(profile_data)
+        formatted_profile = await _format_profile_with_gpt(cleaned_data)
         
         # Удаляем старое сообщение и отправляем профиль
         await call.message.delete()
