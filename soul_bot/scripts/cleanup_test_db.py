@@ -39,7 +39,10 @@ sys.path.insert(0, str(soul_bot_dir))
 from sqlalchemy import select, delete, func
 from database.database import db
 from database.models import User, UserProfile, ConversationHistory, QuizSession
-from config import DATABASE_URL, ENV
+from config import ENV, POSTGRES_HOST, POSTGRES_DB
+
+# Build DATABASE_URL for display
+DATABASE_URL = f"postgresql://{POSTGRES_HOST}:5432/{POSTGRES_DB}"
 
 # Color codes for terminal output
 class Colors:
