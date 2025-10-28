@@ -28,8 +28,13 @@ import sys
 import os
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Get script location and change to soul_bot directory
+script_dir = Path(__file__).parent
+soul_bot_dir = script_dir.parent
+os.chdir(soul_bot_dir)
+
+# Add soul_bot directory to path
+sys.path.insert(0, str(soul_bot_dir))
 
 from sqlalchemy import select, delete, func
 from database.database import async_session_maker
