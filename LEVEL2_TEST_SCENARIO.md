@@ -458,7 +458,11 @@ All criteria met. Level 2 working as expected!
 
 **1. Setup:**
 ```bash
-# Создать тестового юзера
+# Clean test database first (fresh start)
+cd soul_bot/scripts
+ENV=test python cleanup_test_db.py --all
+
+# Создать тестового юзера (через Telegram или API)
 POST /api/test/create_user
 {
   "name": "Алексей",
