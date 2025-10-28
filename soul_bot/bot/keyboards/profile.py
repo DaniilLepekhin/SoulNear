@@ -44,8 +44,9 @@ personality_menu = InlineKeyboardMarkup(inline_keyboard=[
 
 # Меню выбора длины ответов
 length_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='⚡ Кратко', callback_data='length_brief')],
-    [InlineKeyboardButton(text='📝 Средне', callback_data='length_medium')],
-    [InlineKeyboardButton(text='📚 Подробно', callback_data='length_detailed')],
+    [InlineKeyboardButton(text='⚡⚡ Очень коротко (2-3 предложения)', callback_data='length_ultra_brief')],
+    [InlineKeyboardButton(text='⚡ Кратко (1-2 абзаца)', callback_data='length_brief')],
+    [InlineKeyboardButton(text='📝 Средне (3-4 абзаца)', callback_data='length_medium')],
+    [InlineKeyboardButton(text='📚 Подробно (5-7 абзацев)', callback_data='length_detailed')],
     [InlineKeyboardButton(text='↩️ Назад', callback_data='style_settings')]
 ])

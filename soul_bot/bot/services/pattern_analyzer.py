@@ -313,12 +313,13 @@ async def _add_patterns_with_dedup(
             # Генерируем текст для embedding
             pattern_text = f"{new_pattern['title']} {new_pattern['description']}"
             
-            # Проверяем дубликат
+            # Проверяем дубликат (используем глобальный threshold)
+            from bot.services.embedding_service import SIMILARITY_THRESHOLD_DUPLICATE
             is_dup, duplicate, similarity = await embedding_service.is_duplicate(
                 pattern_text,
                 existing_patterns,
                 text_key='description',
-                threshold=0.85
+                threshold=SIMILARITY_THRESHOLD_DUPLICATE
             )
             
             if is_dup:
@@ -371,10 +372,11 @@ async def _update_related_patterns(user_id: int, patterns: list[dict]):
         # Находим 3 наиболее похожих паттерна (исключая себя)
         other_patterns = [p for j, p in enumerate(patterns) if j != i]
         
+        from bot.services.embedding_service import SIMILARITY_THRESHOLD_RELATED
         related = await embedding_service.find_similar_items(
             pattern['embedding'],
             other_patterns,
-            threshold=0.70,
+            threshold=SIMILARITY_THRESHOLD_RELATED,
             top_k=3
         )
         
