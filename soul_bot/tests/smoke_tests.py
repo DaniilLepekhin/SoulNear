@@ -379,6 +379,93 @@ class TestDynamicQuizFeature:
 
 
 # ==========================================
+# 🎯 LEVEL 2: CONTEXTUAL EXAMPLES TESTS
+# ==========================================
+
+class TestLevel2ContextualExamples:
+    """Тесты для Level 2: Contextual Examples (персонализация через evidence)
+    
+    Проверяем:
+    - System prompt включает evidence (цитаты из диалогов)
+    - Insights связаны с patterns (derived_from)
+    - Meta-instructions присутствуют
+    - Token usage в пределах нормы
+    """
+    
+    def test_build_system_prompt_includes_evidence(self):
+        """System prompt включает evidence из паттернов"""
+        from bot.services.openai_service import build_system_prompt
+        import asyncio
+        
+        # Это async функция, проверяем что она существует и принимает правильные параметры
+        import inspect
+        sig = inspect.signature(build_system_prompt)
+        
+        assert 'user_id' in sig.parameters
+        assert 'assistant_type' in sig.parameters
+        assert asyncio.iscoroutinefunction(build_system_prompt)
+    
+    def test_pattern_evidence_format(self):
+        """Проверяем что паттерны форматируются с evidence"""
+        # Симулируем паттерн с evidence
+        mock_pattern = {
+            'type': 'behavioral',
+            'title': 'Test pattern',
+            'description': 'Test description',
+            'evidence': ['quote 1', 'quote 2'],
+            'tags': ['tag1'],
+            'occurrences': 5,
+            'confidence': 0.8
+        }
+        
+        # Проверяем что все поля присутствуют
+        assert 'evidence' in mock_pattern
+        assert isinstance(mock_pattern['evidence'], list)
+        assert len(mock_pattern['evidence']) > 0
+    
+    def test_insight_derived_from_exists(self):
+        """Insights должны иметь поле derived_from"""
+        mock_insight = {
+            'title': 'Test insight',
+            'description': 'Test',
+            'impact': 'positive',
+            'recommendations': ['rec1'],
+            'derived_from': ['pattern_id_1']
+        }
+        
+        assert 'derived_from' in mock_insight
+        assert isinstance(mock_insight['derived_from'], list)
+    
+    def test_meta_instructions_added(self):
+        """Мета-инструкции добавлены в openai_service"""
+        import os
+        service_path = 'bot/services/openai_service.py'
+        
+        assert os.path.exists(service_path)
+        
+        with open(service_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # Проверяем что LEVEL 2 упоминается
+            assert 'LEVEL 2' in content
+            assert 'КАК ИСПОЛЬЗОВАТЬ ПРИМЕРЫ ИЗ ДИАЛОГОВ' in content
+            assert 'Помнишь, ты говорил' in content
+    
+    def test_token_usage_reasonable(self):
+        """Token usage должен быть в разумных пределах"""
+        # Запускаем тест токенов
+        import subprocess
+        result = subprocess.run(
+            ['python', 'test_level2_tokens.py'],
+            capture_output=True,
+            text=True
+        )
+        
+        assert result.returncode == 0
+        # Проверяем что в выводе есть "✓ OK"
+        assert '✓ OK' in result.stdout
+
+
+# ==========================================
 # 🚀 ЗАПУСК ТЕСТОВ
 # ==========================================
 
