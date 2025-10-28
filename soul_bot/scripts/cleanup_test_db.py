@@ -37,7 +37,7 @@ os.chdir(soul_bot_dir)
 sys.path.insert(0, str(soul_bot_dir))
 
 from sqlalchemy import select, delete, func
-from database.database import async_session_maker
+from database.database import db
 from database.models import User, UserProfile, ConversationHistory, QuizSession
 from config import DATABASE_URL, ENV
 
@@ -81,7 +81,7 @@ def print_info(text: str):
 
 async def get_database_stats():
     """Get current database statistics"""
-    async with async_session_maker() as session:
+    async with db() as session:
         users_count = await session.scalar(select(func.count(User.user_id)))
         profiles_count = await session.scalar(select(func.count(UserProfile.user_id)))
         conversations_count = await session.scalar(select(func.count(ConversationHistory.id)))
@@ -128,7 +128,7 @@ async def cleanup_all_data(dry_run: bool = False):
             return
     
     if not dry_run:
-        async with async_session_maker() as session:
+        async with db() as session:
             # Delete in order (respecting foreign keys)
             print_info("Deleting quiz sessions...")
             await session.execute(delete(QuizSession))
@@ -157,7 +157,7 @@ async def cleanup_user(user_id: int, dry_run: bool = False):
     if dry_run:
         print_warning("DRY RUN MODE - No data will be deleted")
     
-    async with async_session_maker() as session:
+    async with db() as session:
         # Check if user exists
         user = await session.scalar(select(User).where(User.user_id == user_id))
         
@@ -217,7 +217,7 @@ async def cleanup_test_users(dry_run: bool = False):
     
     test_patterns = ['Алексей', 'Тест', 'Test', 'testuser', 'test_']
     
-    async with async_session_maker() as session:
+    async with db() as session:
         # Find test users
         stmt = select(User)
         result = await session.execute(stmt)
