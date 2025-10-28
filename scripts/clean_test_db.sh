@@ -11,6 +11,13 @@ cd "$PROJECT_DIR"
 # Ensure ENV=test
 export ENV=test
 
+# Activate venv if it exists
+if [ -d "soul_bot/venv" ]; then
+    source soul_bot/venv/bin/activate
+elif [ -d "venv" ]; then
+    source venv/bin/activate
+fi
+
 # Run cleanup script with all arguments passed through
-python3 soul_bot/scripts/cleanup_test_db.py "$@"
+python soul_bot/scripts/cleanup_test_db.py "$@"
 
