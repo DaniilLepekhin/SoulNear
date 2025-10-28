@@ -25,8 +25,8 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 # Константы
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1536
-SIMILARITY_THRESHOLD_DUPLICATE = 0.75  # Умеренная уверенность = дубликат (снижен с 0.85 для лучшего мерджа)
-SIMILARITY_THRESHOLD_RELATED = 0.65    # Средняя уверенность = связанный (снижен с 0.70)
+SIMILARITY_THRESHOLD_DUPLICATE = 0.65  # Агрессивный мердж (снижен с 0.75 для группировки похожих паттернов)
+SIMILARITY_THRESHOLD_RELATED = 0.55    # Мягкая связь (снижен с 0.65)
 
 
 async def get_embedding(text: str) -> list[float]:

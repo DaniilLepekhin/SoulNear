@@ -164,7 +164,7 @@ async def voice_answer(message: Message, assistant: str):
     user_id = message.from_user.id
 
     if is_waiting(user_id=user_id):
-        await message.answer('Давай сначала решим прошлый вопрос, а потом перейдем к следующему')
+        await message.answer('⏳ Обрабатываю ваш предыдущий запрос. Пожалуйста, подождите.')
         return
 
     if not await check_sub(user_id=user_id):
@@ -237,7 +237,7 @@ async def text_answer(message: Message, assistant: str):
     user_id = message.from_user.id
 
     if is_waiting(user_id=user_id):
-        await message.answer('Давай сначала решим прошлый вопрос, а потом перейдем к следующему')
+        await message.answer('⏳ Обрабатываю ваш предыдущий запрос. Пожалуйста, подождите.')
         return
 
     if not await check_sub_assistant(user_id=user_id, assistant=assistant):
@@ -273,7 +273,7 @@ async def photo_answer(message: Message):
     user_id = message.from_user.id
 
     if is_waiting(user_id=user_id):
-        await message.answer('Давай сначала решим прошлый вопрос, а потом перейдем к следующему')
+        await message.answer('⏳ Обрабатываю ваш предыдущий запрос. Пожалуйста, подождите.')
         return
 
     if not await check_sub(user_id=user_id):

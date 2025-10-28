@@ -50,11 +50,11 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
     try:
         logger.info(f"Quick analysis for user {user_id}")
         
-        # Получаем последние 10 сообщений
+        # Получаем последние 15 сообщений (увеличено для лучшей детекции повторений)
         messages = await conversation_history.get_context(
             user_id=user_id,
             assistant_type=assistant_type,
-            max_messages=10
+            max_messages=15
         )
         
         if len(messages) < 4:
@@ -107,26 +107,42 @@ async def _analyze_conversation_quick(
     prompt = f"""
 Analyze this conversation and extract behavioral/emotional patterns.
 
+⚠️ CRITICAL: Create BROAD, HIGH-LEVEL psychological patterns, NOT hyper-specific behaviors.
+
+GOOD pattern titles (psychological terms):
+✅ "Imposter Syndrome" (NOT "Difficulty accepting limitations")
+✅ "Perfectionism" (NOT "Tendency to rewrite code multiple times")  
+✅ "Social Anxiety in Professional Settings" (NOT "Fear of asking questions")
+✅ "Negative Self-Talk" (NOT "Ruminative thoughts about inadequacy")
+✅ "Procrastination Through Over-Analysis" (NOT "Challenges moving forward")
+
+BAD pattern titles (too specific/behavioral):
+❌ "Seeking external validation"
+❌ "Difficulty with self-acceptance"  
+❌ "Challenges with task completion"
+❌ "Avoidance of team interactions"
+
 CONVERSATION (last 10 messages):
 {conversation_text}
 
-EXISTING PATTERNS (don't duplicate these):
+EXISTING PATTERNS (MERGE into these if conceptually similar):
 {chr(10).join(existing_summaries) if existing_summaries else 'None yet'}
 
 Tasks:
-1. Find 1-2 NEW behavioral or emotional patterns (if any significant ones exist)
-2. Detect current mood and energy level
-3. DON'T duplicate existing patterns
+1. Find 1-2 NEW BROAD psychological patterns (use clinical/psychological terminology)
+2. If pattern is similar to existing ones → DON'T create new, skip it (will be merged later)
+3. Detect current mood and energy level
+4. Focus on UNDERLYING patterns, not surface behaviors
 
 Return JSON:
 {{
   "new_patterns": [
     {{
       "type": "behavioral|emotional|cognitive",
-      "title": "Short title (5-7 words)",
-      "description": "Detailed description",
-      "evidence": ["quote from conversation", "another quote"],
-      "tags": ["tag1", "tag2"],
+      "title": "Broad psychological pattern (3-5 words, use psych terms)",
+      "description": "Detailed description of the underlying pattern",
+      "evidence": ["exact quote from conversation", "another exact quote"],
+      "tags": ["clinical term 1", "clinical term 2"],
       "frequency": "high|medium|low",
       "confidence": 0.0-1.0
     }}
@@ -139,7 +155,8 @@ Return JSON:
   }}
 }}
 
-IMPORTANT: If no new significant patterns found, return empty new_patterns array.
+⚠️ REMEMBER: BROAD patterns (Imposter Syndrome, Perfectionism), NOT specific behaviors!
+If no BROAD patterns found, return empty new_patterns array.
 """
     
     try:
