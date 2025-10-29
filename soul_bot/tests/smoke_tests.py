@@ -463,6 +463,24 @@ class TestLevel2ContextualExamples:
         assert result.returncode == 0
         # Проверяем что в выводе есть "✓ OK"
         assert '✓ OK' in result.stdout
+    
+    def test_recent_messages_section_added(self):
+        """FIX: Секция RECENT USER MESSAGES для корректного цитирования"""
+        import os
+        service_path = 'bot/services/openai_service.py'
+        
+        assert os.path.exists(service_path)
+        
+        with open(service_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # Проверяем что новая секция добавлена
+            assert 'ПОСЛЕДНИЕ СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ' in content
+            assert 'для точного цитирования' in content
+            assert 'КРИТИЧНОЕ ПРАВИЛО ЦИТИРОВАНИЯ' in content
+            assert 'НИКОГДА не придумывай цитаты' in content
+            assert 'conversation_history.get_context' in content
+            # Проверяем что фильтруем user messages
+            assert "msg['role'] == 'user'" in content
 
 
 # ==========================================

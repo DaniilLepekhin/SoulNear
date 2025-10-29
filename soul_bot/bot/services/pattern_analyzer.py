@@ -69,11 +69,20 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
         analysis = await _analyze_conversation_quick(messages, existing_patterns)
         
         if not analysis:
+            logger.warning(f"[QUICK ANALYSIS] User {user_id}: GPT returned None")
             return
+        
+        # LOG: Сколько паттернов вернул GPT
+        new_patterns_count = len(analysis.get('new_patterns', []))
+        logger.info(f"[QUICK ANALYSIS] User {user_id}: GPT returned {new_patterns_count} new patterns")
         
         # Обновляем паттерны (с дедупликацией)
         if analysis.get('new_patterns'):
             await _add_patterns_with_dedup(user_id, analysis['new_patterns'], existing_patterns)
+            # LOG: Сколько паттернов после мерджа
+            updated_profile = await user_profile.get_or_create(user_id)
+            total_patterns = len(updated_profile.patterns.get('patterns', []))
+            logger.info(f"[QUICK ANALYSIS] User {user_id}: Total patterns after merge: {total_patterns}")
         
         # Обновляем emotional state
         if analysis.get('mood'):
@@ -107,44 +116,77 @@ async def _analyze_conversation_quick(
     prompt = f"""
 Analyze this conversation and extract behavioral/emotional patterns.
 
-⚠️ CRITICAL: Create BROAD, HIGH-LEVEL psychological patterns, NOT hyper-specific behaviors.
+⚠️ CRITICAL: Use ESTABLISHED CLINICAL/PSYCHOLOGICAL TERMINOLOGY, create BROAD patterns.
 
-GOOD pattern titles (psychological terms):
-✅ "Imposter Syndrome" (NOT "Difficulty accepting limitations")
-✅ "Perfectionism" (NOT "Tendency to rewrite code multiple times")  
-✅ "Social Anxiety in Professional Settings" (NOT "Fear of asking questions")
-✅ "Negative Self-Talk" (NOT "Ruminative thoughts about inadequacy")
-✅ "Procrastination Through Over-Analysis" (NOT "Challenges moving forward")
+🌐 LANGUAGE RULE: ALL pattern titles MUST be in ENGLISH!
+Examples: "Imposter Syndrome" (NOT "Синдром самозванца")
+          "Perfectionism" (NOT "Перфекционизм")
+          "Social Anxiety in Professional Settings" (NOT "Социальная тревога")
+This ensures consistent embedding similarity and proper merging!
 
-BAD pattern titles (too specific/behavioral):
-❌ "Seeking external validation"
-❌ "Difficulty with self-acceptance"  
-❌ "Challenges with task completion"
-❌ "Avoidance of team interactions"
+🎯 EXPECTED PATTERNS (these are SEPARATE, don't merge them):
+1. "Imposter Syndrome" - feeling inadequate, fraud, "not good enough", fear of being exposed
+2. "Perfectionism" - code must be perfect, rewriting 10 times, fear of mistakes, paralysis
+3. "Social Anxiety in Professional Settings" - fear asking questions, avoiding meetings/calls
+4. "Negative Self-Talk" - persistent internal critical voice
+5. "Fear of Failure" - avoiding tasks due to anticipated negative outcomes
+6. "Procrastination Through Over-Analysis" - paralysis by analysis, overthinking
+
+⚠️ NOTE: Perfectionism ≠ Imposter Syndrome (they often co-occur but are DISTINCT patterns!)
+
+✅ GOOD pattern titles (use THESE exact terms when applicable):
+"Imposter Syndrome" - feeling inadequate despite evidence of competence
+"Perfectionism" - setting unrealistically high standards, fear of mistakes  
+"Social Anxiety in Professional Settings" - fear of judgment/criticism at work
+"Negative Self-Talk" - persistent internal critical voice
+"Procrastination Through Over-Analysis" - paralysis by analysis, overthinking
+"Fear of Failure" - avoiding tasks due to anticipated negative outcomes
+"Catastrophic Thinking" - expecting worst-case scenarios
+
+❌ BAD examples (what NOT to do - from real test data):
+"Негативное восприятие себя" → should be "Imposter Syndrome"
+"Саморазрушительные мысли" → should be "Negative Self-Talk" 
+"Социальное сравнение" → should be "Imposter Syndrome"
+"Страх осуждения" → should be "Social Anxiety in Professional Settings"
+"Seeking external validation" → part of "Imposter Syndrome"
+"Difficulty with self-acceptance" → part of "Imposter Syndrome"
+
+🎯 MERGING RULE (CRITICAL - FIXED LOGIC):
+If you see evidence of an EXISTING pattern in current conversation → CREATE IT AGAIN with NEW evidence!
+This is how we track frequency. The embeddings will auto-merge and increase occurrences.
+
+Example: User says "I'm not good enough" again in messages 10-15
+→ CREATE pattern "Imposter Syndrome" again with this NEW quote as evidence
+→ System will merge it with existing pattern and increase occurrences: 1 → 2
+→ This happens every time pattern appears → occurrences grows!
+
+⚠️ DO create same pattern multiple times if it repeats in conversation
+⚠️ DON'T create variations (Self-doubt, Low self-worth) - use established term
+⚠️ WHEN IN DOUBT: Choose BROADER term, but DO return it if you see it again!
 
 CONVERSATION (last 10 messages):
 {conversation_text}
 
-EXISTING PATTERNS (MERGE into these if conceptually similar):
+EXISTING PATTERNS (DO NOT create variations of these):
 {chr(10).join(existing_summaries) if existing_summaries else 'None yet'}
 
 Tasks:
-1. Find 1-2 NEW BROAD psychological patterns (use clinical/psychological terminology)
-2. If pattern is similar to existing ones → DON'T create new, skip it (will be merged later)
+1. Find 1-2 BROAD patterns in current conversation (CREATE again if it repeats!)
+2. Use ENGLISH titles with established psychology/DSM terminology
 3. Detect current mood and energy level
-4. Focus on UNDERLYING patterns, not surface behaviors
+4. If theme repeats → CREATE pattern AGAIN with new evidence (for occurrences tracking!)
 
 Return JSON:
 {{
   "new_patterns": [
     {{
       "type": "behavioral|emotional|cognitive",
-      "title": "Broad psychological pattern (3-5 words, use psych terms)",
-      "description": "Detailed description of the underlying pattern",
-      "evidence": ["exact quote from conversation", "another exact quote"],
-      "tags": ["clinical term 1", "clinical term 2"],
+      "title": "Clinical Term (3-5 words, use established terminology)",
+      "description": "Detailed psychological explanation with theory reference",
+      "evidence": ["exact quote 1", "exact quote 2"],
+      "tags": ["DSM-related", "clinical-psychology"],
       "frequency": "high|medium|low",
-      "confidence": 0.0-1.0
+      "confidence": 0.7-1.0
     }}
   ],
   "mood": {{
@@ -155,8 +197,12 @@ Return JSON:
   }}
 }}
 
-⚠️ REMEMBER: BROAD patterns (Imposter Syndrome, Perfectionism), NOT specific behaviors!
-If no BROAD patterns found, return empty new_patterns array.
+🚨 FINAL CHECK before returning:
+- Is this title an ESTABLISHED psychological term? (Google it if unsure)
+- Is it DIFFERENT enough from existing patterns? (If similar → return empty array)
+- Would a clinical psychologist recognize this term? (If no → rephrase)
+
+Quality > Quantity. Empty array is better than creating near-duplicates.
 """
     
     try:
@@ -341,12 +387,13 @@ async def _add_patterns_with_dedup(
             
             if is_dup:
                 # Мерджим с существующим
-                duplicate['occurrences'] = duplicate.get('occurrences', 1) + 1
+                old_occurrences = duplicate.get('occurrences', 1)
+                duplicate['occurrences'] = old_occurrences + 1
                 duplicate['evidence'].extend(new_pattern.get('evidence', []))
                 duplicate['last_detected'] = datetime.now().isoformat()
                 duplicate['confidence'] = max(duplicate['confidence'], new_pattern.get('confidence', 0.7))
                 
-                logger.info(f"Merged pattern: {new_pattern['title']} → {duplicate['title']} (similarity: {similarity:.2f})")
+                logger.info(f"✅ MERGED: '{new_pattern['title']}' → '{duplicate['title']}' | similarity: {similarity:.2f} | occurrences: {old_occurrences} → {duplicate['occurrences']}")
             else:
                 # Добавляем новый
                 new_pattern['id'] = str(uuid.uuid4())
@@ -535,7 +582,7 @@ async def analyze_if_needed(user_id: int, assistant_type: str = 'helper'):
     Проверить нужен ли анализ и запустить если нужно
     
     Триггеры:
-    - После 5 сообщений → quick analysis
+    - После 3 сообщений → quick analysis (увеличено с 5 для роста occurrences)
     - После 20 сообщений → deep analysis
     
     Args:
@@ -548,8 +595,8 @@ async def analyze_if_needed(user_id: int, assistant_type: str = 'helper'):
     # Считаем сообщения
     message_count = await conversation_history.count_messages(user_id, assistant_type)
     
-    # Quick analysis каждые 5 сообщений
-    if message_count > 0 and message_count % 5 == 0:
+    # Quick analysis каждые 3 сообщения (было 5 - увеличено для роста occurrences)
+    if message_count > 0 and message_count % 3 == 0:
         await quick_analysis(user_id, assistant_type)
     
     # Deep analysis каждые 20 сообщений
