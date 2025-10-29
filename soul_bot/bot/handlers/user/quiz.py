@@ -112,8 +112,6 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     """
     Обработка ответа на вопрос
     """
-    answer_value = call.data.replace('quiz_answer_', '')
-    
     # Получаем session_id из FSM
     data = await state.get_data()
     session_id = data.get('quiz_session_id')
@@ -134,6 +132,10 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     # Текущий вопрос
     current_idx = quiz_session.current_question_index
     current_question = quiz_session.questions[current_idx]
+    
+    # Получаем текст ответа по индексу (callback_data теперь содержит индекс, а не полный текст)
+    answer_idx = int(call.data.replace('quiz_answer_', ''))
+    answer_value = current_question['options'][answer_idx]
     
     # Сохраняем ответ
     quiz_session = await db_quiz_session.update_answer(
@@ -396,26 +398,26 @@ def _categories_keyboard() -> InlineKeyboardMarkup:
 def _create_answer_keyboard(question: dict) -> InlineKeyboardMarkup:
     """Создать клавиатуру для ответа на вопрос"""
     if question['type'] == 'scale':
-        # 5-point scale
+        # 5-point scale - используем индексы вместо полного текста
         buttons = [
             [
                 InlineKeyboardButton(
                     text=option,
-                    callback_data=f"quiz_answer_{option}"
+                    callback_data=f"quiz_answer_{idx}"
                 )
             ]
-            for option in question.get('options', [])
+            for idx, option in enumerate(question.get('options', []))
         ]
     elif question['type'] == 'multiple_choice':
-        # Multiple choice
+        # Multiple choice - используем индексы вместо полного текста
         buttons = [
             [
                 InlineKeyboardButton(
                     text=option,
-                    callback_data=f"quiz_answer_{option}"
+                    callback_data=f"quiz_answer_{idx}"
                 )
             ]
-            for option in question.get('options', [])
+            for idx, option in enumerate(question.get('options', []))
         ]
     else:
         # Text - no keyboard needed
