@@ -42,7 +42,7 @@ async def quiz_command(message: Message):
         await message.answer(
             "📝 У вас есть незавершённый квиз!\n\n"
             f"Категория: {active_session.category}\n"
-            f"Прогресс: {active_session.data['current_question_index']}/{active_session.data['total_questions']}\n\n"
+            f"Прогресс: {active_session.current_question_index}/{active_session.total_questions}\n\n"
             "Хотите продолжить или начать новый?",
             reply_markup=_resume_or_new_keyboard()
         )
@@ -86,8 +86,7 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
         quiz_session = await db_quiz_session.create(
             user_id=user_id,
             category=category,
-            questions=questions,
-            source='menu'
+            questions=questions
         )
         
         # Сохраняем session_id в FSM
@@ -127,9 +126,14 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     # Получаем сессию
     quiz_session = await db_quiz_session.get(session_id)
     
+    if not quiz_session:
+        await call.answer("⚠️ Квиз не найден", show_alert=True)
+        await state.clear()
+        return
+    
     # Текущий вопрос
-    current_idx = quiz_session.data['current_question_index']
-    current_question = quiz_session.data['questions'][current_idx]
+    current_idx = quiz_session.current_question_index
+    current_question = quiz_session.questions[current_idx]
     
     # Сохраняем ответ
     quiz_session = await db_quiz_session.update_answer(
@@ -141,7 +145,7 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     await call.answer("✅ Ответ сохранён")
     
     # Проверяем завершён ли квиз
-    if quiz_session.data['current_question_index'] >= quiz_session.data['total_questions']:
+    if quiz_session.current_question_index >= quiz_session.total_questions:
         # Квиз завершён!
         await _finish_quiz(call.message, quiz_session, state)
     else:
@@ -168,9 +172,14 @@ async def handle_text_answer(message: Message, state: FSMContext):
     # Получаем сессию
     quiz_session = await db_quiz_session.get(session_id)
     
+    if not quiz_session:
+        await message.answer("⚠️ Квиз не найден")
+        await state.clear()
+        return
+    
     # Текущий вопрос
-    current_idx = quiz_session.data['current_question_index']
-    current_question = quiz_session.data['questions'][current_idx]
+    current_idx = quiz_session.current_question_index
+    current_question = quiz_session.questions[current_idx]
     
     # Проверяем что это текстовый вопрос
     if current_question.get('type') != 'text':
@@ -185,7 +194,7 @@ async def handle_text_answer(message: Message, state: FSMContext):
     )
     
     # Проверяем завершён ли квиз
-    if quiz_session.data['current_question_index'] >= quiz_session.data['total_questions']:
+    if quiz_session.current_question_index >= quiz_session.total_questions:
         await _finish_quiz(message, quiz_session, state)
     else:
         await _show_current_question(message, quiz_session, state)
@@ -199,9 +208,9 @@ async def _show_current_question(message: Message, quiz_session, state: FSMConte
     """
     Показать текущий вопрос
     """
-    current_idx = quiz_session.data['current_question_index']
-    total = quiz_session.data['total_questions']
-    question = quiz_session.data['questions'][current_idx]
+    current_idx = quiz_session.current_question_index
+    total = quiz_session.total_questions
+    question = quiz_session.questions[current_idx]
     
     # Форматируем вопрос
     text = generator.format_question_for_telegram(
@@ -248,9 +257,17 @@ async def _finish_quiz(message: Message, quiz_session, state: FSMContext):
     
     try:
         # Анализируем результаты (переиспользуем pattern_analyzer!)
+        quiz_data = {
+            'data': {
+                'questions': quiz_session.questions,
+                'answers': quiz_session.answers
+            },
+            'category': quiz_session.category
+        }
+        
         results = await analyzer.analyze_quiz_results(
             user_id=user_id,
-            quiz_session=quiz_session.__dict__,
+            quiz_session=quiz_data,
             category=quiz_session.category
         )
         

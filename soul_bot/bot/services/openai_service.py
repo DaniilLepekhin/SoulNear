@@ -12,6 +12,7 @@
 """
 import asyncio
 import logging
+from functools import lru_cache
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -23,87 +24,24 @@ from database.repository import user_profile, conversation_history
 import database.repository.user as db_user
 import database.repository.statistic_day as db_statistic_day
 
+from bot.services.personalization import build_personalized_response
+from bot.services.prompt.sections import (
+    render_base_instructions,
+    render_custom_instructions,
+    render_emotional_state_section,
+    render_insights_section,
+    render_learning_preferences_section,
+    render_meta_instructions,
+    render_patterns_section,
+    render_recent_messages_section,
+    render_style_section,
+    render_user_info,
+)
+
 # Инициализация OpenAI клиента
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_PATTERN_ACTIONS = {
-    'imposter syndrome': 'запиши одно достижение за сегодня и поделись им с коллегой или в заметках.',
-    'perfectionism': 'выдели 10 минут на черновик без правок — просто зафиксируй прогресс и остановись.',
-    'social anxiety in professional settings': 'сформулируй один вопрос и отправь его коллеге сегодня, даже если он кажется простым.',
-    'procrastination through over-analysis': 'запусти таймер на 5 минут и сделай первую часть задачи без оценки результата.',
-    'negative self-talk': 'перепиши мысль в поддерживающем ключе и проговори новую формулировку вслух.',
-}
-
-
-def _deduplicate_quotes(quotes: List[str]) -> List[str]:
-    """Удаляет дубликаты цитат (регистр и пробелы игнорируются)."""
-    seen = set()
-    unique_quotes: List[str] = []
-    for quote in quotes or []:
-        if not quote:
-            continue
-        normalized = " ".join(quote.strip().split())
-        key = normalized.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        unique_quotes.append(normalized)
-    return unique_quotes
-
-
-def _format_occurrence_text(value: Optional[int]) -> str:
-    """Форматирует количество повторений с корректным окончанием."""
-    count = int(value or 0)
-    if count < 1:
-        count = 1
-    last_digit = count % 10
-    last_two = count % 100
-    if last_digit == 1 and last_two != 11:
-        suffix = "раз"
-    elif last_digit in (2, 3, 4) and last_two not in (12, 13, 14):
-        suffix = "раза"
-    else:
-        suffix = "раз"
-    return f"{count} {suffix}"
-
-
-def _select_action_for_pattern(title: str, pattern_type: Optional[str]) -> str:
-    title_key = (title or '').lower()
-    for known_key, action in DEFAULT_PATTERN_ACTIONS.items():
-        if known_key in title_key:
-            return action
-    type_key = (pattern_type or '').lower()
-    for known_key, action in DEFAULT_PATTERN_ACTIONS.items():
-        if known_key in type_key:
-            return action
-    return 'выдели 5 минут на маленький шаг и запиши, что получилось.'
-
-
-def _extract_first_sentence(text: str) -> str:
-    if not text:
-        return ""
-    stripped = text.strip()
-    if not stripped:
-        return ""
-    for delimiter in ['.', '!', '?']:
-        stripped = stripped.replace(f'{delimiter}\n', f'{delimiter} ')
-    sentences = [s.strip() for s in stripped.split('.') if s.strip()]
-    if sentences:
-        return sentences[0]
-    return stripped.split('\n')[0]
-
-
-def _build_supportive_sentence(profile) -> str:
-    tone = getattr(profile, 'tone_style', '')
-    personality = getattr(profile, 'personality', '')
-    if tone == 'sarcastic':
-        return 'Сообщи потом, как мир выжил после этого шага.'
-    if personality == 'friend' or tone == 'friendly':
-        return 'Напиши потом, как это прошло — я рядом.'
-    return 'Сообщи позже, как сработает этот шаг.'
-
 
 def _get_display_name(user) -> Optional[str]:
     if not user:
@@ -111,17 +49,6 @@ def _get_display_name(user) -> Optional[str]:
     if getattr(user, 'real_name', None):
         return user.real_name
     return getattr(user, 'first_name', None)
-
-
-def _ensure_period(text: str) -> str:
-    if not text:
-        return ''
-    stripped = text.strip()
-    if not stripped:
-        return ''
-    if stripped[-1] in '.!?':
-        return stripped
-    return f'{stripped}.'
 
 
 # ==========================================
@@ -144,284 +71,45 @@ async def build_system_prompt(
     Returns:
         Полный system prompt
     """
-    # Получаем профиль пользователя
     profile = await user_profile.get_or_create(user_id)
     user = await db_user.get(user_id)
-    
-    # Строим промпт по частям
-    prompt_parts = []
-    
-    # ==========================================
-    # 🎨 НАСТРОЙКИ СТИЛЯ (ПЕРВЫМ ДЕЛОМ!)
-    # ==========================================
-    # КРИТИЧНО: Ставим настройки стиля В НАЧАЛО промпта,
-    # чтобы GPT-4 уделил им максимальное внимание
-    style_instructions = _build_style_instructions(profile)
-    if style_instructions:
-        prompt_parts.append(style_instructions)
-    
-    # ==========================================
-    # 📋 БАЗОВЫЕ ИНСТРУКЦИИ
-    # ==========================================
+
     if base_instructions is None:
         base_instructions = _get_base_instructions(assistant_type)
-    
-    prompt_parts.append("\n## 📋 Базовые инструкции:")
-    prompt_parts.append(base_instructions)
-    
-    # ==========================================
-    # ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ
-    # ==========================================
-    if user:
-        user_info = []
-        if user.real_name:
-            user_info.append(f"Имя пользователя: {user.real_name}")
-        if user.age:
-            user_info.append(f"Возраст: {user.age}")
-        if user.gender is not None:
-            gender = "мужской" if user.gender else "женский"
-            user_info.append(f"Пол: {gender}")
-        
-        if user_info:
-            prompt_parts.append("\n## 👤 О пользователе:\n" + "\n".join(user_info))
-        else:
-            prompt_parts.append(
-                "\n## 👤 О пользователе:\n"
-                "Имя пользователя неизвестно. НИКОГДА не придумывай имя и не обращайся по имени."
-            )
-    else:
-        prompt_parts.append(
-            "\n## 👤 О пользователе:\n"
-            "Нет проверенной информации об имени. Обращайся нейтрально (например, 'Привет' без имени)."
-        )
-    
-    # ==========================================
-    # ПАТТЕРНЫ И ИНСАЙТЫ (MODERATE + LEVEL 2)
-    # ==========================================
-    patterns = profile.patterns.get('patterns', [])
-    if patterns and len(patterns) > 0:
-        # Берём паттерны с высокой частотой/важностью
-        top_patterns = sorted(
-            patterns,
-            key=lambda p: (p.get('occurrences', 1), p.get('confidence', 0.5)),
-            reverse=True
-        )[:5]
-        
-        # ✨ LEVEL 2: Добавляем КОНКРЕТНЫЕ ПРИМЕРЫ из диалогов
-        patterns_text_parts = []
-        for p in top_patterns:
-            seen_quotes = set()
-            deduped_evidence = []
-            for raw_quote in p.get('evidence', []):
-                if not raw_quote:
-                    continue
-                normalized_quote = " ".join(raw_quote.strip().split())
-                key = normalized_quote.lower()
-                if key in seen_quotes:
-                    continue
-                seen_quotes.add(key)
-                deduped_evidence.append(normalized_quote)
-            pattern_text = (
-                f"\n**[{p.get('type', 'behavioral').upper()}] {p.get('title', 'Без названия')}**\n"
-                f"Описание: {p.get('description', 'Без описания')}\n"
-                f"Частота: встречается {p.get('occurrences', 1)}x (уверенность {int(p.get('confidence', 0.5) * 100)}%)"
-            )
-            
-            # 🎯 LEVEL 2: Добавляем evidence (цитаты из реальных диалогов)
-            if deduped_evidence:
-                pattern_text += "\n📝 Примеры из диалогов пользователя:"
-                for ev in deduped_evidence[:3]:  # Топ-3 уникальных примера
-                    ev_short = ev if len(ev) <= 100 else ev[:97] + "..."
-                    pattern_text += f"\n  • \"{ev_short}\""
-            
-            # Добавляем tags для контекста
-            tags = p.get('tags', [])
-            if tags:
-                pattern_text += f"\nТеги: {', '.join(tags[:3])}"
-            
-            patterns_text_parts.append(pattern_text)
-        
-        patterns_full_text = "\n".join(patterns_text_parts)
-        
-        prompt_parts.append(
-            f"\n## 🧠 Выявленные паттерны пользователя:\n{patterns_full_text}\n\n"
-            "⚠️ ВАЖНО: Используй эти КОНКРЕТНЫЕ ПРИМЕРЫ (evidence) и статистику встречаемости в каждом ответе. "
-            "Если паттерн повторяется {N} раз — озвучь это пользователю: 'ты упоминал это {N} раз'.\n\n"
-            "🎯 КАК ИСПОЛЬЗОВАТЬ EVIDENCE И ЧАСТОТУ:\n"
-            "- Это фразы из прошлых сессий, используй их для демонстрации паттернов\n"
-            "- Формат: 'В прошлых разговорах ты говорил: \"[цитата]\". Ты упоминал это уже {occurrences} раз, это паттерн [название].'\n"
-            "- Добавляй микро-план: действие на 1 шаг вперёд, как реагировать на паттерн\n\n"
-            "❌ ПЛОХО: 'Ты упоминал о страхах.' (слишком общо)\n"
-            "✅ ХОРОШО: 'Раньше ты говорил: \"вдруг опять всё испорчу?\". Ты повторял это 6 раз — признак [Perfectionism]. Давай сделаем шаг: выдели 10 минут на черновик и отметь результат.'"
-        )
-    
-    insights = profile.insights.get('insights', [])
-    if insights and len(insights) > 0:
-        # Берём инсайты с высоким приоритетом
-        high_priority = [i for i in insights if i.get('priority') == 'high']
-        recent_insights = (high_priority if high_priority else insights)[-3:]
-        
-        # ✨ LEVEL 2: Добавляем связь с паттернами
-        insights_text_parts = []
-        for i in recent_insights:
-            insight_text = (
-                f"\n**{i.get('title', 'Инсайт')}**\n"
-                f"Описание: {i.get('description', 'Без описания')}\n"
-                f"Влияние: {i.get('impact', 'neutral')}"
-            )
-            
-            # 🎯 LEVEL 2: Показываем из каких паттернов выведен инсайт
-            derived_from = i.get('derived_from', [])
-            if derived_from:
-                # Ищем названия паттернов по ID
-                pattern_titles = []
-                for pattern_ref in derived_from[:2]:  # Топ-2
-                    # pattern_ref может быть ID или description
-                    if patterns:
-                        matching = [p for p in patterns if p.get('id') == pattern_ref or pattern_ref in p.get('description', '')]
-                        if matching:
-                            pattern_titles.append(matching[0].get('title', pattern_ref))
-                        else:
-                            pattern_titles.append(pattern_ref)
-                
-                if pattern_titles:
-                    insight_text += f"\n🔗 Связан с паттернами: {', '.join(pattern_titles)}"
-            
-            # Рекомендации
-            recommendations = i.get('recommendations', [])
-            if recommendations:
-                insight_text += "\n💡 Рекомендации:"
-                for rec in recommendations[:2]:  # Топ-2
-                    insight_text += f"\n  • {rec}"
-            
-            insights_text_parts.append(insight_text)
-        
-        insights_full_text = "\n".join(insights_text_parts)
-        
-        prompt_parts.append(
-            f"\n## 💡 Ключевые инсайты:\n{insights_full_text}\n\n"
-            "⚠️ ВАЖНО: Эти инсайты основаны на реальных паттернах пользователя (см. выше). "
-            "Используй рекомендации и КОНКРЕТНЫЕ примеры из паттернов при даче советов."
-        )
-    
-    # ==========================================
-    # 💬 ПОСЛЕДНИЕ СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ (FIX: Quote Hallucination)
-    # ==========================================
-    # Загружаем последние сообщения для корректного цитирования
+
+    sections = [
+        render_style_section(_build_style_instructions(profile)),
+        render_base_instructions(base_instructions),
+        render_user_info(user),
+        render_patterns_section(profile),
+        render_insights_section(profile),
+    ]
+
     recent_history = await conversation_history.get_context(
         user_id=user_id,
         assistant_type=assistant_type,
-        max_messages=10  # 10 messages = ~5 user + 5 assistant
+        max_messages=10,
     )
-    
-    # Фильтруем только user messages
-    recent_user_messages = [
-        msg['content'] for msg in recent_history 
-        if msg['role'] == 'user'
-    ][-5:]  # Последние 5 сообщений пользователя
-    
-    if recent_user_messages:
-        recent_messages_text = "\n".join([
-            f"{i+1}. \"{msg}\"" 
-            for i, msg in enumerate(recent_user_messages)
-        ])
-        
-        prompt_parts.append(
-            f"\n## 💬 ПОСЛЕДНИЕ СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ (для точного цитирования):\n{recent_messages_text}\n\n"
-            "⚠️ КРИТИЧНОЕ ПРАВИЛО ЦИТИРОВАНИЯ И ДЕЙСТВИЯ:\n"
-            "1. В каждом ответе используй ХОТЯ БЫ ОДНУ точную цитату из списка выше или блока evidence.\n"
-            "2. Всегда указывай, сколько раз эта мысль уже звучала (используй поле 'Частота: ...x').\n"
-            "3. Завершай ответ конкретным шагом или вопросом, который ведёт к действию (на 5-15 минут работы, конкретный вопрос, фиксация результата).\n"
-            "4. ❌ НИКОГДА не придумывай цитаты. Если точной фразы нет — перескажи без кавычек.\n"
-            "5. ❌ НИКОГДА не придумывай имя пользователя. Обращайся нейтрально, если имя не подтверждено.\n"
-            "6. ✅ ХОРОШО: 'Ты писал: \"мне страшно задавать вопросы в чате\" — ты повторял это 6 раз. Давай сегодня отправим один вопрос коллеге и отметим, что случилось.'\n"
-            "7. ❌ ПЛОХО: 'Попробуй не бояться' — без цитат, без статистики, без шага.\n"
-        )
-    
-    # ==========================================
-    # 😊 ЭМОЦИОНАЛЬНОЕ СОСТОЯНИЕ (MODERATE)
-    # ==========================================
-    emotional_state = profile.emotional_state
-    if emotional_state and emotional_state.get('current_mood') != 'neutral':
-        mood_info = f"\n## 😊 Текущее состояние:\n"
-        mood_info += f"Настроение: {emotional_state.get('current_mood', 'neutral')}\n"
-        mood_info += f"Уровень стресса: {emotional_state.get('stress_level', 'medium')}\n"
-        mood_info += f"Уровень энергии: {emotional_state.get('energy_level', 'medium')}\n"
-        
-        # Добавляем последние триггеры
-        mood_history = emotional_state.get('mood_history', [])
-        if mood_history:
-            last_entry = mood_history[-1]
-            triggers = last_entry.get('triggers', [])
-            if triggers:
-                mood_info += f"Триггеры: {', '.join(triggers)}\n"
-        
-        mood_info += "⚠️ Учитывай текущее состояние пользователя в своих ответах."
-        prompt_parts.append(mood_info)
-    
-    # ==========================================
-    # 🎓 LEARNING PREFERENCES (MODERATE)
-    # ==========================================
-    learning_prefs = profile.learning_preferences
-    if learning_prefs:
-        works_well = learning_prefs.get('works_well', [])
-        doesnt_work = learning_prefs.get('doesnt_work', [])
-        
-        if works_well or doesnt_work:
-            learning_info = "\n## 🎓 Что работает для этого пользователя:\n"
-            if works_well:
-                learning_info += f"✅ Работает: {', '.join(works_well[:5])}\n"
-            if doesnt_work:
-                learning_info += f"❌ Не работает: {', '.join(doesnt_work[:5])}\n"
-            learning_info += "⚠️ Адаптируй свой подход согласно этим предпочтениям."
-            prompt_parts.append(learning_info)
-    
-    # ==========================================
-    # ДОПОЛНИТЕЛЬНЫЕ ПРЕДПОЧТЕНИЯ
-    # ==========================================
-    custom_instructions = profile.preferences.get('custom_instructions')
-    if custom_instructions:
-        prompt_parts.append(
-            f"\n## ⚙️ Дополнительные инструкции:\n{custom_instructions}"
-        )
-    
-    # ==========================================
-    # 🎯 LEVEL 2: МЕТА-ИНСТРУКЦИИ ПО ИСПОЛЬЗОВАНИЮ ПРИМЕРОВ
-    # ==========================================
-    if patterns or insights:
-        meta_instructions = """
-## 🎯 КАК ИСПОЛЬЗОВАТЬ ПРИМЕРЫ ИЗ ДИАЛОГОВ (LEVEL 2):
+    recent_user_messages = [msg['content'] for msg in recent_history if msg['role'] == 'user'][-5:]
+    sections.append(render_recent_messages_section(recent_user_messages))
 
-Ты видишь КОНКРЕТНЫЕ цитаты из прошлых диалогов пользователя. Это МОЩНЫЙ инструмент для персонализации!
+    sections.extend(
+        [
+            render_emotional_state_section(profile),
+            render_learning_preferences_section(profile),
+            render_custom_instructions(profile),
+        ]
+    )
 
-**Что делать:**
-1. **Напоминай о прошлых ситуациях**: "Помнишь, ты говорил '[цитата]'? Это уже {occurrences} повторений..."
-2. **Показывай паттерны**: "Я заметил, что ты часто [паттерн]. Например, когда ты сказал '[цитата]'..."
-3. **Связывай текущее с прошлым**: "То, что ты сейчас описываешь, похоже на ситуацию, когда ты говорил '[цитата]'..."
-4. **Используй для validation**: "Ты не один такой - ты сам говорил '[цитата]', и это нормальная реакция..."
-5. **Concrete feedback**: Вместо "работай над самокритикой" → "В прошлый раз ты сказал '[цитата]'. Это повторяется {occurrences} раз. Давай шаг: [действие]."
-6. **Следи за тоном**: даже при сарказме добавляй поддержку, не обесценивай опыт пользователя.
+    has_patterns = bool((profile.patterns or {}).get('patterns'))
+    has_insights = bool((profile.insights or {}).get('insights'))
+    sections.append(render_meta_instructions(has_patterns, has_insights))
 
-**Что НЕ делать:**
-❌ НЕ игнорируй примеры (они даны не просто так!)
-❌ НЕ цитируй слишком часто (1-2 раза per ответ достаточно)
-❌ НЕ вырывай цитаты из контекста
-
-**Impact:**
-Когда ты обращаешься к РЕАЛЬНЫМ словам пользователя, он чувствует что ты действительно его СЛЫШИШЬ и ПОМНИШЬ. 
-Это создаёт доверие и делает твои советы более релевантными.
-
-**Action cadence:**
-Каждый ответ завершаем вектором на действие или фиксацию: короткий шаг, вопрос на самооценку прогресса или приглашение поделиться результатом.
-"""
-        prompt_parts.append(meta_instructions)
-    
-    # Объединяем все части
-    full_prompt = "\n".join(prompt_parts)
-    
-    return full_prompt
+    filtered_sections = [section for section in sections if section]
+    return "\n".join(filtered_sections)
 
 
+@lru_cache(maxsize=32)
 def _get_base_instructions(assistant_type: str) -> str:
     """Получить базовые инструкции для типа ассистента"""
     
@@ -511,7 +199,8 @@ def _get_base_instructions(assistant_type: str) -> str:
     return instructions.get(assistant_type, instructions['helper'])
 
 
-def _build_style_instructions(profile) -> str:
+@lru_cache(maxsize=256)
+def _cached_style_instructions(tone_style: str, personality: str, message_length: str) -> str:
     """Построить ИМПЕРАТИВНЫЕ инструкции на основе настроек стиля
     
     ВАЖНО: Эти инструкции должны быть СИЛЬНЕЕ базовых,
@@ -565,20 +254,27 @@ def _build_style_instructions(profile) -> str:
     }
     
     style_parts = ["## 🎨 СТИЛЬ ОБЩЕНИЯ (ПРИОРИТЕТ #1):"]
-    
-    if profile.tone_style in tone_map:
-        style_parts.append(tone_map[profile.tone_style])
-    
-    if profile.personality in personality_map:
-        style_parts.append(personality_map[profile.personality])
-    
-    if profile.message_length in length_map:
-        style_parts.append(length_map[profile.message_length])
-    
+
+    if tone_style in tone_map:
+        style_parts.append(tone_map[tone_style])
+
+    if personality in personality_map:
+        style_parts.append(personality_map[personality])
+
+    if message_length in length_map:
+        style_parts.append(length_map[message_length])
+
     # Добавляем финальное усиление
     style_parts.append("\n⚠️ ЭТИ НАСТРОЙКИ СТИЛЯ ВАЖНЕЕ ВСЕХ ОСТАЛЬНЫХ ИНСТРУКЦИЙ. СТРОГО СЛЕДУЙ ИМ.")
-    
+
     return "\n".join(style_parts) if len(style_parts) > 1 else ""
+
+
+def _build_style_instructions(profile) -> str:
+    tone_style = getattr(profile, 'tone_style', '') or ''
+    personality = getattr(profile, 'personality', '') or ''
+    message_length = getattr(profile, 'message_length', '') or ''
+    return _cached_style_instructions(tone_style, personality, message_length)
 
 
 def _enforce_message_length(text: str, message_length: str) -> str:
@@ -642,75 +338,6 @@ def _enforce_message_length(text: str, message_length: str) -> str:
     return truncated
 
 
-async def _personalize_response(
-    user_id: int,
-    assistant_type: str,
-    profile,
-    base_response: str,
-    user_message: str
-) -> str:
-    try:
-        patterns_data = getattr(profile, 'patterns', {}) or {}
-        patterns: List[dict] = patterns_data.get('patterns', [])
-    except Exception:
-        return base_response
-
-    if not patterns:
-        return base_response
-
-    patterns_sorted = sorted(
-        patterns,
-        key=lambda item: (
-            item.get('occurrences', 0),
-            item.get('confidence', 0.0)
-        ),
-        reverse=True
-    )
-
-    selected_pattern = None
-    selected_quotes: List[str] = []
-
-    for pattern in patterns_sorted:
-        evidence = _deduplicate_quotes(pattern.get('evidence', []))
-        if evidence:
-            selected_pattern = pattern
-            selected_quotes = evidence
-            break
-
-    if not selected_pattern or not selected_quotes:
-        return base_response
-
-    occurrences = selected_pattern.get('occurrences', len(selected_quotes))
-    occurrences_text = _format_occurrence_text(occurrences)
-    quote = selected_quotes[0]
-    pattern_title = selected_pattern.get('title') or 'выявленного паттерна'
-
-    quote_sentence = _ensure_period(
-        f'Ты писал: "{quote}" — ты повторял это {occurrences_text}. Это проявление {pattern_title}.'
-    )
-
-    action = _select_action_for_pattern(pattern_title, selected_pattern.get('type'))
-    action_sentence = _ensure_period(f'Сделай шаг: {action}')
-
-    message_length = getattr(profile, 'message_length', 'brief')
-
-    if message_length == 'ultra_brief':
-        result_parts = [quote_sentence, action_sentence]
-        return ' '.join(part for part in result_parts if part).strip()
-
-    base_sentence = _ensure_period(_extract_first_sentence(base_response))
-    supportive_sentence = _ensure_period(_build_supportive_sentence(profile))
-
-    result_parts = [quote_sentence]
-    if base_sentence and base_sentence not in quote_sentence:
-        result_parts.append(base_sentence)
-    result_parts.append(action_sentence)
-    if supportive_sentence and supportive_sentence not in action_sentence:
-        result_parts.append(supportive_sentence)
-
-    return ' '.join(part for part in result_parts if part).strip()
-
-
 # ==========================================
 # 💬 ОСНОВНАЯ ФУНКЦИЯ ChatCompletion
 # ==========================================
@@ -767,12 +394,12 @@ async def get_chat_completion(
         assistant_message = response.choices[0].message.content
         
         profile = await user_profile.get_or_create(user_id)
-        assistant_message = await _personalize_response(
+        assistant_message = await build_personalized_response(
             user_id=user_id,
             assistant_type=assistant_type,
             profile=profile,
             base_response=assistant_message,
-            user_message=message
+            user_message=message,
         )
 
         if profile and profile.message_length:

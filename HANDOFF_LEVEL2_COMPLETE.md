@@ -1088,3 +1088,4 @@ def generate_next_question(session, previous_answer):
 **Автор:** AI Agent (Claude Sonnet 4.5)  
 **Для вопросов:** См. git history, все commits с detailed messages
 
+

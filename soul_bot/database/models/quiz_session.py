@@ -1,141 +1,95 @@
 """
-Модель QuizSession для Dynamic Quiz (Stage 4)
+QuizSession Model для Stage 4: Dynamic Quiz System
 
-Архитектура: HYBRID (правильная структура + MVP фичи)
-- JSONB для гибкости (можем добавлять поля без миграций)
-- Поддержка resume (если пользователь бросил квиз)
-- Расширяемая для adaptive logic в будущем
+Хранит информацию о quiz сессиях пользователя:
+- Вопросы (pre-generated или dynamic)
+- Ответы пользователя
+- Результаты анализа (patterns, insights, recommendations)
 """
-from sqlalchemy import VARCHAR, ForeignKey, TEXT
-from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Column, BigInteger, Integer, String, TIMESTAMP, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
 
-from . import Base
-from .base import bigint
+from database.models.base import Base
 
 
 class QuizSession(Base):
-    """
-    Сессия прохождения квиза
+    """Quiz session model"""
     
-    Статусы:
-    - in_progress: квиз в процессе
-    - completed: успешно завершён
-    - abandoned: пользователь бросил (timeout)
-    - cancelled: пользователь отменил сам
-    """
     __tablename__ = 'quiz_sessions'
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[bigint] = mapped_column(ForeignKey('users.user_id'))
     
-    # ==========================================
-    # 📋 БАЗОВАЯ ИНФОРМАЦИЯ
-    # ==========================================
-    # Категория квиза: relationships, work, emotions, habits, personality
-    category: Mapped[str] = mapped_column(VARCHAR(length=64))
+    # Primary key
+    id = Column(Integer, primary_key=True, autoincrement=True)
     
-    # Статус: in_progress, completed, abandoned, cancelled
-    status: Mapped[str] = mapped_column(VARCHAR(length=32), default='in_progress')
+    # Foreign key
+    user_id = Column(BigInteger, ForeignKey('users.user_id', ondelete='CASCADE'), nullable=False)
     
-    # ==========================================
-    # 📊 ДАННЫЕ КВИЗА (JSONB ДЛЯ ГИБКОСТИ)
-    # ==========================================
-    # Формат (MVP):
-    # {
-    #   "questions": [
-    #     {
-    #       "id": "q1",
-    #       "text": "Как часто вы чувствуете одиночество?",
-    #       "type": "scale",  # scale, text, multiple_choice
-    #       "options": ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
-    #     }
-    #   ],
-    #   "answers": [
-    #     {
-    #       "question_id": "q1",
-    #       "value": "Часто",
-    #       "answered_at": "2025-10-24T10:00:00"
-    #     }
-    #   ],
-    #   "current_question_index": 3,
-    #   "total_questions": 10
-    # }
-    #
-    # Формат (V2 - adaptive, добавляется БЕЗ миграций):
-    # {
-    #   ... всё из MVP ...
-    #   "adaptive_context": "user shows high stress levels",
-    #   "branching_path": "stress_management",
-    #   "confidence_scores": [0.8, 0.9, 0.7],
-    #   "user_profile_snapshot": {...}  # Для анализа изменений
-    # }
-    data: Mapped[dict] = mapped_column(
-        JSONB,
-        default=lambda: {
-            "questions": [],
-            "answers": [],
-            "current_question_index": 0,
-            "total_questions": 10
+    # Assistant context
+    assistant_type = Column(String(64), default='helper')
+    
+    # Quiz metadata
+    category = Column(String(64), nullable=False)  # relationships, money, confidence, fears
+    status = Column(String(32), nullable=False, default='in_progress')  # in_progress, completed, cancelled
+    
+    # Progress tracking
+    current_question_index = Column(Integer, nullable=False, default=0)
+    total_questions = Column(Integer, nullable=True)
+    
+    # Data storage (JSONB for flexibility)
+    questions = Column(JSONB, nullable=False, default=list)  # [{"id": 0, "text": "..."}]
+    answers = Column(JSONB, nullable=False, default=list)    # [{"question_id": 0, "text": "..."}]
+    
+    # Analysis results
+    patterns = Column(JSONB, nullable=True)  # Patterns extracted from quiz
+    insights = Column(JSONB, nullable=True)  # High-level insights
+    recommendations = Column(JSONB, nullable=True)  # Actionable recommendations
+    
+    # Timestamps
+    created_at = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
+    updated_at = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = Column(TIMESTAMP, nullable=True)
+    
+    def __repr__(self):
+        return f"<QuizSession(id={self.id}, user_id={self.user_id}, category={self.category}, status={self.status})>"
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'assistant_type': self.assistant_type,
+            'category': self.category,
+            'status': self.status,
+            'current_question_index': self.current_question_index,
+            'total_questions': self.total_questions,
+            'questions': self.questions or [],
+            'answers': self.answers or [],
+            'patterns': self.patterns,
+            'insights': self.insights,
+            'recommendations': self.recommendations,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
         }
-    )
     
-    # ==========================================
-    # 💡 РЕЗУЛЬТАТЫ АНАЛИЗА
-    # ==========================================
-    # Генерируется после завершения квиза
-    # Формат:
-    # {
-    #   "new_patterns": [...],      # Новые паттерны
-    #   "insights": [...],          # Инсайты
-    #   "recommendations": [...],   # Рекомендации для пользователя
-    #   "confidence": 0.85          # Уверенность в результатах
-    # }
-    results: Mapped[dict] = mapped_column(JSONB, nullable=True)
+    @property
+    def progress_percentage(self) -> float:
+        """Calculate progress as percentage"""
+        if not self.total_questions:
+            return 0.0
+        return (self.current_question_index / self.total_questions) * 100
     
-    # ==========================================
-    # ⏱️ ВРЕМЕННЫЕ МЕТКИ
-    # ==========================================
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
-    completed_at: Mapped[datetime] = mapped_column(nullable=True)
+    @property
+    def is_completed(self) -> bool:
+        """Check if quiz is completed"""
+        return self.status == 'completed'
     
-    # Для resume (если пользователь бросил)
-    last_activity_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    @property
+    def is_in_progress(self) -> bool:
+        """Check if quiz is in progress"""
+        return self.status == 'in_progress'
     
-    # ==========================================
-    # 📈 МЕТАДАННЫЕ
-    # ==========================================
-    # Источник: menu, notification, auto_trigger
-    source: Mapped[str] = mapped_column(VARCHAR(length=32), default='menu')
-    
-    # Длительность прохождения (в секундах)
-    duration_seconds: Mapped[int] = mapped_column(nullable=True)
-
-
-# ==========================================
-# 🎯 HELPER METHODS (можно добавить позже)
-# ==========================================
-
-def get_current_question(session: QuizSession) -> dict | None:
-    """Получить текущий вопрос"""
-    idx = session.data.get('current_question_index', 0)
-    questions = session.data.get('questions', [])
-    
-    if idx < len(questions):
-        return questions[idx]
-    return None
-
-
-def get_progress(session: QuizSession) -> tuple[int, int]:
-    """Получить прогресс (current, total)"""
-    current = session.data.get('current_question_index', 0)
-    total = session.data.get('total_questions', 10)
-    return (current, total)
-
-
-def is_completed(session: QuizSession) -> bool:
-    """Проверить завершён ли квиз"""
-    current, total = get_progress(session)
-    return current >= total
+    @property
+    def is_cancelled(self) -> bool:
+        """Check if quiz was cancelled"""
+        return self.status == 'cancelled'

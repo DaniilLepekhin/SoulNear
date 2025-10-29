@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, update, func
 from database.database import db
 from database.models.user import User
-from bot.functions.other import add_months
+from utils.date_helpers import add_months  # ← Fixed circular import!
 import database.repository.statistic_day as db_statistic_day
 
 

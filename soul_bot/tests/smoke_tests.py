@@ -317,8 +317,11 @@ class TestDynamicQuizFeature:
         assert hasattr(QuizSession, 'user_id')
         assert hasattr(QuizSession, 'category')
         assert hasattr(QuizSession, 'status')
-        assert hasattr(QuizSession, 'data')
-        assert hasattr(QuizSession, 'results')
+        assert hasattr(QuizSession, 'questions')  # JSONB field for questions
+        assert hasattr(QuizSession, 'answers')    # JSONB field for answers
+        assert hasattr(QuizSession, 'patterns')   # Analysis results
+        assert hasattr(QuizSession, 'insights')
+        assert hasattr(QuizSession, 'recommendations')
     
     def test_quiz_fsm_states_exist(self):
         """FSM states для квиза существуют"""
@@ -440,12 +443,13 @@ class TestLevel2ContextualExamples:
         """Мета-инструкции добавлены в openai_service"""
         import os
         service_path = 'bot/services/openai_service.py'
-        
+        sections_path = 'bot/services/prompt/sections.py'
+
         assert os.path.exists(service_path)
-        
-        with open(service_path, 'r', encoding='utf-8') as f:
+        assert os.path.exists(sections_path)
+
+        with open(sections_path, 'r', encoding='utf-8') as f:
             content = f.read()
-            # Проверяем что LEVEL 2 упоминается
             assert 'LEVEL 2' in content
             assert 'КАК ИСПОЛЬЗОВАТЬ ПРИМЕРЫ ИЗ ДИАЛОГОВ' in content
             assert 'Помнишь, ты говорил' in content
@@ -468,18 +472,21 @@ class TestLevel2ContextualExamples:
         """FIX: Секция RECENT USER MESSAGES для корректного цитирования"""
         import os
         service_path = 'bot/services/openai_service.py'
-        
+        sections_path = 'bot/services/prompt/sections.py'
+
         assert os.path.exists(service_path)
-        
-        with open(service_path, 'r', encoding='utf-8') as f:
+        assert os.path.exists(sections_path)
+
+        with open(sections_path, 'r', encoding='utf-8') as f:
             content = f.read()
-            # Проверяем что новая секция добавлена
             assert 'ПОСЛЕДНИЕ СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ' in content
             assert 'для точного цитирования' in content
             assert 'КРИТИЧНОЕ ПРАВИЛО ЦИТИРОВАНИЯ' in content
             assert 'НИКОГДА не придумывай цитаты' in content
+
+        with open(service_path, 'r', encoding='utf-8') as f:
+            content = f.read()
             assert 'conversation_history.get_context' in content
-            # Проверяем что фильтруем user messages
             assert "msg['role'] == 'user'" in content
 
 
