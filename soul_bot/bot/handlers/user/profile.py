@@ -45,11 +45,22 @@ def _clean_profile_for_display(profile_data: dict) -> dict:
     if 'patterns' in cleaned and cleaned['patterns']:
         cleaned_patterns = []
         for pattern in cleaned['patterns']:
+            seen_evidence = set()
+            unique_evidence = []
+            for raw_quote in pattern.get('evidence', []):
+                if not raw_quote:
+                    continue
+                normalized = " ".join(raw_quote.strip().split())
+                key = normalized.lower()
+                if key in seen_evidence:
+                    continue
+                seen_evidence.add(key)
+                unique_evidence.append(normalized)
             clean_pattern = {
                 'type': pattern.get('type'),
                 'title': pattern.get('title'),
                 'description': pattern.get('description'),
-                'evidence': pattern.get('evidence', [])[:2],  # Только 2 примера (не все!)
+                'evidence': unique_evidence[:2],  # Только 2 уникальных примера
                 'tags': pattern.get('tags', [])[:3],  # Топ-3 тега
                 'confidence': pattern.get('confidence'),
                 'occurrences': pattern.get('occurrences'),
