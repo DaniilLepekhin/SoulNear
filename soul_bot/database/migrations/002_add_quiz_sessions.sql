@@ -1,49 +1,49 @@
--- Миграция: Добавление таблицы quiz_sessions
--- Дата: 2025-10-24
--- Stage 4: Dynamic Quiz
+-- Migration: Add quiz_sessions table for Stage 4 (Dynamic Quiz System)
+-- Date: 2025-10-29
+-- Description: Адаптивные опросники для углубленного анализа профиля пользователя
 
--- Создаём таблицу quiz_sessions
 CREATE TABLE IF NOT EXISTS quiz_sessions (
     id SERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users(user_id),
+    user_id BIGINT NOT NULL,
+    assistant_type VARCHAR(64) DEFAULT 'helper',
     
-    -- Категория и статус
-    category VARCHAR(64) NOT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'in_progress',
+    -- Quiz metadata
+    category VARCHAR(64) NOT NULL,  -- 'relationships', 'money', 'confidence', 'fears'
+    status VARCHAR(32) NOT NULL DEFAULT 'in_progress',  -- 'in_progress', 'completed', 'cancelled'
     
-    -- Данные квиза (JSONB для гибкости)
-    data JSONB NOT NULL DEFAULT '{"questions": [], "answers": [], "current_question_index": 0, "total_questions": 10}'::jsonb,
+    -- Progress tracking
+    current_question_index INT NOT NULL DEFAULT 0,
+    total_questions INT,
     
-    -- Результаты анализа
-    results JSONB,
+    -- Data storage (JSONB for flexibility)
+    questions JSONB NOT NULL DEFAULT '[]',  -- [{"id": 0, "text": "...", "context": "..."}]
+    answers JSONB NOT NULL DEFAULT '[]',     -- [{"question_id": 0, "text": "...", "timestamp": "..."}]
     
-    -- Временные метки
+    -- Analysis results
+    patterns JSONB,  -- Patterns extracted from quiz
+    insights JSONB,  -- High-level insights
+    recommendations JSONB,  -- Actionable recommendations
+    
+    -- Metadata
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMP,
-    last_activity_at TIMESTAMP NOT NULL DEFAULT NOW(),
     
-    -- Метаданные
-    source VARCHAR(32) NOT NULL DEFAULT 'menu',
-    duration_seconds INTEGER
+    -- Foreign key constraint
+    CONSTRAINT fk_quiz_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
--- Индексы для быстрого поиска
-CREATE INDEX IF NOT EXISTS idx_quiz_sessions_user_id ON quiz_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_quiz_sessions_status ON quiz_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_quiz_sessions_created_at ON quiz_sessions(created_at);
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_quiz_user_status ON quiz_sessions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_quiz_category ON quiz_sessions(category);
+CREATE INDEX IF NOT EXISTS idx_quiz_created ON quiz_sessions(created_at DESC);
 
--- Индекс для поиска активных сессий
-CREATE INDEX IF NOT EXISTS idx_quiz_sessions_active ON quiz_sessions(user_id, status) 
-WHERE status = 'in_progress';
-
--- GIN индекс для JSONB полей
-CREATE INDEX IF NOT EXISTS idx_quiz_sessions_data_gin ON quiz_sessions USING gin (data);
-CREATE INDEX IF NOT EXISTS idx_quiz_sessions_results_gin ON quiz_sessions USING gin (results);
-
--- Комментарии
-COMMENT ON TABLE quiz_sessions IS 'Сессии прохождения квизов (Stage 4)';
-COMMENT ON COLUMN quiz_sessions.data IS 'Вопросы и ответы квиза (JSONB для гибкости)';
-COMMENT ON COLUMN quiz_sessions.results IS 'Результаты анализа (patterns, insights, recommendations)';
-COMMENT ON COLUMN quiz_sessions.status IS 'Статус: in_progress, completed, abandoned, cancelled';
-
+-- Comments for documentation
+COMMENT ON TABLE quiz_sessions IS 'Storage for user quiz sessions (Stage 4: Dynamic Quiz System)';
+COMMENT ON COLUMN quiz_sessions.category IS 'Quiz category: relationships, money, confidence, fears';
+COMMENT ON COLUMN quiz_sessions.status IS 'Current status: in_progress, completed, cancelled';
+COMMENT ON COLUMN quiz_sessions.questions IS 'Array of question objects (pre-generated or dynamic)';
+COMMENT ON COLUMN quiz_sessions.answers IS 'Array of user answers with timestamps';
+COMMENT ON COLUMN quiz_sessions.patterns IS 'Patterns extracted from quiz answers';
+COMMENT ON COLUMN quiz_sessions.insights IS 'High-level insights generated from patterns';
+COMMENT ON COLUMN quiz_sessions.recommendations IS 'Actionable recommendations for user';

@@ -1,88 +1,75 @@
 """
-Repository для работы с QuizSession (Stage 4)
+Repository для работы с QuizSession
 
-Методы:
-- create() - создать новую сессию
-- get() - получить сессию по ID
-- get_active() - получить активную сессию пользователя
-- update_answer() - добавить ответ
-- complete() - завершить квиз
-- abandon() - пометить как брошенный
-- cancel() - отменить квиз
+CRUD operations + business logic queries
 """
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime
+from typing import Optional, List
 from sqlalchemy import select, update, and_
-from typing import Optional
+from sqlalchemy.orm import Session
 
 from database.database import db
 from database.models.quiz_session import QuizSession
+
+logger = logging.getLogger(__name__)
 
 
 async def create(
     user_id: int,
     category: str,
-    questions: list[dict],
-    source: str = 'menu'
+    assistant_type: str = 'helper',
+    questions: list = None
 ) -> QuizSession:
     """
-    Создать новую сессию квиза
+    Создать новую quiz session
     
     Args:
         user_id: ID пользователя
-        category: Категория (relationships, work, emotions, etc.)
-        questions: Сгенерированные вопросы
-        source: Источник запуска (menu, notification, auto_trigger)
+        category: Категория квиза (relationships, money, confidence, fears)
+        assistant_type: Тип ассистента
+        questions: Pre-generated questions (optional)
         
     Returns:
-        QuizSession object
+        Created QuizSession
     """
     async with db() as session:
-        quiz_session = QuizSession(
+        quiz = QuizSession(
             user_id=user_id,
             category=category,
-            source=source,
-            status='in_progress',
-            data={
-                "questions": questions,
-                "answers": [],
-                "current_question_index": 0,
-                "total_questions": len(questions)
-            }
+            assistant_type=assistant_type,
+            questions=questions or [],
+            answers=[],
+            total_questions=len(questions) if questions else None
         )
         
-        session.add(quiz_session)
+        session.add(quiz)
         await session.commit()
-        await session.refresh(quiz_session)
+        await session.refresh(quiz)
         
-        return quiz_session
+        logger.info(f"Created quiz session: user={user_id}, category={category}, id={quiz.id}")
+        
+        return quiz
 
 
-async def get(session_id: int) -> Optional[QuizSession]:
-    """
-    Получить сессию по ID
-    
-    Args:
-        session_id: ID сессии
-        
-    Returns:
-        QuizSession или None
-    """
+async def get(quiz_id: int) -> Optional[QuizSession]:
+    """Получить quiz session по ID"""
     async with db() as session:
         result = await session.execute(
-            select(QuizSession).where(QuizSession.id == session_id)
+            select(QuizSession).where(QuizSession.id == quiz_id)
         )
         return result.scalar_one_or_none()
 
 
-async def get_active(user_id: int) -> Optional[QuizSession]:
+async def get_active_session(
+    user_id: int,
+    assistant_type: str = 'helper'
+) -> Optional[QuizSession]:
     """
-    Получить активную сессию пользователя
+    Получить активную (in_progress) quiz session пользователя
     
-    Args:
-        user_id: ID пользователя
-        
     Returns:
-        QuizSession или None
+        Active QuizSession or None
     """
     async with db() as session:
         result = await session.execute(
@@ -90,167 +77,242 @@ async def get_active(user_id: int) -> Optional[QuizSession]:
             .where(
                 and_(
                     QuizSession.user_id == user_id,
+                    QuizSession.assistant_type == assistant_type,
                     QuizSession.status == 'in_progress'
                 )
             )
             .order_by(QuizSession.created_at.desc())
-            .limit(1)
         )
         return result.scalar_one_or_none()
 
 
-async def update_answer(
-    session_id: int,
-    question_id: str,
-    answer_value: str
+async def get_user_sessions(
+    user_id: int,
+    limit: int = 10,
+    category: str = None,
+    status: str = None
+) -> List[QuizSession]:
+    """
+    Получить quiz sessions пользователя
+    
+    Args:
+        user_id: ID пользователя
+        limit: Максимальное количество результатов
+        category: Фильтр по категории (optional)
+        status: Фильтр по статусу (optional)
+        
+    Returns:
+        List of QuizSession (sorted by created_at DESC)
+    """
+    async with db() as session:
+        query = select(QuizSession).where(QuizSession.user_id == user_id)
+        
+        if category:
+            query = query.where(QuizSession.category == category)
+        
+        if status:
+            query = query.where(QuizSession.status == status)
+        
+        query = query.order_by(QuizSession.created_at.desc()).limit(limit)
+        
+        result = await session.execute(query)
+        return list(result.scalars().all())
+
+
+async def add_answer(
+    quiz_id: int,
+    answer: str,
+    question_id: int = None
 ) -> QuizSession:
     """
-    Добавить ответ на вопрос
+    Добавить ответ к quiz session
     
     Args:
-        session_id: ID сессии
-        question_id: ID вопроса
-        answer_value: Значение ответа
+        quiz_id: ID quiz session
+        answer: Ответ пользователя
+        question_id: ID вопроса (optional, defaults to current_question_index)
         
     Returns:
-        Обновлённая QuizSession
+        Updated QuizSession
     """
     async with db() as session:
-        # Получаем сессию
-        result = await session.execute(
-            select(QuizSession).where(QuizSession.id == session_id)
-        )
-        quiz_session = result.scalar_one()
+        # Получаем quiz
+        quiz = await session.get(QuizSession, quiz_id)
+        if not quiz:
+            raise ValueError(f"Quiz session {quiz_id} not found")
+        
+        # Определяем question_id
+        if question_id is None:
+            question_id = quiz.current_question_index
         
         # Добавляем ответ
-        quiz_session.data['answers'].append({
-            "question_id": question_id,
-            "value": answer_value,
-            "answered_at": datetime.now().isoformat()
+        answers = quiz.answers or []
+        answers.append({
+            'question_id': question_id,
+            'text': answer,
+            'timestamp': datetime.utcnow().isoformat()
         })
         
-        # Двигаем индекс вперёд
-        quiz_session.data['current_question_index'] += 1
-        
-        # Обновляем last_activity
-        quiz_session.last_activity_at = datetime.now()
-        
-        # Помечаем data как изменённое (для SQLAlchemy JSONB tracking)
-        from sqlalchemy.orm.attributes import flag_modified
-        flag_modified(quiz_session, 'data')
-        
-        await session.commit()
-        await session.refresh(quiz_session)
-        
-        return quiz_session
-
-
-async def complete(session_id: int, results: dict) -> QuizSession:
-    """
-    Завершить квиз
-    
-    Args:
-        session_id: ID сессии
-        results: Результаты анализа (patterns, insights, recommendations)
-        
-    Returns:
-        Завершённая QuizSession
-    """
-    async with db() as session:
-        quiz_session_obj = await session.get(QuizSession, session_id)
-        
-        # Вычисляем длительность
-        duration = (datetime.now() - quiz_session_obj.created_at).total_seconds()
-        
-        quiz_session_obj.status = 'completed'
-        quiz_session_obj.completed_at = datetime.now()
-        quiz_session_obj.duration_seconds = int(duration)
-        quiz_session_obj.results = results
-        
-        await session.commit()
-        await session.refresh(quiz_session_obj)
-        
-        return quiz_session_obj
-
-
-async def abandon(session_id: int) -> None:
-    """
-    Пометить квиз как брошенный (timeout)
-    
-    Args:
-        session_id: ID сессии
-    """
-    async with db() as session:
+        # Обновляем quiz
         await session.execute(
             update(QuizSession)
-            .where(QuizSession.id == session_id)
-            .values(status='abandoned')
+            .where(QuizSession.id == quiz_id)
+            .values(
+                answers=answers,
+                current_question_index=quiz.current_question_index + 1,
+                updated_at=datetime.utcnow()
+            )
         )
+        
         await session.commit()
+        
+        # Refresh and return
+        await session.refresh(quiz)
+        
+        logger.info(f"Added answer to quiz {quiz_id}: question={question_id}, progress={quiz.current_question_index}/{quiz.total_questions}")
+        
+        return quiz
 
 
-async def cancel(session_id: int) -> None:
+async def update_status(
+    quiz_id: int,
+    status: str,
+    completed_at: datetime = None
+) -> QuizSession:
     """
-    Отменить квиз (пользователь сам отменил)
+    Обновить статус quiz session
     
     Args:
-        session_id: ID сессии
+        quiz_id: ID quiz session
+        status: Новый статус (in_progress, completed, cancelled)
+        completed_at: Время завершения (для status=completed)
+        
+    Returns:
+        Updated QuizSession
     """
     async with db() as session:
+        values = {
+            'status': status,
+            'updated_at': datetime.utcnow()
+        }
+        
+        if status == 'completed' and completed_at:
+            values['completed_at'] = completed_at
+        
         await session.execute(
             update(QuizSession)
-            .where(QuizSession.id == session_id)
-            .values(status='cancelled')
+            .where(QuizSession.id == quiz_id)
+            .values(**values)
         )
+        
         await session.commit()
+        
+        # Get and return updated quiz
+        quiz = await session.get(QuizSession, quiz_id)
+        
+        logger.info(f"Updated quiz {quiz_id} status: {status}")
+        
+        return quiz
 
 
-async def cleanup_old_sessions(days: int = 30) -> int:
+async def update_results(
+    quiz_id: int,
+    patterns: list = None,
+    insights: list = None,
+    recommendations: list = None
+) -> QuizSession:
     """
-    Удалить старые брошенные/отменённые сессии
+    Обновить результаты анализа quiz
     
     Args:
-        days: Сколько дней хранить
+        quiz_id: ID quiz session
+        patterns: Extracted patterns
+        insights: Generated insights
+        recommendations: Actionable recommendations
         
     Returns:
-        Количество удалённых сессий
+        Updated QuizSession
     """
-    from sqlalchemy import delete
-    
-    cutoff_date = datetime.now() - timedelta(days=days)
-    
     async with db() as session:
-        result = await session.execute(
-            delete(QuizSession)
-            .where(
-                and_(
-                    QuizSession.status.in_(['abandoned', 'cancelled']),
-                    QuizSession.created_at < cutoff_date
-                )
-            )
+        values = {'updated_at': datetime.utcnow()}
+        
+        if patterns is not None:
+            values['patterns'] = patterns
+        
+        if insights is not None:
+            values['insights'] = insights
+        
+        if recommendations is not None:
+            values['recommendations'] = recommendations
+        
+        await session.execute(
+            update(QuizSession)
+            .where(QuizSession.id == quiz_id)
+            .values(**values)
         )
+        
         await session.commit()
         
-        return result.rowcount
+        # Get and return updated quiz
+        quiz = await session.get(QuizSession, quiz_id)
+        
+        logger.info(f"Updated quiz {quiz_id} results: patterns={len(patterns or [])}, insights={len(insights or [])}")
+        
+        return quiz
 
 
-async def check_abandoned_sessions() -> list[QuizSession]:
+async def delete(quiz_id: int) -> bool:
     """
-    Найти зависшие сессии (> 30 минут без активности)
+    Удалить quiz session
     
+    Args:
+        quiz_id: ID quiz session
+        
     Returns:
-        Список зависших сессий
+        True if deleted, False if not found
     """
-    timeout = datetime.now() - timedelta(minutes=30)
-    
     async with db() as session:
-        result = await session.execute(
-            select(QuizSession)
-            .where(
-                and_(
-                    QuizSession.status == 'in_progress',
-                    QuizSession.last_activity_at < timeout
-                )
-            )
-        )
-        return list(result.scalars().all())
+        quiz = await session.get(QuizSession, quiz_id)
+        
+        if not quiz:
+            return False
+        
+        await session.delete(quiz)
+        await session.commit()
+        
+        logger.info(f"Deleted quiz session: {quiz_id}")
+        
+        return True
+
+
+async def get_statistics(user_id: int) -> dict:
+    """
+    Получить статистику quiz sessions пользователя
+    
+    Args:
+        user_id: ID пользователя
+        
+    Returns:
+        Statistics dict
+    """
+    sessions = await get_user_sessions(user_id, limit=100)
+    
+    total = len(sessions)
+    completed = len([s for s in sessions if s.status == 'completed'])
+    in_progress = len([s for s in sessions if s.status == 'in_progress'])
+    cancelled = len([s for s in sessions if s.status == 'cancelled'])
+    
+    categories = {}
+    for session in sessions:
+        if session.category not in categories:
+            categories[session.category] = 0
+        categories[session.category] += 1
+    
+    return {
+        'total': total,
+        'completed': completed,
+        'in_progress': in_progress,
+        'cancelled': cancelled,
+        'completion_rate': (completed / total * 100) if total > 0 else 0,
+        'categories': categories
+    }
