@@ -280,3 +280,5 @@ def render_meta_instructions(has_patterns: bool, has_insights: bool) -> str:
     
     return "\n\n".join(instructions)
 
+
+

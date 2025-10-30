@@ -16,6 +16,7 @@ from aiogram.enums import ChatAction
 from aiogram.types import Message, FSInputFile
 import bot.keyboards.practice as keyboards
 import bot.text as texts
+from utils.date_helpers import add_months
 
 from bot.functions.ChatGPT import get_assistant_response, generate_audio, analyse_photo
 from bot.states.states import Update_user_info
@@ -32,13 +33,6 @@ async def send_error(function, error):
 
 def generate_string(size=16):
     return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(size))
-
-
-def add_months(now: datetime, months: int) -> datetime:
-    if now.month + months > 12:
-        return now.replace(year=now.year + 1, month=(now.month + months) - 12)
-
-    return now.replace(month=now.month + months)
 
 
 # Экранирует специальные символы для MarkdownV2

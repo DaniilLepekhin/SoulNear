@@ -22,11 +22,15 @@ logger = logging.getLogger(__name__)
 # Инициализация клиента
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-# Константы
-EMBEDDING_MODEL = "text-embedding-3-small"
+# Импортируем константы из централизованного модуля
+from bot.services.constants import (
+    MODEL_EMBEDDING as EMBEDDING_MODEL,
+    SIMILARITY_THRESHOLD_DUPLICATE,
+    SIMILARITY_THRESHOLD_RELATED
+)
+
+# Embedding dimensions (константа модели)
 EMBEDDING_DIMENSIONS = 1536
-SIMILARITY_THRESHOLD_DUPLICATE = 0.50  # Очень агрессивный мердж (снижен с 0.55→0.50 для максимального роста occurrences)
-SIMILARITY_THRESHOLD_RELATED = 0.45    # Мягкая связь (снижен пропорционально)
 
 
 async def get_embedding(text: str) -> list[float]:

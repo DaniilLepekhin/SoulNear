@@ -35,3 +35,5 @@ async def build_personalized_response(
     # Пока что просто возвращаем base_response
     return base_response
 
+
+

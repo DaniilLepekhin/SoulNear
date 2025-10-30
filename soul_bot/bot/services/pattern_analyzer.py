@@ -16,11 +16,27 @@ from typing import Optional
 import json
 
 from openai import AsyncOpenAI
+from sqlalchemy import update
 
 from config import OPENAI_API_KEY, is_feature_enabled
 from bot.services import embedding_service
+from bot.services.constants import (
+    SIMILARITY_THRESHOLD_DUPLICATE,
+    SIMILARITY_THRESHOLD_RELATED,
+    QUICK_ANALYSIS_FREQUENCY,
+    DEEP_ANALYSIS_FREQUENCY,
+    QUICK_ANALYSIS_CONTEXT_SIZE,
+    DEEP_ANALYSIS_CONTEXT_SIZE,
+    MAX_EVIDENCE_PER_PATTERN,
+    MAX_INSIGHTS,
+    MAX_LEARNING_ITEMS,
+    MODEL_ANALYSIS,
+    TEMPERATURE_ANALYSIS
+)
 from bot.services.prompt.analysis_prompts import get_quick_analysis_prompt, get_deep_analysis_prompt
 from database.repository import user_profile, conversation_history
+from database.database import db
+from database.models.user_profile import UserProfile
 import database.repository.user as db_user
 
 logger = logging.getLogger(__name__)
@@ -251,20 +267,38 @@ async def _add_patterns_with_dedup(
 ):
     """
     Добавить паттерны с проверкой на дубликаты через embeddings
+    
+    Двухфакторный мердж:
+    1. Keyword match (exact title) → форсированный мердж (100% уверенность)
+    2. Semantic similarity (embedding > threshold) → обычный мердж
     """
     for new_pattern in new_patterns:
         try:
             # Генерируем текст для embedding
             pattern_text = f"{new_pattern['title']} {new_pattern['description']}"
             
-            # Проверяем дубликат (используем глобальный threshold)
-            from bot.services.embedding_service import SIMILARITY_THRESHOLD_DUPLICATE
+            # FACTOR 1: Keyword match (exact title)
+            keyword_match = None
+            for existing in existing_patterns:
+                if existing['title'].lower().strip() == new_pattern['title'].lower().strip():
+                    keyword_match = existing
+                    break
+            
+            # FACTOR 2: Semantic similarity
             is_dup, duplicate, similarity = await embedding_service.is_duplicate(
                 pattern_text,
                 existing_patterns,
                 text_key='description',
                 threshold=SIMILARITY_THRESHOLD_DUPLICATE
             )
+            
+            # Двухфакторное решение: keyword match > semantic similarity
+            if keyword_match:
+                # FORCED MERGE по keyword (100% уверенность)
+                duplicate = keyword_match
+                is_dup = True
+                similarity = 1.0
+                logger.info(f"🔑 KEYWORD MATCH: '{new_pattern['title']}' → forced merge")
             
             if is_dup:
                 # Мерджим с существующим
@@ -323,7 +357,6 @@ async def _update_related_patterns(user_id: int, patterns: list[dict]):
         # Находим 3 наиболее похожих паттерна (исключая себя)
         other_patterns = [p for j, p in enumerate(patterns) if j != i]
         
-        from bot.services.embedding_service import SIMILARITY_THRESHOLD_RELATED
         related = await embedding_service.find_similar_items(
             pattern['embedding'],
             other_patterns,
@@ -405,10 +438,6 @@ async def _update_emotional_state(user_id: int, mood_data: dict):
     emotional_state['mood_history'] = mood_history[-30:]
     
     # Сохраняем
-    from database.database import db
-    from sqlalchemy import update
-    from database.models.user_profile import UserProfile
-    
     async with db() as session:
         await session.execute(
             update(UserProfile)
@@ -444,10 +473,6 @@ async def _update_learning_preferences(user_id: int, learning_data: dict):
     learning_prefs['doesnt_work'] = list(doesnt_work)[-10:]
     
     # Сохраняем
-    from database.database import db
-    from sqlalchemy import update
-    from database.models.user_profile import UserProfile
-    
     async with db() as session:
         await session.execute(
             update(UserProfile)

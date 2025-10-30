@@ -418,10 +418,15 @@ async def get_chat_completion(
         # 7. ⭐ STAGE 3: Анализ паттернов (в фоне, не блокирует ответ)
         if is_feature_enabled('ENABLE_PATTERN_ANALYSIS'):
             from bot.services import pattern_analyzer
-            asyncio.create_task(pattern_analyzer.analyze_if_needed(user_id, assistant_type))
+            from utils.task_helpers import create_safe_task
+            create_safe_task(
+                pattern_analyzer.analyze_if_needed(user_id, assistant_type),
+                f"pattern_analysis_user_{user_id}"
+            )
         
         # 8. Обновляем статистику
-        asyncio.create_task(_update_statistics(assistant_type, success=True))
+        from utils.task_helpers import create_safe_task
+        create_safe_task(_update_statistics(assistant_type, success=True), "update_statistics")
         
         return assistant_message
         
@@ -429,10 +434,11 @@ async def get_chat_completion(
         logger.error(f"Error in get_chat_completion: {e}", exc_info=True)
         
         # Обновляем статистику ошибок
-        asyncio.create_task(_update_statistics(assistant_type, success=False))
+        from utils.task_helpers import create_safe_task
+        create_safe_task(_update_statistics(assistant_type, success=False), "update_statistics_error")
         
         # Отправляем уведомление об ошибке админам
-        asyncio.create_task(_send_error_notification(
+        create_safe_task(_send_error_notification(
             function='get_chat_completion',
             error=str(e),
             user_id=user_id,

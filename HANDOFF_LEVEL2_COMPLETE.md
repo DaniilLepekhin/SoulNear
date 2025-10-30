@@ -1089,3 +1089,5 @@ def generate_next_question(session, previous_answer):
 **Для вопросов:** См. git history, все commits с detailed messages
 
 
+
+
