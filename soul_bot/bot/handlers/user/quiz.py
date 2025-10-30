@@ -17,9 +17,15 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from bot.loader import dp
 from bot.states.states import QuizStates
 from bot.services.quiz_service import generator, analyzer
+from bot.services.quiz.adaptive_quiz_service import AdaptiveQuizService
+from bot.services.ai.gpt_service import GPTService
 import database.repository.quiz_session as db_quiz_session
 import database.repository.user_profile as db_user_profile
 from config import is_feature_enabled
+
+# Initialize adaptive quiz service
+gpt_service = GPTService()
+adaptive_quiz = AdaptiveQuizService(gpt_service)
 
 
 # ==========================================
@@ -145,6 +151,31 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     )
     
     await call.answer("✅ Ответ сохранён")
+    
+    # 🔥 ADAPTIVE BRANCHING: проверяем нужно ли добавить follow-up вопросы
+    if is_feature_enabled('ENABLE_ADAPTIVE_QUIZ') and await adaptive_quiz.should_branch(quiz_session):
+        try:
+            # Генерируем адаптивные вопросы
+            followup_questions = await adaptive_quiz.get_adaptive_questions(quiz_session)
+            
+            if followup_questions:
+                # Добавляем вопросы в сессию
+                quiz_session.questions.extend(followup_questions)
+                quiz_session.total_questions = len(quiz_session.questions)
+                
+                # Сохраняем обновленную сессию
+                await db_quiz_session.update(quiz_session)
+                
+                # Уведомляем пользователя
+                await call.message.answer(
+                    "💡 Обнаружены интересные паттерны!\n"
+                    f"Добавляю {len(followup_questions)} уточняющих вопроса...",
+                    parse_mode='HTML'
+                )
+        except Exception as e:
+            # Не блокируем квиз при ошибке адаптации
+            import logging
+            logging.error(f"Adaptive branching failed: {e}")
     
     # Проверяем завершён ли квиз
     if quiz_session.current_question_index >= quiz_session.total_questions:

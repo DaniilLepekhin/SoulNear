@@ -6,7 +6,8 @@ CRUD operations + business logic queries
 import logging
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import select, update, and_
+from sqlalchemy import select, and_
+from sqlalchemy import update as sql_update
 from sqlalchemy.orm import Session
 
 from database.database import db
@@ -151,7 +152,7 @@ async def update_answer(
         
         # Обновляем quiz
         await session.execute(
-            update(QuizSession)
+            sql_update(QuizSession)
             .where(QuizSession.id == session_id)
             .values(
                 answers=answers,
@@ -190,6 +191,29 @@ async def add_answer(
     return await update_answer(quiz_id, str(question_id or 0), answer)
 
 
+async def update(quiz_session: QuizSession) -> QuizSession:
+    """
+    Обновить quiz session (generic update for adaptive branching)
+    
+    Args:
+        quiz_session: QuizSession object with modified fields
+        
+    Returns:
+        Updated QuizSession
+    """
+    async with db() as session:
+        # Merge updated object
+        merged = await session.merge(quiz_session)
+        merged.updated_at = datetime.utcnow()
+        
+        await session.commit()
+        await session.refresh(merged)
+        
+        logger.info(f"Updated quiz session {quiz_session.id}")
+        
+        return merged
+
+
 async def update_status(
     quiz_id: int,
     status: str,
@@ -216,7 +240,7 @@ async def update_status(
             values['completed_at'] = completed_at
         
         await session.execute(
-            update(QuizSession)
+            sql_update(QuizSession)
             .where(QuizSession.id == quiz_id)
             .values(**values)
         )
@@ -262,7 +286,7 @@ async def update_results(
             values['recommendations'] = recommendations
         
         await session.execute(
-            update(QuizSession)
+            sql_update(QuizSession)
             .where(QuizSession.id == quiz_id)
             .values(**values)
         )
@@ -332,7 +356,7 @@ async def complete(
                 values['recommendations'] = results['recommendations']
         
         await session.execute(
-            update(QuizSession)
+            sql_update(QuizSession)
             .where(QuizSession.id == quiz_id)
             .values(**values)
         )

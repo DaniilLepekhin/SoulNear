@@ -79,6 +79,7 @@ FEATURE_FLAGS = {
     
     # Этап 4: Динамический квиз
     'ENABLE_DYNAMIC_QUIZ': os.getenv('ENABLE_DYNAMIC_QUIZ', 'false').lower() == 'true',
+    'ENABLE_ADAPTIVE_QUIZ': os.getenv('ENABLE_ADAPTIVE_QUIZ', 'false').lower() == 'true',
     
     # Этап 6: Файнтюнинг стиля
     'ENABLE_TUNE_STYLE': os.getenv('ENABLE_TUNE_STYLE', 'false').lower() == 'true',
