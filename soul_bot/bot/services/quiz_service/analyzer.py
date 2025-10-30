@@ -272,7 +272,7 @@ Return JSON:
     
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",  # 🔥 UPGRADE: Используем GPT-4o для более глубоких рекомендаций
             messages=[
                 {"role": "system", "content": "You are a supportive psychologist."},
                 {"role": "user", "content": prompt}
@@ -294,6 +294,32 @@ Return JSON:
 # ==========================================
 # 📊 МОДУЛЬ: РАСЧЁТ CONFIDENCE
 # ==========================================
+
+def _confidence_to_stars(confidence: float) -> str:
+    """
+    Преобразовать confidence (0.0-1.0) в звёздочки
+    
+    Args:
+        confidence: Уверенность от 0.0 до 1.0
+        
+    Returns:
+        Строка со звёздочками: "⭐⭐⭐⭐⭐ (95%)"
+    """
+    percentage = int(confidence * 100)
+    
+    if percentage >= 95:
+        stars = "⭐⭐⭐⭐⭐"
+    elif percentage >= 80:
+        stars = "⭐⭐⭐⭐"
+    elif percentage >= 60:
+        stars = "⭐⭐⭐"
+    elif percentage >= 40:
+        stars = "⭐⭐"
+    else:
+        stars = "⭐"
+    
+    return f"{stars} ({percentage}%)"
+
 
 def _calculate_confidence(answers: list[dict]) -> float:
     """
@@ -355,12 +381,25 @@ RESULTS:
 {json.dumps(results, ensure_ascii=False, indent=2)}
 
 Requirements:
-1. Use emojis
+1. Use emojis (🎯, 💡, ⭐, etc.)
 2. Be supportive and encouraging
-3. Highlight key patterns
+3. Highlight key patterns WITH confidence visualization:
+   - Show confidence as stars: ⭐⭐⭐⭐⭐ (95%+), ⭐⭐⭐⭐ (80-94%), ⭐⭐⭐ (60-79%), ⭐⭐ (40-59%)
+   - Add confidence percentage in parentheses
+   - Example: "✅ Perfectionism (confidence: 95%) ⭐⭐⭐⭐⭐"
+   - Use ⚠️ for patterns with confidence < 70%
 4. Present recommendations clearly
 5. In Russian
 6. Max 2000 characters
+7. Format like:
+   🧠 Выявленные паттерны:
+   
+   ✅ Pattern Name (confidence: 85%) ⭐⭐⭐⭐
+      "Description here..."
+   
+   💡 Рекомендации:
+   - Recommendation 1
+   - Recommendation 2
 
 Return formatted text (not JSON, just text).
 """
@@ -381,15 +420,28 @@ Return formatted text (not JSON, just text).
     except Exception as e:
         logger.error(f"Results formatting failed: {e}")
         
-        # Fallback форматирование
+        # Fallback форматирование с confidence
         text = "🎉 <b>Квиз завершён!</b>\n\n"
-        text += f"📊 Выявлено паттернов: {len(results.get('new_patterns', []))}\n"
-        text += f"💡 Рекомендаций: {len(results.get('recommendations', []))}\n\n"
         
+        # Паттерны с confidence
+        patterns = results.get('new_patterns', [])
+        if patterns:
+            text += "🧠 <b>Выявленные паттерны:</b>\n\n"
+            for p in patterns[:3]:
+                confidence = p.get('confidence', 0.7)
+                confidence_viz = _confidence_to_stars(confidence)
+                emoji = "✅" if confidence >= 0.7 else "⚠️"
+                title = p.get('title', 'Паттерн')
+                description = p.get('description', '')[:150]
+                
+                text += f"{emoji} <b>{title}</b> {confidence_viz}\n"
+                text += f"   {description}...\n\n"
+        
+        # Рекомендации
         recommendations = results.get('recommendations', [])
         if recommendations:
-            text += "<b>Рекомендации:</b>\n"
-            for i, rec in enumerate(recommendations[:3], 1):
+            text += "💡 <b>Рекомендации:</b>\n"
+            for i, rec in enumerate(recommendations[:5], 1):
                 text += f"{i}. {rec}\n"
         
         return text

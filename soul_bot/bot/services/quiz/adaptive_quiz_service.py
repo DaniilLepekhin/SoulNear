@@ -32,8 +32,9 @@ class AdaptiveQuizService:
     # Thresholds for adaptive behavior
     BRANCH_AFTER_QUESTION = 5  # Trigger analysis after Q5
     CONFIDENCE_THRESHOLD = 0.7  # Minimum confidence to generate follow-ups
-    MAX_FOLLOWUP_QUESTIONS = 3  # Maximum additional questions per pattern
-    MAX_TOTAL_FOLLOWUPS = 5  # Maximum total follow-ups across all patterns
+    GENERATE_CANDIDATE_QUESTIONS = 5  # 🔥 Generate 5 candidates
+    SELECT_TOP_QUESTIONS = 3  # 🔥 Select top 2-3 from candidates
+    MAX_TOTAL_FOLLOWUPS = 3  # 🔥 Maximum 3 follow-ups (was 5)
     
     def __init__(self, gpt_service: GPTService):
         self.gpt = gpt_service
@@ -144,7 +145,7 @@ Evidence from user: {', '.join(evidence[:2])}
 Quiz category: {category}
 
 Task:
-Generate {self.MAX_FOLLOWUP_QUESTIONS} questions to:
+Generate {self.GENERATE_CANDIDATE_QUESTIONS} candidate questions to:
 1. Confirm this pattern exists
 2. Understand its severity/frequency
 3. Explore triggers or contexts
@@ -154,22 +155,31 @@ Requirements:
 - Mix of scales (1-5) and choice questions
 - Relevant to pattern and category
 - Not repetitive
+- RANK questions by quality/relevance (most insightful first)
 
-Return JSON array:
-[
-  {{
-    "type": "scale",
-    "text": "Как часто это проявляется?",
-    "scale_labels": {{"min": "Редко", "max": "Постоянно"}},
-    "related_pattern": "{pattern_title}"
-  }},
-  {{
-    "type": "choice",
-    "text": "В каких ситуациях это усиливается?",
-    "options": ["На работе", "В отношениях", "В одиночестве", "Другое"],
-    "related_pattern": "{pattern_title}"
-  }}
-]"""
+Return JSON:
+{{
+  "questions": [
+    {{
+      "type": "scale",
+      "text": "Как часто это проявляется?",
+      "scale_labels": {{"min": "Редко", "max": "Постоянно"}},
+      "related_pattern": "{pattern_title}",
+      "quality_score": 0.95,
+      "reasoning": "Direct pattern confirmation"
+    }},
+    {{
+      "type": "choice",
+      "text": "В каких ситуациях это усиливается?",
+      "options": ["На работе", "В отношениях", "В одиночестве", "Другое"],
+      "related_pattern": "{pattern_title}",
+      "quality_score": 0.85,
+      "reasoning": "Context exploration"
+    }}
+  ]
+}}
+
+IMPORTANT: Include quality_score (0.0-1.0) for each question."""
 
         try:
             response = await self.gpt.generate_completion(
@@ -179,13 +189,36 @@ Return JSON array:
                 json_mode=True
             )
             
-            questions = self._parse_questions_response(response)
-            logger.info(f"Generated {len(questions)} follow-up questions for {pattern_title}")
+            all_questions = self._parse_questions_response(response)
+            logger.info(f"Generated {len(all_questions)} candidate questions for {pattern_title}")
+            
+            # 🔥 SELECT TOP QUESTIONS: Sort by quality_score and take top N
+            if all_questions:
+                # Sort by quality_score (descending)
+                sorted_questions = sorted(
+                    all_questions,
+                    key=lambda q: q.get('quality_score', 0.5),
+                    reverse=True
+                )
+                
+                # Select top questions (2-3)
+                top_count = min(self.SELECT_TOP_QUESTIONS, len(sorted_questions))
+                questions = sorted_questions[:top_count]
+                
+                logger.info(
+                    f"Selected top {len(questions)}/{len(all_questions)} questions "
+                    f"(scores: {[q.get('quality_score', 0) for q in questions]})"
+                )
+            else:
+                questions = []
             
             # Mark as adaptive questions
             for q in questions:
                 q['is_adaptive'] = True
                 q['trigger_pattern'] = pattern_title
+                # Remove quality_score from final output (internal use only)
+                q.pop('quality_score', None)
+                q.pop('reasoning', None)
             
             return questions
             
@@ -222,18 +255,18 @@ Return JSON array:
         
         logger.info(f"Found {len(strong_patterns)} strong patterns")
         
-        # Generate follow-ups for top patterns (limit to avoid quiz bloat)
+        # Generate follow-ups for top 1 pattern only (focused approach)
         all_followups = []
         
-        for pattern in strong_patterns[:2]:  # Max 2 patterns
-            followups = await self.generate_followup_questions(pattern, session)
-            all_followups.extend(followups)
+        # 🔥 UPGRADE: Focus on strongest pattern only
+        if strong_patterns:
+            top_pattern = strong_patterns[0]
+            logger.info(f"Focusing on strongest pattern: {top_pattern.get('title')} (confidence: {top_pattern.get('confidence')})")
             
-            # Stop if we have enough
-            if len(all_followups) >= self.MAX_TOTAL_FOLLOWUPS:
-                break
+            followups = await self.generate_followup_questions(top_pattern, session)
+            all_followups.extend(followups)
         
-        # Limit total follow-ups
+        # Limit total follow-ups (should be 2-3 already, but ensure)
         all_followups = all_followups[:self.MAX_TOTAL_FOLLOWUPS]
         
         logger.info(f"Generated {len(all_followups)} total follow-up questions")
@@ -300,11 +333,16 @@ Return JSON array:
         import json
         
         try:
-            questions = json.loads(response)
+            data = json.loads(response)
             
-            if not isinstance(questions, list):
-                logger.warning("Response is not a list, wrapping")
-                questions = [questions]
+            # Handle both formats: direct list or {"questions": [...]}
+            if isinstance(data, dict) and 'questions' in data:
+                questions = data['questions']
+            elif isinstance(data, list):
+                questions = data
+            else:
+                logger.warning("Response is not a list or dict with 'questions', wrapping")
+                questions = [data]
             
             # Validate structure
             valid_questions = []

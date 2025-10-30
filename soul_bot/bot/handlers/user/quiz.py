@@ -84,7 +84,7 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
         # Генерируем вопросы (MVP: без адаптации)
         questions = await generator.generate_questions(
             category=category,
-            count=10,
+            count=8,  # 🔥 UPGRADE: 8 базовых вопросов (+ 2-3 адаптивных = 10-11)
             user_profile=profile_data  # ← параметр готов для V2!
         )
         

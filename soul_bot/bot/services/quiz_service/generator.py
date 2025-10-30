@@ -59,7 +59,7 @@ QUIZ_CATEGORIES = {
 
 async def generate_questions(
     category: str,
-    count: int = 10,
+    count: int = 8,  # 🔥 UPGRADE: Снижаем до 8 базовых вопросов (+ 2-3 адаптивных = 10-11 total)
     user_profile: Optional[dict] = None,  # ← V2: параметр готов!
     previous_answers: Optional[list[dict]] = None  # ← V3: параметр готов!
 ) -> list[dict]:
@@ -138,18 +138,33 @@ Return JSON:
 """
         
         # ==========================================
-        # 🔧 V2: Добавляем контекст профиля (если есть)
+        # 🔧 V2: Добавляем контекст профиля (UPGRADE!)
         # ==========================================
         if user_profile and user_profile.get('patterns'):
+            # Сортируем по частоте (occurrences) - самые "горячие" паттерны
+            patterns = sorted(
+                user_profile['patterns'],
+                key=lambda p: p.get('occurrences', 0),
+                reverse=True
+            )[:3]  # Топ-3
+            
             patterns_summary = "\n".join([
-                f"- {p.get('title', 'Паттерн')}"
-                for p in user_profile['patterns'][:3]
+                f"- {p.get('title', 'Паттерн')} (confidence: {p.get('confidence', 0):.0%}, occurrences: {p.get('occurrences', 0)})\n"
+                f"  Description: {p.get('description', 'N/A')[:100]}"
+                for p in patterns
             ])
             
             prompt += f"""
 
-EXISTING USER PATTERNS (адаптируй вопросы с учётом этого):
+🎯 EXISTING USER PATTERNS FROM CHAT HISTORY:
 {patterns_summary}
+
+INSTRUCTIONS FOR ADAPTATION:
+1. Generate questions that EXPLORE these patterns deeper
+2. Add questions to VALIDATE if these patterns are accurate
+3. Look for RELATED or COMPLEMENTARY patterns
+4. Prioritize patterns with high occurrences (more frequent = more important)
+5. DON'T just repeat what we already know - dig deeper!
 """
         
         # ==========================================
