@@ -11,8 +11,8 @@ from aiogram.types import (
 
 import bot.functions.Pictures as Pictures
 import bot.text as texts
-from bot.functions.ChatGPT import new_context
 from bot.functions.other import check_user_info
+from database.repository import conversation_history
 from bot.keyboards.premium import sub_menu
 from bot.loader import dp, bot
 from bot.states.states import get_prompt, Update_user_info
@@ -91,12 +91,13 @@ async def delete_context_message(message: Message, state: FSMContext):
 
     msg = await message.answer("Очищаю контекст...")
     try:
-        await new_context(user_id, 'helper')
+        # Очищаем историю через новый API (ChatCompletion)
+        await conversation_history.clear(user_id, 'helper')
         await msg.edit_text(
-            "Контекст удален. Теперь вы с SOUL.near можете сосредоточиться на текущей теме, не отвлекаясь на предыдущие обсуждения."
+            "✅ Контекст удален. Теперь вы с SOUL.near можете сосредоточиться на текущей теме, не отвлекаясь на предыдущие обсуждения."
         )
     except Exception as e:
-        await message.answer("Контекст не очищен.")
+        await msg.edit_text("❌ Ошибка при очистке контекста.")
         print(f"Ошибка в deletecontext: {e}")
 
 

@@ -11,6 +11,7 @@ Architecture: Moderate + Embeddings
 """
 import logging
 import uuid
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Optional
 import json
@@ -27,6 +28,8 @@ from bot.services.constants import (
     DEEP_ANALYSIS_FREQUENCY,
     QUICK_ANALYSIS_CONTEXT_SIZE,
     DEEP_ANALYSIS_CONTEXT_SIZE,
+    QUICK_ANALYSIS_MIN_MESSAGES,
+    DEEP_ANALYSIS_MIN_MESSAGES,
     MAX_EVIDENCE_PER_PATTERN,
     MAX_INSIGHTS,
     MAX_LEARNING_ITEMS,
@@ -67,14 +70,14 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
     try:
         logger.info(f"Quick analysis for user {user_id}")
         
-        # Получаем последние 15 сообщений (увеличено для лучшей детекции повторений)
+        # Получаем последние сообщения (из constants)
         messages = await conversation_history.get_context(
             user_id=user_id,
             assistant_type=assistant_type,
-            max_messages=15
+            max_messages=QUICK_ANALYSIS_CONTEXT_SIZE
         )
         
-        if len(messages) < 4:
+        if len(messages) < QUICK_ANALYSIS_MIN_MESSAGES:
             logger.debug("Not enough messages for analysis")
             return
         
@@ -176,14 +179,14 @@ async def deep_analysis(user_id: int, assistant_type: str = 'helper'):
     try:
         logger.info(f"Deep analysis for user {user_id}")
         
-        # Получаем последние 30 сообщений
+        # Получаем последние сообщения (из constants)
         messages = await conversation_history.get_context(
             user_id=user_id,
             assistant_type=assistant_type,
-            max_messages=30
+            max_messages=DEEP_ANALYSIS_CONTEXT_SIZE
         )
         
-        if len(messages) < 10:
+        if len(messages) < DEEP_ANALYSIS_MIN_MESSAGES:
             logger.debug("Not enough messages for deep analysis")
             return
         
@@ -457,20 +460,27 @@ async def _update_emotional_state(user_id: int, mood_data: dict):
 async def _update_learning_preferences(user_id: int, learning_data: dict):
     """
     Обновить learning preferences (что работает/не работает)
+    
+    Использует OrderedDict для сохранения порядка (новые элементы в конец).
+    Это важно для UI - показываем последние предпочтения первыми.
     """
     profile = await user_profile.get_or_create(user_id)
     learning_prefs = profile.learning_preferences
     
-    # Добавляем новые insights (без дубликатов)
-    works_well = set(learning_prefs.get('works_well', []))
-    doesnt_work = set(learning_prefs.get('doesnt_work', []))
+    # Используем OrderedDict для сохранения порядка (новые в конец)
+    # Ключи = items, значения = None (нужны только уникальные ключи)
+    works_well = OrderedDict.fromkeys(learning_prefs.get('works_well', []))
+    doesnt_work = OrderedDict.fromkeys(learning_prefs.get('doesnt_work', []))
     
-    works_well.update(learning_data.get('works_well', []))
-    doesnt_work.update(learning_data.get('doesnt_work', []))
+    # Добавляем новые элементы (дедупликация автоматическая)
+    for item in learning_data.get('works_well', []):
+        works_well[item] = None
+    for item in learning_data.get('doesnt_work', []):
+        doesnt_work[item] = None
     
-    # Limit: по 10 каждого
-    learning_prefs['works_well'] = list(works_well)[-10:]
-    learning_prefs['doesnt_work'] = list(doesnt_work)[-10:]
+    # Limit: последние 10 (самые свежие)
+    learning_prefs['works_well'] = list(works_well.keys())[-MAX_LEARNING_ITEMS:]
+    learning_prefs['doesnt_work'] = list(doesnt_work.keys())[-MAX_LEARNING_ITEMS:]
     
     # Сохраняем
     async with db() as session:
@@ -507,11 +517,11 @@ async def analyze_if_needed(user_id: int, assistant_type: str = 'helper'):
     # Считаем сообщения
     message_count = await conversation_history.count_messages(user_id, assistant_type)
     
-    # Quick analysis каждые 3 сообщения (было 5 - увеличено для роста occurrences)
-    if message_count > 0 and message_count % 3 == 0:
+    # Quick analysis (частота из constants)
+    if message_count > 0 and message_count % QUICK_ANALYSIS_FREQUENCY == 0:
         await quick_analysis(user_id, assistant_type)
     
-    # Deep analysis каждые 20 сообщений
-    if message_count > 0 and message_count % 20 == 0:
+    # Deep analysis (частота из constants)
+    if message_count > 0 and message_count % DEEP_ANALYSIS_FREQUENCY == 0:
         await deep_analysis(user_id, assistant_type)
 

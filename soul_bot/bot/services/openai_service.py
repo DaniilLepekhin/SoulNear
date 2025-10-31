@@ -37,6 +37,11 @@ from bot.services.prompt.sections import (
     render_style_section,
     render_user_info,
 )
+from bot.services.realtime_mood_detector import (
+    detect_urgent_emotional_signals,
+    should_override_system_prompt,
+    build_emergency_prompt
+)
 
 # Инициализация OpenAI клиента
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -218,7 +223,8 @@ def _cached_style_instructions(tone_style: str, personality: str, message_length
     personality_map = {
         'mentor': '⚠️ ОБЯЗАТЕЛЬНО: Веди себя как МУДРЫЙ НАСТАВНИК - делись опытом, давай советы с позиции старшего.',
         'friend': '⚠️ ОБЯЗАТЕЛЬНО: Будь ПОДДЕРЖИВАЮЩИМ ДРУГОМ - понимай, сопереживай, будь на одной волне.',
-        'coach': '⚠️ ОБЯЗАТЕЛЬНО: Действуй как СТРОГИЙ КОУЧ - фокусируйся на действиях и результатах, требуй конкретики.'
+        'coach': '⚠️ ОБЯЗАТЕЛЬНО: Действуй как СТРОГИЙ КОУЧ - фокусируйся на действиях и результатах, требуй конкретики.',
+        'therapist': '⚠️ ОБЯЗАТЕЛЬНО: Будь ПРОФЕССИОНАЛЬНЫМ ТЕРАПЕВТОМ - деликатный, безоценочный, фокус на понимании чувств и эмоций.'
     }
     
     # КРИТИЧНО: Ограничение длины с контрастными примерами
@@ -364,8 +370,26 @@ async def get_chat_completion(
         Ответ ассистента или None при ошибке
     """
     try:
-        # 1. Строим system prompt
-        system_prompt = await build_system_prompt(user_id, assistant_type)
+        # 🚨 STEP 0: Проверяем экстренные эмоциональные сигналы (< 1ms)
+        urgent_signal = detect_urgent_emotional_signals(message)
+        
+        # 1. Строим system prompt (emergency или normal mode)
+        if should_override_system_prompt(urgent_signal):
+            # EMERGENCY MODE: используем экстренный prompt
+            base_instructions = _get_base_instructions(assistant_type)
+            system_prompt = build_emergency_prompt(
+                emotion=urgent_signal.emotion,
+                base_instructions=base_instructions
+            )
+            
+            logger.warning(
+                f"🚨 EMERGENCY MODE activated for user {user_id}: "
+                f"{urgent_signal.emotion} (urgency: {urgent_signal.urgency}, "
+                f"confidence: {urgent_signal.confidence:.2f})"
+            )
+        else:
+            # NORMAL MODE: стандартный персонализированный prompt
+            system_prompt = await build_system_prompt(user_id, assistant_type)
         
         # 2. Загружаем историю сообщений
         history = await conversation_history.get_context(
@@ -414,7 +438,16 @@ async def get_chat_completion(
             tokens_used=response.usage.total_tokens if response.usage else None
         )
         
-        # 7. ⭐ STAGE 3: Анализ паттернов (в фоне, не блокирует ответ)
+        # 7. 🚨 Логируем emergency events (если были)
+        if urgent_signal and urgent_signal.urgency == 'high':
+            logger.info(
+                f"✅ Emergency response sent to user {user_id}: "
+                f"emotion={urgent_signal.emotion}, "
+                f"confidence={urgent_signal.confidence:.2f}, "
+                f"keywords={urgent_signal.trigger_keywords}"
+            )
+        
+        # 8. ⭐ STAGE 3: Анализ паттернов (в фоне, не блокирует ответ)
         if is_feature_enabled('ENABLE_PATTERN_ANALYSIS'):
             from bot.services import pattern_analyzer
             from utils.task_helpers import create_safe_task
@@ -423,7 +456,7 @@ async def get_chat_completion(
                 f"pattern_analysis_user_{user_id}"
             )
         
-        # 8. Обновляем статистику
+        # 9. Обновляем статистику
         from utils.task_helpers import create_safe_task
         create_safe_task(_update_statistics(assistant_type, success=True), "update_statistics")
         

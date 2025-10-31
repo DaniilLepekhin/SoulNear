@@ -7,7 +7,8 @@ from aiogram.types import CallbackQuery, Message
 from bot.handlers.user.start import menu_callback
 from bot.keyboards.profile import (
     profile_menu, gender_menu, style_settings_menu,
-    tone_menu, personality_menu, length_menu
+    tone_menu, personality_menu, length_menu,
+    build_style_settings_menu_v2
 )
 from bot.keyboards.start import back, menu
 from bot.loader import dp, bot
@@ -400,7 +401,7 @@ async def update_user_gender(call: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == 'style_settings')
 async def style_settings_callback(call: CallbackQuery, state: FSMContext):
-    """Показать меню настроек стиля"""
+    """Показать меню настроек стиля (UNIFIED V2)"""
     if not is_feature_enabled('ENABLE_STYLE_SETTINGS'):
         await call.answer("⚠️ Настройки стиля временно недоступны", show_alert=True)
         return
@@ -408,38 +409,23 @@ async def style_settings_callback(call: CallbackQuery, state: FSMContext):
     user_id = call.from_user.id
     profile = await db_user_profile.get_or_create(user_id)
     
-    # Маппинг для красивого отображения
-    tone_map = {
-        'formal': '🎩 Формальный',
-        'friendly': '😊 Дружелюбный',
-        'sarcastic': '😏 Ироничный',
-        'motivating': '🔥 Мотивирующий'
-    }
-    
-    personality_map = {
-        'mentor': '🧙‍♂️ Мудрый наставник',
-        'friend': '👥 Поддерживающий друг',
-        'coach': '💪 Строгий коуч'
-    }
-    
-    length_map = {
-        'brief': '⚡ Кратко',
-        'medium': '📝 Средне',
-        'detailed': '📚 Подробно'
-    }
+    # Используем новое unified меню (всё на одном экране)
+    keyboard = build_style_settings_menu_v2(
+        current_tone=profile.tone_style,
+        current_personality=profile.personality,
+        current_length=profile.message_length
+    )
     
     text = (
         f'🎨 <b>Настройки стиля общения</b>\n\n'
-        f'Текущие настройки:\n'
-        f'├ Тон: <code>{tone_map.get(profile.tone_style, profile.tone_style)}</code>\n'
-        f'├ Личность: <code>{personality_map.get(profile.personality, profile.personality)}</code>\n'
-        f'└ Длина ответов: <code>{length_map.get(profile.message_length, profile.message_length)}</code>\n\n'
-        f'💡 <i>Изменения применяются сразу ко всем ассистентам</i>'
+        f'Выбери параметры ниже 👇\n'
+        f'Текущие отмечены галочкой ✓\n\n'
+        f'💡 <i>Изменения применяются моментально</i>'
     )
     
     try:
         await call.message.delete()
-        await call.message.answer(text=text, reply_markup=style_settings_menu)
+        await call.message.answer(text=text, reply_markup=keyboard)
     except:
         await call.answer()
 
@@ -507,7 +493,8 @@ async def set_personality_callback(call: CallbackQuery):
     personality_names = {
         'mentor': 'Мудрый наставник',
         'friend': 'Поддерживающий друг',
-        'coach': 'Строгий коуч'
+        'coach': 'Строгий коуч',
+        'therapist': 'Терапевт'
     }
     
     await call.answer(f"✅ Личность изменена на {personality_names.get(personality, personality)}", show_alert=True)
@@ -547,3 +534,79 @@ async def set_length_callback(call: CallbackQuery):
     
     await call.answer(f"✅ Длина ответов изменена на: {length_names.get(length, length)}", show_alert=True)
     await style_settings_callback(call, None)
+
+
+# ==========================================
+# 🚀 UNIFIED STYLE HANDLER (V2)
+# ==========================================
+
+@dp.callback_query(F.data.startswith('style_'))
+async def unified_style_handler(call: CallbackQuery):
+    """
+    Универсальный handler для нового формата style_*
+    
+    Формат callback_data: style_{category}_{value}
+    Примеры: style_tone_friendly, style_personality_mentor, style_length_medium
+    """
+    parts = call.data.split('_', 2)  # style, category, value
+    if len(parts) != 3:
+        await call.answer("❌ Ошибка формата", show_alert=True)
+        return
+    
+    _, category, value = parts
+    user_id = call.from_user.id
+    
+    # Обновляем профиль в зависимости от категории
+    if category == 'tone':
+        await db_user_profile.update_style(user_id, tone_style=value)
+        names = {
+            'formal': 'Формальный 🎩',
+            'friendly': 'Дружелюбный 😊',
+            'sarcastic': 'Ироничный 😏',
+            'motivating': 'Мотивирующий 🔥'
+        }
+        message = f"Тон: {names.get(value, value)}"
+    
+    elif category == 'personality':
+        await db_user_profile.update_style(user_id, personality=value)
+        names = {
+            'mentor': 'Наставник 🧙',
+            'friend': 'Друг 👥',
+            'coach': 'Коуч 💪',
+            'therapist': 'Терапевт 🧘'
+        }
+        message = f"Личность: {names.get(value, value)}"
+    
+    elif category == 'length':
+        await db_user_profile.update_style(user_id, message_length=value)
+        names = {
+            'ultra_brief': '⚡⚡',
+            'brief': '⚡',
+            'medium': '📝',
+            'detailed': '📚'
+        }
+        message = f"Длина: {names.get(value, value)}"
+    
+    else:
+        await call.answer("❌ Неизвестная категория", show_alert=True)
+        return
+    
+    # Обновляем меню (перерисовываем с новыми галочками)
+    profile = await db_user_profile.get_or_create(user_id)
+    keyboard = build_style_settings_menu_v2(
+        current_tone=profile.tone_style,
+        current_personality=profile.personality,
+        current_length=profile.message_length
+    )
+    
+    try:
+        await call.message.edit_reply_markup(reply_markup=keyboard)
+        await call.answer(f"✅ {message}", show_alert=False)
+    except:
+        await call.answer(f"✅ {message}", show_alert=True)
+
+
+@dp.callback_query(F.data == 'noop')
+async def noop_handler(call: CallbackQuery):
+    """Handler для кнопок-разделителей (noop = no operation)"""
+    await call.answer()
