@@ -163,13 +163,13 @@ Return JSON:
     {{
       "type": "scale",
       "text": "Как часто это проявляется?",
-      "scale_labels": {{"min": "Редко", "max": "Постоянно"}},
+      "options": ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"],
       "related_pattern": "{pattern_title}",
       "quality_score": 0.95,
       "reasoning": "Direct pattern confirmation"
     }},
     {{
-      "type": "choice",
+      "type": "multiple_choice",
       "text": "В каких ситуациях это усиливается?",
       "options": ["На работе", "В отношениях", "В одиночестве", "Другое"],
       "related_pattern": "{pattern_title}",
@@ -179,7 +179,10 @@ Return JSON:
   ]
 }}
 
-IMPORTANT: Include quality_score (0.0-1.0) for each question."""
+IMPORTANT:
+- For 'scale' type: MUST use options: ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
+- For 'multiple_choice' type: provide 3-5 meaningful options
+- Include quality_score (0.0-1.0) for ranking"""
 
         try:
             response = await self.gpt.generate_completion(
@@ -212,8 +215,11 @@ IMPORTANT: Include quality_score (0.0-1.0) for each question."""
             else:
                 questions = []
             
-            # Mark as adaptive questions
+            # Normalize and mark as adaptive questions
             for q in questions:
+                # 🔧 FIX: Normalize question format (convert scale_labels to options)
+                q = self._normalize_question_format(q)
+                
                 q['is_adaptive'] = True
                 q['trigger_pattern'] = pattern_title
                 # Remove quality_score from final output (internal use only)
@@ -357,4 +363,43 @@ IMPORTANT: Include quality_score (0.0-1.0) for each question."""
         except json.JSONDecodeError as e:
             logger.error(f"JSON parse error: {e}")
             return []
+    
+    def _normalize_question_format(self, question: dict) -> dict:
+        """
+        Normalize question format to ensure compatibility with quiz handlers.
+        
+        Converts scale_labels to options if needed, ensures all required fields exist.
+        
+        Args:
+            question: Raw question dict from GPT
+            
+        Returns:
+            Normalized question dict
+        """
+        # Convert scale_labels to options (legacy format fix)
+        if 'scale_labels' in question and 'options' not in question:
+            logger.info("Converting scale_labels to options")
+            question['options'] = ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
+            question.pop('scale_labels', None)
+        
+        # Ensure options exist for scale/choice questions
+        if question.get('type') in ['scale', 'multiple_choice', 'choice']:
+            if 'options' not in question or not question['options']:
+                # Fallback options
+                if question.get('type') == 'scale':
+                    question['options'] = ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
+                else:
+                    question['options'] = ["Да", "Нет", "Не знаю"]
+                logger.warning(f"Added fallback options for question: {question.get('text', 'unknown')[:50]}")
+        
+        # Normalize type naming (choice vs multiple_choice)
+        if question.get('type') == 'choice':
+            question['type'] = 'multiple_choice'
+        
+        # Add missing id if needed
+        if 'id' not in question:
+            import uuid
+            question['id'] = f"adaptive_{uuid.uuid4().hex[:8]}"
+        
+        return question
 

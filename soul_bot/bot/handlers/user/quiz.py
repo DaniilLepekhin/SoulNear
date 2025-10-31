@@ -64,6 +64,41 @@ async def quiz_command(message: Message):
     )
 
 
+@dp.callback_query(F.data == 'quiz_start')
+async def quiz_start_callback(call: CallbackQuery):
+    """
+    Кнопка "🧠 Психологический квиз" из главного меню
+    """
+    if not is_feature_enabled('ENABLE_DYNAMIC_QUIZ'):
+        await call.message.edit_text("⚠️ Квизы временно недоступны")
+        await call.answer()
+        return
+    
+    # Проверяем есть ли активный квиз
+    active_session = await db_quiz_session.get_active(call.from_user.id)
+    if active_session:
+        # Resume
+        await call.message.edit_text(
+            "📝 У вас есть незавершённый квиз!\n\n"
+            f"Категория: {active_session.category}\n"
+            f"Прогресс: {active_session.current_question_index}/{active_session.total_questions}\n\n"
+            "Хотите продолжить или начать новый?",
+            reply_markup=_resume_or_new_keyboard()
+        )
+        await call.answer()
+        return
+    
+    # Показываем категории
+    await call.message.edit_text(
+        "🧠 <b>Психологические квизы</b>\n\n"
+        "Выберите категорию для прохождения квиза:\n\n"
+        "Квиз поможет выявить ваши поведенческие паттерны и даст персональные рекомендации.",
+        reply_markup=_categories_keyboard(),
+        parse_mode='HTML'
+    )
+    await call.answer()
+
+
 @dp.callback_query(F.data.startswith('quiz_category_'))
 async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
     """
