@@ -27,6 +27,8 @@ from bot.services.constants import (
     DEEP_ANALYSIS_FREQUENCY,
     QUICK_ANALYSIS_CONTEXT_SIZE,
     DEEP_ANALYSIS_CONTEXT_SIZE,
+    QUICK_ANALYSIS_MIN_MESSAGES,
+    DEEP_ANALYSIS_MIN_MESSAGES,
     MAX_EVIDENCE_PER_PATTERN,
     MAX_INSIGHTS,
     MAX_LEARNING_ITEMS,
@@ -67,14 +69,14 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
     try:
         logger.info(f"Quick analysis for user {user_id}")
         
-        # Получаем последние 15 сообщений (увеличено для лучшей детекции повторений)
+        # Получаем последние сообщения (из constants)
         messages = await conversation_history.get_context(
             user_id=user_id,
             assistant_type=assistant_type,
-            max_messages=15
+            max_messages=QUICK_ANALYSIS_CONTEXT_SIZE
         )
         
-        if len(messages) < 4:
+        if len(messages) < QUICK_ANALYSIS_MIN_MESSAGES:
             logger.debug("Not enough messages for analysis")
             return
         
@@ -176,14 +178,14 @@ async def deep_analysis(user_id: int, assistant_type: str = 'helper'):
     try:
         logger.info(f"Deep analysis for user {user_id}")
         
-        # Получаем последние 30 сообщений
+        # Получаем последние сообщения (из constants)
         messages = await conversation_history.get_context(
             user_id=user_id,
             assistant_type=assistant_type,
-            max_messages=30
+            max_messages=DEEP_ANALYSIS_CONTEXT_SIZE
         )
         
-        if len(messages) < 10:
+        if len(messages) < DEEP_ANALYSIS_MIN_MESSAGES:
             logger.debug("Not enough messages for deep analysis")
             return
         
@@ -507,11 +509,11 @@ async def analyze_if_needed(user_id: int, assistant_type: str = 'helper'):
     # Считаем сообщения
     message_count = await conversation_history.count_messages(user_id, assistant_type)
     
-    # Quick analysis каждые 3 сообщения (было 5 - увеличено для роста occurrences)
-    if message_count > 0 and message_count % 3 == 0:
+    # Quick analysis (частота из constants)
+    if message_count > 0 and message_count % QUICK_ANALYSIS_FREQUENCY == 0:
         await quick_analysis(user_id, assistant_type)
     
-    # Deep analysis каждые 20 сообщений
-    if message_count > 0 and message_count % 20 == 0:
+    # Deep analysis (частота из constants)
+    if message_count > 0 and message_count % DEEP_ANALYSIS_FREQUENCY == 0:
         await deep_analysis(user_id, assistant_type)
 

@@ -28,6 +28,10 @@ MAX_LEARNING_ITEMS = 10        # Works well / doesn't work (каждого)
 QUICK_ANALYSIS_CONTEXT_SIZE = 15   # Сообщений для quick analysis
 DEEP_ANALYSIS_CONTEXT_SIZE = 30    # Сообщений для deep analysis
 
+# Минимальное количество сообщений для анализа
+QUICK_ANALYSIS_MIN_MESSAGES = 4   # Минимум для quick analysis
+DEEP_ANALYSIS_MIN_MESSAGES = 10   # Минимум для deep analysis
+
 # ==========================================
 # 📊 EXPECTED PATTERNS (для промптов)
 # ==========================================
