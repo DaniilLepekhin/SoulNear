@@ -1,8 +1,9 @@
 import asyncio
-import logging
+
 from bot.loader import bot
 from bot.middlewares.events import EventsMiddleware
 from bot.workers import schedule_
+from logging_config import configure_logging
 
 
 async def main():
@@ -20,5 +21,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    configure_logging()
     asyncio.run(main())

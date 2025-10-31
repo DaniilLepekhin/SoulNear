@@ -10,6 +10,7 @@
 Architecture: Moderate + Embeddings
 """
 import logging
+import re
 import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -36,7 +37,10 @@ from bot.services.constants import (
     MODEL_ANALYSIS,
     TEMPERATURE_ANALYSIS,
     BURNOUT_SCORE_THRESHOLD,    # 🆕 V2.1
-    DEPRESSION_SCORE_THRESHOLD  # 🆕 V2.1
+    DEPRESSION_SCORE_THRESHOLD,  # 🆕 V2.1
+    PATTERN_TITLE_TRANSLATIONS,
+    ALLOWED_PATTERN_TITLES,
+    PATTERN_TITLE_ASCII_REGEX,
 )
 from bot.services.prompt.analysis_prompts import get_quick_analysis_prompt, get_deep_analysis_prompt
 from database.repository import user_profile, conversation_history
@@ -47,6 +51,159 @@ import database.repository.user as db_user
 logger = logging.getLogger(__name__)
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+
+QUICK_ANALYSIS_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "quick_analysis_response",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "new_patterns": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["behavioral", "emotional", "cognitive"],
+                            },
+                            "title": {
+                                "type": "string",
+                                "pattern": PATTERN_TITLE_ASCII_REGEX,
+                                "maxLength": 80,
+                            },
+                            "description": {"type": "string"},
+                            "contradiction": {"type": "string"},
+                            "hidden_dynamic": {"type": "string"},
+                            "blocked_resource": {"type": "string"},
+                            "evidence": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "minItems": 1,
+                                "maxItems": 3,
+                            },
+                            "tags": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "maxItems": 5,
+                            },
+                            "frequency": {
+                                "type": "string",
+                                "enum": ["high", "medium", "low"],
+                            },
+                            "confidence": {
+                                "type": "number",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                            },
+                        },
+                        "required": [
+                            "type",
+                            "title",
+                            "description",
+                            "contradiction",
+                            "hidden_dynamic",
+                            "blocked_resource",
+                            "evidence",
+                            "frequency",
+                            "confidence",
+                        ],
+                        "additionalProperties": True,
+                    },
+                },
+                "mood": {
+                    "type": "object",
+                    "properties": {
+                        "current_mood": {"type": "string"},
+                        "stress_level": {
+                            "type": "string",
+                            "enum": ["low", "medium", "high", "critical"],
+                        },
+                        "energy_level": {
+                            "type": "string",
+                            "enum": ["low", "medium", "high"],
+                        },
+                        "triggers": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "maxItems": 5,
+                        },
+                    },
+                    "required": ["current_mood", "stress_level", "energy_level"],
+                    "additionalProperties": True,
+                },
+            },
+            "required": ["new_patterns", "mood"],
+            "additionalProperties": True,
+        },
+    },
+}
+
+
+# ==========================================
+# 🔧 ВСПОМОГАТЕЛЬНЫЕ УТИЛИТЫ
+# ==========================================
+
+
+def _contains_cyrillic(text: str | None) -> bool:
+    if not text:
+        return False
+    return bool(re.search(r"[А-Яа-яЁё]", text))
+
+
+def _normalize_new_patterns(patterns: list[dict] | None) -> list[dict]:
+    """Привести паттерны от GPT к ожидаемому формату"""
+    if not patterns:
+        return []
+
+    normalized: list[dict] = []
+    for pattern in patterns:
+        if not isinstance(pattern, dict):
+            continue
+
+        title = (pattern.get('title') or '').strip()
+        if title in PATTERN_TITLE_TRANSLATIONS:
+            translated = PATTERN_TITLE_TRANSLATIONS[title]
+            if translated != title:
+                logger.debug(f"🔤 Translated pattern title '{title}' → '{translated}'")
+            title = translated
+        elif _contains_cyrillic(title):
+            translated = PATTERN_TITLE_TRANSLATIONS.get(title)
+            if translated:
+                logger.debug(f"🔤 Translated pattern title '{title}' → '{translated}'")
+                title = translated
+
+        if not title:
+            title = "Pattern Insight"
+
+        if title not in ALLOWED_PATTERN_TITLES and not re.fullmatch(PATTERN_TITLE_ASCII_REGEX, title):
+            cleaned_title = re.sub(r"[^A-Za-z0-9 ,\-()']", "", title)
+            if cleaned_title:
+                logger.debug(f"🔤 Normalized pattern title '{title}' → '{cleaned_title}'")
+                title = cleaned_title
+            else:
+                title = "Pattern Insight"
+
+        pattern['title'] = title
+
+        evidence = pattern.get('evidence') or []
+        if isinstance(evidence, list):
+            # Обрезаем длинные цитаты, чтобы не перегружать UI
+            trimmed_evidence = [str(item).strip() for item in evidence if isinstance(item, str) and item.strip()]
+            pattern['evidence'] = trimmed_evidence[:3]
+        else:
+            pattern['evidence'] = []
+
+        tags = pattern.get('tags') or []
+        if not isinstance(tags, list):
+            tags = []
+        pattern['tags'] = [str(tag) for tag in tags][:5]
+
+        normalized.append(pattern)
+
+    return normalized
 
 
 # ==========================================
@@ -99,18 +256,21 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
         logger.info(f"[QUICK ANALYSIS] User {user_id}: GPT returned {new_patterns_count} new patterns")
         
         # ⚠️ Валидация: проверяем что examples действительно из текущей сессии
-        if analysis.get('new_patterns'):
+        analyzed_patterns = analysis.get('new_patterns', []) if analysis else []
+
+        if analyzed_patterns:
             validated_patterns = [
                 _validate_pattern_examples(pattern, messages)
-                for pattern in analysis['new_patterns']
+                for pattern in analyzed_patterns
             ]
             analysis['new_patterns'] = validated_patterns
+            analyzed_patterns = validated_patterns
         
         # 🚨 SAFETY NET: Проверяем не пропустил ли GPT критические паттерны
         # (Option 4: Two-Stage Detection)
         critical_missing = _check_critical_patterns_missing(
             messages=messages,
-            existing_patterns=analysis.get('new_patterns', [])
+            existing_patterns=(analyzed_patterns + existing_patterns)
         )
         
         if critical_missing:
@@ -188,11 +348,12 @@ async def _analyze_conversation_quick(
                 {"role": "system", "content": "You are an expert psychologist analyzing conversation patterns."},
                 {"role": "user", "content": prompt}
             ],
-            response_format={"type": "json_object"},
+            response_format=QUICK_ANALYSIS_RESPONSE_FORMAT,
             temperature=TEMPERATURE_ANALYSIS
         )
         
         result = json.loads(response.choices[0].message.content)
+        result['new_patterns'] = _normalize_new_patterns(result.get('new_patterns'))
         
         # 🆕 V2.1: Log GPT response для debugging
         patterns_count = len(result.get('new_patterns', []))
@@ -576,10 +737,13 @@ def _extract_depression_evidence(messages: list[dict], max_evidence: int = 3) ->
     
     depression_keywords = [
         r'нет смысла',
+        r'не вижу смысла',
         r'зачем стараться',
         r'не помню когда.*счастлив',
+        r'не вижу выхода',
         r'лузер',
         r'всё неправильно',
+        r'ничего не стою',
         r'хочу умереть',
     ]
     
@@ -623,7 +787,7 @@ def _check_critical_patterns_missing(
     # Собираем текст последних 10 user messages
     recent_text = ' '.join([
         msg.get('content', '').lower()
-        for msg in messages[-10:]
+        for msg in messages[-15:]
         if msg.get('role') == 'user'
     ])
     
@@ -664,6 +828,11 @@ def _check_critical_patterns_missing(
     
     if not has_depression:
         depression_score = _calculate_depression_score(recent_text)
+        logger.info(
+            "⚠️ Safety net depression score: %s (threshold: %s)",
+            depression_score,
+            DEPRESSION_SCORE_THRESHOLD,
+        )
         
         # 🆕 V2.1: Use constant threshold (lowered from 9 to 7 for better detection)
         if depression_score >= DEPRESSION_SCORE_THRESHOLD:

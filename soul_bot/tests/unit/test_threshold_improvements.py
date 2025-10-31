@@ -83,6 +83,24 @@ class TestImprovedDepressionDetection:
         assert len(missing) > 0, "Expected safety net to detect depression with threshold 7"
         assert any('depression' in p['title'].lower() for p in missing)
 
+    def test_depression_safety_net_handles_extended_conversation(self):
+        """Safety net must detect depression even with assistant replies between user messages"""
+        from bot.services.pattern_analyzer import _check_critical_patterns_missing
+
+        conversation = [
+            {"role": "user", "content": "Работаю по 16 часов. Всё это бессмысленно. Зачем стараться?"},
+            {"role": "assistant", "content": "Держись, это сложно."},
+            {"role": "user", "content": "Не вижу выхода из этой ситуации. Это тупик."},
+            {"role": "assistant", "content": "Расскажи чуть больше."},
+            {"role": "user", "content": "Ничего не стою. Все вокруг лучше справляются."},
+        ]
+
+        missing = _check_critical_patterns_missing(conversation, existing_patterns=[])
+
+        assert missing, "Expected safety net to add Acute Depression pattern"
+        titles = {pattern['title'] for pattern in missing}
+        assert "Acute Depression" in titles or any("depression" in title.lower() for title in titles)
+
 
 class TestBurnoutDetectionUnchanged:
     """Verify burnout detection still works (threshold unchanged at 6)"""
@@ -106,6 +124,28 @@ class TestBurnoutDetectionUnchanged:
         assert len(missing) > 0, "Expected safety net to detect burnout"
         assert any('burnout' in p['title'].lower() for p in missing)
 
+
+class TestPatternNormalization:
+    """Ensure GPT outputs are normalized correctly before merge"""
+
+    def test_normalize_new_patterns_translates_russian_titles(self):
+        from bot.services.pattern_analyzer import _normalize_new_patterns
+
+        normalized = _normalize_new_patterns([
+            {
+                "title": "Синдром самозванца",
+                "description": "",
+                "contradiction": "",
+                "hidden_dynamic": "",
+                "blocked_resource": "",
+                "evidence": ["Я часто думаю, что обманщик"],
+                "frequency": "high",
+                "confidence": 0.8,
+            }
+        ])
+
+        assert normalized[0]['title'] == "Imposter Syndrome"
+        assert normalized[0]['evidence'] == ["Я часто думаю, что обманщик"]
 
 # Run with: pytest soul_bot/tests/unit/test_threshold_improvements.py -v
 

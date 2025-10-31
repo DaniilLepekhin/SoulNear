@@ -82,6 +82,45 @@ ALL_EXPECTED_PATTERNS = [
     for pattern in patterns_list
 ]
 
+# Трансляция названий паттернов в английский (если GPT вернул кириллицу)
+PATTERN_TITLE_TRANSLATIONS = {
+    "Эмоциональное выгорание": "Burnout",
+    "Выгорание": "Burnout",
+    "Синдром самозванца": "Imposter Syndrome",
+    "Перфекционизм": "Perfectionism",
+    "Самосаботаж": "Self-Sabotage",
+    "Страх отвержения": "Fear of Rejection",
+    "Проблемы с памятью": "Memory Issues",
+    "Проблемы с концентрацией": "Attention Difficulties",
+    "Перегрузка": "Overworking as Coping",
+    "Тревожность": "Anxiety",
+    "Социальная тревожность": "Social Anxiety",
+    "Депрессия": "Depression",
+    "Острая депрессия": "Acute Depression",
+    "Тревога": "Anxiety",
+}
+
+# Разрешённые названия паттернов (ASCII, чтобы исключить кириллицу)
+ALLOWED_PATTERN_TITLES = sorted({
+    *ALL_EXPECTED_PATTERNS,
+    *PATTERN_TITLE_TRANSLATIONS.values(),
+    "Acute Depression",
+    "Burnout",
+    "Depression",
+    "Fear of Success",
+    "Fear of Rejection",
+    "Imposter Syndrome",
+    "Loneliness Among People",
+    "Memory Issues",
+    "Negative Self-Talk",
+    "Overworking as Coping",
+    "Perfectionism",
+    "Self-Sabotage",
+    "Social Anxiety",
+})
+
+PATTERN_TITLE_ASCII_REGEX = r"^[A-Za-z0-9 ,\-()']+$"
+
 # ==========================================
 # 💬 OPENAI SETTINGS
 # ==========================================

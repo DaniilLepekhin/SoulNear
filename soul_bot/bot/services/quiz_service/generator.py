@@ -89,6 +89,16 @@ async def generate_adaptive_question(
             f"Q{i+1}: {a['question_text']}\nA: {a['answer_value']}"
             for i, a in enumerate(previous_answers)
         ])
+
+        branch_question = _pick_branch_question(contradictions, previous_answers, category, question_number)
+        if branch_question:
+            logger.info(
+                "🎯 Branch question served (category=%s, number=%s, id=%s)",
+                category,
+                question_number,
+                branch_question["id"],
+            )
+            return branch_question
         
         # Определяем focus (что копать)
         if question_number <= 3:
@@ -236,6 +246,66 @@ def _detect_answer_contradictions(answers: list[dict]) -> list[str]:
     
     # Limit to top 2 contradictions для фокуса
     return contradictions[:2]
+
+
+def _pick_branch_question(
+    contradictions: list[str],
+    previous_answers: list[dict],
+    category: str,
+    question_number: int,
+) -> dict | None:
+    """Lightweight branching: return scripted follow-up when contradiction matches a heuristic"""
+    if question_number <= 3 or not contradictions:
+        return None
+
+    contradiction_blob = " ".join(contradictions).lower()
+    last_answer = previous_answers[-1]['answer_value'] if previous_answers else ""
+
+    if "friend" in contradiction_blob and "lonely" in contradiction_blob:
+        return {
+            "id": f"branch_lonely_{question_number}",
+            "text": (
+                "Ты пишешь, что вокруг много людей, но ощущение одиночества остаётся. "
+                "С кем бы ты рискнул поделиться тем, что сейчас переживаешь, если выбрать только одного человека?"
+            ),
+            "type": "open",
+            "category": category,
+        }
+
+    if "balance" in contradiction_blob and ("hour" in contradiction_blob or "overwork" in contradiction_blob):
+        return {
+            "id": f"branch_burnout_{question_number}",
+            "text": (
+                "Ты говоришь, что контролируешь баланс, но график звучит как марафон. "
+                "Что произойдёт, если ты действительно отключишься от работы хотя бы на один вечер?"
+            ),
+            "type": "open",
+            "category": category,
+        }
+
+    if "confidence" in contradiction_blob and ("critical" in contradiction_blob or "mask" in contradiction_blob):
+        return {
+            "id": f"branch_confidence_{question_number}",
+            "text": (
+                "Ты описал высокую уверенность, но продолжаешь разносить себя за ошибки. "
+                "Какое самое страшное последствие, если ты признаешь себе, что имеешь право на промахи?"
+            ),
+            "type": "open",
+            "category": category,
+        }
+
+    if last_answer and "не доверяю" in last_answer.lower():
+        return {
+            "id": f"branch_trust_{question_number}",
+            "text": (
+                "Ты ответил, что почти никому не доверяешь. "
+                "Когда в последний раз ты позволял себе быть уязвимым и что из этого вышло?"
+            ),
+            "type": "open",
+            "category": category,
+        }
+
+    return None
 
 
 async def generate_questions(

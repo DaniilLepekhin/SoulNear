@@ -1,4 +1,7 @@
 from datetime import datetime
+import html
+import json
+
 from aiogram import F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -18,14 +21,58 @@ from bot.states.states import Update_user_info
 from config import is_feature_enabled
 from openai import AsyncOpenAI
 from config import OPENAI_API_KEY
-import json
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+# Telegram message length limit
+MAX_MESSAGE_LENGTH = 4096
 
 
 # ==========================================
 # 🧠 КОМАНДА /MY_PROFILE (STAGE 3)
 # ==========================================
+
+async def _send_long_message(message: Message, text: str, parse_mode: str = 'HTML'):
+    """
+    Отправка длинного сообщения, разбивая его на части если нужно.
+    
+    Telegram имеет лимит 4096 символов на сообщение.
+    Если текст длиннее - разбиваем на части по разделителям (двойной перевод строки).
+    
+    Args:
+        message: Исходное сообщение для ответа
+        text: Текст для отправки
+        parse_mode: Режим парсинга (HTML, Markdown)
+    """
+    if len(text) <= MAX_MESSAGE_LENGTH:
+        await message.answer(text, parse_mode=parse_mode)
+        return
+    
+    # Разбиваем по двойным переводам строки (параграфы)
+    parts = text.split('\n\n')
+    current_part = ""
+    part_number = 1
+    total_parts = (len(text) // MAX_MESSAGE_LENGTH) + 1
+    
+    for paragraph in parts:
+        # Если добавление параграфа превысит лимит - отправляем текущую часть
+        if len(current_part) + len(paragraph) + 2 > MAX_MESSAGE_LENGTH:
+            if current_part:
+                header = f"📄 <b>Часть {part_number}/{total_parts}</b>\n\n" if part_number > 1 or total_parts > 1 else ""
+                await message.answer(header + current_part, parse_mode=parse_mode)
+                part_number += 1
+                current_part = ""
+        
+        # Добавляем параграф к текущей части
+        if current_part:
+            current_part += "\n\n" + paragraph
+        else:
+            current_part = paragraph
+    
+    # Отправляем остаток
+    if current_part:
+        header = f"📄 <b>Часть {part_number}/{total_parts}</b>\n\n" if part_number > 1 or total_parts > 1 else ""
+        await message.answer(header + current_part, parse_mode=parse_mode)
 
 def _clean_profile_for_display(profile_data: dict) -> dict:
     """
@@ -45,6 +92,21 @@ def _clean_profile_for_display(profile_data: dict) -> dict:
     # Очищаем patterns
     if 'patterns' in cleaned and cleaned['patterns']:
         cleaned_patterns = []
+        allowed_keys = {
+            'type',
+            'title',
+            'description',
+            'tags',
+            'confidence',
+            'occurrences',
+            'first_detected',
+            'last_detected',
+            'contradiction',
+            'hidden_dynamic',
+            'blocked_resource',
+            'auto_detected',
+            'detection_score'
+        }
         for pattern in cleaned['patterns']:
             seen_evidence = set()
             unique_evidence = []
@@ -57,18 +119,9 @@ def _clean_profile_for_display(profile_data: dict) -> dict:
                     continue
                 seen_evidence.add(key)
                 unique_evidence.append(normalized)
-            clean_pattern = {
-                'type': pattern.get('type'),
-                'title': pattern.get('title'),
-                'description': pattern.get('description'),
-                'evidence': unique_evidence[:2],  # Только 2 уникальных примера
-                'tags': pattern.get('tags', [])[:3],  # Топ-3 тега
-                'confidence': pattern.get('confidence'),
-                'occurrences': pattern.get('occurrences'),
-                'first_detected': pattern.get('first_detected'),
-                'last_detected': pattern.get('last_detected')
-                # ❌ НЕ включаем: embedding, related_patterns (не нужны для display)
-            }
+            clean_pattern = {key: pattern.get(key) for key in allowed_keys if pattern.get(key) is not None}
+            clean_pattern['evidence'] = unique_evidence[:2]  # Только 2 уникальных примера
+            clean_pattern['tags'] = pattern.get('tags', [])[:3]  # Топ-3 тега
             cleaned_patterns.append(clean_pattern)
         cleaned['patterns'] = cleaned_patterns
     
@@ -91,6 +144,30 @@ def _clean_profile_for_display(profile_data: dict) -> dict:
     return cleaned
 
 
+def _build_pattern_highlights(patterns: list[dict]) -> list[dict]:
+    """Сформировать список паттернов с глубинными полями для отображения"""
+    highlights: list[dict] = []
+    for pattern in patterns or []:
+        contradiction = pattern.get('contradiction')
+        hidden_dynamic = pattern.get('hidden_dynamic')
+        blocked_resource = pattern.get('blocked_resource')
+
+        if not any([contradiction, hidden_dynamic, blocked_resource]):
+            continue
+
+        highlights.append(
+            {
+                'title': pattern.get('title', 'Pattern'),
+                'frequency': pattern.get('occurrences'),
+                'contradiction': contradiction,
+                'hidden_dynamic': hidden_dynamic,
+                'blocked_resource': blocked_resource,
+            }
+        )
+
+    return highlights
+
+
 async def _format_profile_with_gpt(profile_data: dict) -> str:
     """
     Форматировать профиль через GPT-4 для красивого вывода
@@ -111,41 +188,56 @@ async def _format_profile_with_gpt(profile_data: dict) -> str:
 {json.dumps(profile_data, ensure_ascii=False, indent=2)}
 
 ИНСТРУКЦИИ:
-1. Используй эмодзи для наглядности (🎨 🧠 💡 😊 🎓)
-2. Структурируй информацию по блокам
-3. Если данных нет — скажи что профиль ещё формируется
-4. Будь дружелюбным и воодушевляющим
-5. Паттерны и инсайты объясняй простым языком
-6. ⚠️ ОБЯЗАТЕЛЬНО: Для каждого паттерна покажи ПРИМЕРЫ из диалогов (поле evidence)!
-   Формат: "📝 <i>Примеры из ваших слов:</i>\n    • \"цитата1\"\n    • \"цитата2\""
-7. Для настроения используй образные описания
-8. Максимум 3000 символов (Telegram лимит)
+1. Используй HTML-форматирование: заголовки через <b>, пояснения через <i>, списки с символом •.
+2. Структурируй информацию по блокам и добавляй эмодзи (🎨 🧠 💡 😊 🎓) в заголовки.
+3. Если данных нет — честно напиши, что профиль ещё формируется.
+4. **ВАЖНО**: Тон живой, простой, как будто друг рассказывает. Без академических терминов (избегай слов типа "интроспекция", "экзистенциальный", "предусмотрительность"). Вместо них используй обычные слова: "смотришь внутрь себя", "вопрос смысла жизни", "умение планировать".
+5. Для каждого паттерна обязательно показывай поля:
+   • <b>Описание</b> — кратко, простыми словами, с фокусом на ощущениях пользователя.
+   • <b>🔀 Противоречие</b> — из поля contradiction (перефразируй простым языком).
+   • <b>🎭 Скрытая динамика</b> — из поля hidden_dynamic (объясни как будто другу).
+   • <b>💎 Заблокированный ресурс</b> — из поля blocked_resource (покажи потенциал человека).
+   • 📝 <i>Примеры из ваших слов:</i> + маркированный список цитат (макс 2 штуки).
+6. Используй массив "pattern_highlights" (если есть) как список ключевых противоречий — упомяни каждый.
+7. Подчеркивай важные мысли жирным, выделяй ключевые слова курсивом, делай текст легко сканируемым.
+8. Для эмоционального состояния используй образные описания и списки.
+9. Общая длина — до 2500 символов (чтобы точно влезло в Telegram).
 
 ФОРМАТ ВЫВОДА:
 ```
 🧠 <b>Ваш психологический профиль</b>
 
-🎨 <b>Стиль общения:</b>
-[описание стиля]
+🎨 <b>Стиль общения</b>
+• <b>Тон:</b> ...
+• <b>Личность:</b> ...
+• <b>Длина ответов:</b> ...
 
-🧠 <b>Выявленные паттерны:</b>
+🧠 <b>Выявленные паттерны</b>
 - <b>Название паттерна</b> (частота: X)
-  Описание паттерна...
+  <i>Короткое описание...</i>
+  <b>🔀 Противоречие:</b> ...
+  <b>🎭 Скрытая динамика:</b> ...
+  <b>💎 Заблокированный ресурс:</b> ...
   📝 <i>Примеры из ваших слов:</i>
-    • "цитата из диалога 1"
-    • "цитата из диалога 2"
+    • "цитата 1"
+    • "цитата 2"
 
-💡 <b>Инсайты:</b>
-[ключевые инсайты с рекомендациями]
+💡 <b>Инсайты</b>
+- <b>Заголовок</b>
+  <i>Ключевая мысль, почему это важно.</i>
 
-😊 <b>Текущее состояние:</b>
-[настроение, стресс, энергия]
+😊 <b>Текущее состояние</b>
+• <b>Настроение:</b> ...
+• <b>Стресс:</b> ...
+• <b>Энергия:</b> ...
 
-🎓 <b>Что работает для вас:</b>
-[learning preferences]
+🎓 <b>Что помогает</b>
+- Работает: ...
+- Не работает: ...
 
-📊 <b>Статистика:</b>
-[количество анализов, последний анализ]
+📊 <b>Статистика</b>
+• Анализов: ...
+• Последний анализ: ...
 ```
 
 Верни ТОЛЬКО отформатированный текст, без дополнительных комментариев.
@@ -207,24 +299,31 @@ async def my_profile_command(message: Message):
                 "age": user.age
             }
         }
+
+        pattern_highlights = _build_pattern_highlights(profile_data["patterns"])
+        profile_data["pattern_highlights"] = pattern_highlights
         
         # ⚠️ FIX: Удаляем embeddings перед отправкой в GPT (экономим ~76KB!)
         cleaned_data = _clean_profile_for_display(profile_data)
+        cleaned_data["pattern_highlights"] = pattern_highlights
         
-        # Форматируем через GPT
+        # Форматируем через GPT (V2 поля уже включены, дублировать не нужно)
         formatted_profile = await _format_profile_with_gpt(cleaned_data)
         
-        # Удаляем "печатаю..."
-        await status_msg.delete()
+        # Удаляем "печатаю..." (с защитой от ошибки если уже удалено)
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass  # Игнорируем если сообщение уже удалено
         
-        # Отправляем профиль
-        await message.answer(
-            text=formatted_profile,
-            parse_mode='HTML'
-        )
+        # Отправляем профиль (разбиваем если слишком длинный)
+        await _send_long_message(message, formatted_profile)
         
     except Exception as e:
-        await status_msg.delete()
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
         await message.answer(
             f"⚠️ Не удалось загрузить профиль: {e}\n\n"
             f"Попробуйте позже или обратитесь в поддержку."
@@ -269,19 +368,24 @@ async def view_psychological_profile_callback(call: CallbackQuery):
                 "age": user.age
             }
         }
+
+        pattern_highlights = _build_pattern_highlights(profile_data["patterns"])
+        profile_data["pattern_highlights"] = pattern_highlights
         
         # ⚠️ FIX: Удаляем embeddings перед отправкой в GPT (экономим ~76KB!)
         cleaned_data = _clean_profile_for_display(profile_data)
+        cleaned_data["pattern_highlights"] = pattern_highlights
         
-        # Форматируем через GPT
+        # Форматируем через GPT (V2 поля уже включены, дублировать не нужно)
         formatted_profile = await _format_profile_with_gpt(cleaned_data)
         
-        # Удаляем старое сообщение и отправляем профиль
-        await call.message.delete()
-        await call.message.answer(
-            text=formatted_profile,
-            parse_mode='HTML'
-        )
+        # Удаляем старое сообщение и отправляем профиль (с разбивкой если длинный)
+        try:
+            await call.message.delete()
+        except Exception:
+            pass
+        
+        await _send_long_message(call.message, formatted_profile)
         
     except Exception as e:
         await call.answer(f"⚠️ Ошибка: {e}", show_alert=True)
