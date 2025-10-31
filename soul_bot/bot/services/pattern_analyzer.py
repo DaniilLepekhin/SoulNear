@@ -104,6 +104,23 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
             ]
             analysis['new_patterns'] = validated_patterns
         
+        # 🚨 SAFETY NET: Проверяем не пропустил ли GPT критические паттерны
+        # (Option 4: Two-Stage Detection)
+        critical_missing = _check_critical_patterns_missing(
+            messages=messages,
+            existing_patterns=analysis.get('new_patterns', [])
+        )
+        
+        if critical_missing:
+            logger.warning(
+                f"[QUICK ANALYSIS] User {user_id}: Safety net added {len(critical_missing)} "
+                f"critical patterns that GPT missed"
+            )
+            # Добавляем пропущенные критические паттерны к новым
+            if not analysis.get('new_patterns'):
+                analysis['new_patterns'] = []
+            analysis['new_patterns'].extend(critical_missing)
+        
         # Обновляем паттерны (с дедупликацией)
         if analysis.get('new_patterns'):
             await _add_patterns_with_dedup(user_id, analysis['new_patterns'], existing_patterns)
@@ -226,6 +243,20 @@ async def deep_analysis(user_id: int, assistant_type: str = 'helper'):
         
         if not analysis:
             return
+        
+        # 🚨 SAFETY NET: Проверяем критические паттерны (на случай если quick_analysis пропустил)
+        critical_missing = _check_critical_patterns_missing(
+            messages=messages,
+            existing_patterns=existing_patterns  # проверяем против ВСЕХ паттернов, не только новых
+        )
+        
+        if critical_missing:
+            logger.warning(
+                f"[DEEP ANALYSIS] User {user_id}: Safety net found {len(critical_missing)} "
+                f"missing critical patterns. Force-adding."
+            )
+            # Добавляем прямо в профиль (минуя GPT)
+            await _add_patterns_with_dedup(user_id, critical_missing, existing_patterns)
         
         # Генерируем инсайты
         if analysis.get('insights'):
@@ -355,6 +386,287 @@ def _validate_pattern_examples(pattern: dict, recent_messages: list[dict]) -> di
         )
     
     return pattern
+
+
+def _calculate_burnout_score(recent_text: str) -> int:
+    """
+    Рассчитывает burnout score на основе ключевых симптомов
+    
+    Args:
+        recent_text: Объединённый текст последних сообщений (lowercase)
+        
+    Returns:
+        Burnout score (0-20+)
+    """
+    import re
+    
+    score = 0
+    
+    # CRITICAL SYMPTOMS (3 points each):
+    critical_symptoms = {
+        'overwork': r'работа\w* (по )?\d+ час',  # работаю 14 часов
+        'cognitive_dysfunction': r'(забыл|выпало из головы).*(важн|встреч|дедлайн|задач)',
+        'concentration': r'не могу (сконцентр|концентр|сосредоточ|думать)',  # fixed: added "сконцентр"
+        'anhedonia': r'не помню когда.*(счастлив|радовал|удовольств)',
+    }
+    
+    for symptom, pattern in critical_symptoms.items():
+        if re.search(pattern, recent_text):
+            score += 3
+            logger.debug(f"🔥 Burnout critical symptom detected: {symptom}")
+    
+    # MAJOR SYMPTOMS (2 points each):
+    major_symptoms = [
+        r'нет сил',
+        r'устал\w*',
+        r'выгоран\w*',
+        r'как робот',
+        r'на износ',
+        r'каждый день работ',
+        r'без выходных',
+        r'не отдыхал',
+    ]
+    
+    for pattern in major_symptoms:
+        if re.search(pattern, recent_text):
+            score += 2
+            logger.debug(f"🔥 Burnout major symptom detected: {pattern}")
+    
+    # MINOR SYMPTOMS (1 point each):
+    minor_symptoms = [
+        r'зачем стараться',
+        r'нет смысла',
+        r'всё надоело',
+        r'хочется бросить',
+    ]
+    
+    for pattern in minor_symptoms:
+        if re.search(pattern, recent_text):
+            score += 1
+    
+    logger.info(f"🔥 Burnout score calculated: {score}")
+    return score
+
+
+def _extract_burnout_evidence(messages: list[dict], max_evidence: int = 3) -> list[str]:
+    """
+    Извлекает evidence для burnout паттерна из сообщений
+    
+    Args:
+        messages: Список сообщений
+        max_evidence: Максимальное количество examples
+        
+    Returns:
+        Список цитат (evidence)
+    """
+    import re
+    
+    evidence = []
+    
+    burnout_keywords = [
+        r'работа\w* (по )?\d+ час',
+        r'забыл.*(встреч|дедлайн)',
+        r'не могу (сконцентр|концентр|думать)',  # fixed: added "сконцентр"
+        r'нет сил',
+        r'не помню когда.*счастлив',
+        r'как робот',
+        r'выгоран',
+    ]
+    
+    for msg in messages:
+        if msg.get('role') != 'user':
+            continue
+        
+        content = msg.get('content', '')
+        content_lower = content.lower()
+        
+        for pattern in burnout_keywords:
+            if re.search(pattern, content_lower) and content not in evidence:
+                evidence.append(content)
+                break
+        
+        if len(evidence) >= max_evidence:
+            break
+    
+    return evidence
+
+
+def _calculate_depression_score(recent_text: str) -> int:
+    """
+    Рассчитывает depression score на основе ключевых симптомов
+    
+    Args:
+        recent_text: Объединённый текст последних сообщений (lowercase)
+        
+    Returns:
+        Depression score (0-20+)
+    """
+    import re
+    
+    score = 0
+    
+    # CRITICAL SYMPTOMS (4 points each):
+    critical_symptoms = {
+        'suicidal_ideation': r'(хочу умереть|хочется исчезнуть|суицид|покончить с)',
+        'severe_hopelessness': r'(нет смысла жить|всё бессмысленно|зачем жить)',
+    }
+    
+    for symptom, pattern in critical_symptoms.items():
+        if re.search(pattern, recent_text):
+            score += 4
+            logger.warning(f"🚨 CRITICAL depression symptom detected: {symptom}")
+    
+    # MAJOR SYMPTOMS (3 points each):
+    major_symptoms = {
+        'hopelessness': r'(нет смысла|зачем стараться|всё бесполезно)',
+        'anhedonia': r'не помню когда.*(счастлив|радовал|удовольств)',
+        'worthlessness': r'(лузер|неудачник|всё неправильно|некомпетент)',
+    }
+    
+    for symptom, pattern in major_symptoms.items():
+        if re.search(pattern, recent_text):
+            score += 3
+            logger.debug(f"⚠️ Depression major symptom detected: {symptom}")
+    
+    # MINOR SYMPTOMS (1 point each):
+    minor_symptoms = [
+        r'нет сил',
+        r'устал\w* от всего',
+        r'всё надоело',
+    ]
+    
+    for pattern in minor_symptoms:
+        if re.search(pattern, recent_text):
+            score += 1
+    
+    logger.info(f"⚠️ Depression score calculated: {score}")
+    return score
+
+
+def _extract_depression_evidence(messages: list[dict], max_evidence: int = 3) -> list[str]:
+    """
+    Извлекает evidence для depression паттерна из сообщений
+    """
+    import re
+    
+    evidence = []
+    
+    depression_keywords = [
+        r'нет смысла',
+        r'зачем стараться',
+        r'не помню когда.*счастлив',
+        r'лузер',
+        r'всё неправильно',
+        r'хочу умереть',
+    ]
+    
+    for msg in messages:
+        if msg.get('role') != 'user':
+            continue
+        
+        content = msg.get('content', '')
+        content_lower = content.lower()
+        
+        for pattern in depression_keywords:
+            if re.search(pattern, content_lower) and content not in evidence:
+                evidence.append(content)
+                break
+        
+        if len(evidence) >= max_evidence:
+            break
+    
+    return evidence
+
+
+def _check_critical_patterns_missing(
+    messages: list[dict],
+    existing_patterns: list[dict]
+) -> list[dict]:
+    """
+    Проверяет не пропустил ли GPT критические паттерны (burnout, depression)
+    
+    Это safety net: если GPT не создал критический паттерн, но симптомы есть,
+    мы force-add его вручную.
+    
+    Args:
+        messages: Последние сообщения пользователя
+        existing_patterns: Паттерны, которые вернул GPT
+        
+    Returns:
+        Список критических паттернов, которые нужно добавить
+    """
+    missing = []
+    
+    # Собираем текст последних 10 user messages
+    recent_text = ' '.join([
+        msg.get('content', '').lower()
+        for msg in messages[-10:]
+        if msg.get('role') == 'user'
+    ])
+    
+    # CHECK 1: Burnout
+    has_burnout = any(
+        p.get('title', '').lower() in ['burnout', 'выгорание', 'professional burnout']
+        for p in existing_patterns
+    )
+    
+    if not has_burnout:
+        burnout_score = _calculate_burnout_score(recent_text)
+        
+        # Threshold: 6 points = 2 critical symptoms
+        if burnout_score >= 6:
+            logger.warning(
+                f"🚨 GPT MISSED critical pattern: Burnout (score={burnout_score}). Force-adding."
+            )
+            
+            evidence = _extract_burnout_evidence(messages)
+            
+            missing.append({
+                'type': 'behavioral',
+                'title': 'Burnout',
+                'description': 'Professional burnout with cognitive dysfunction and emotional exhaustion',
+                'evidence': evidence,
+                'tags': ['critical', 'mental-health', 'auto-detected'],
+                'frequency': 'high',
+                'confidence': min(1.0, 0.7 + (burnout_score / 30)),  # 0.7-1.0
+                'auto_detected': True,
+                'detection_score': burnout_score
+            })
+    
+    # CHECK 2: Acute Depression
+    has_depression = any(
+        'depression' in p.get('title', '').lower() or 'депресс' in p.get('title', '').lower()
+        for p in existing_patterns
+    )
+    
+    if not has_depression:
+        depression_score = _calculate_depression_score(recent_text)
+        
+        # Threshold: 9 points = 3 major symptoms
+        if depression_score >= 9:
+            logger.warning(
+                f"🚨 GPT MISSED critical pattern: Acute Depression (score={depression_score}). Force-adding."
+            )
+            
+            evidence = _extract_depression_evidence(messages)
+            
+            missing.append({
+                'type': 'emotional',
+                'title': 'Acute Depression',
+                'description': 'Severe depressive symptoms requiring professional attention',
+                'evidence': evidence,
+                'tags': ['critical', 'mental-health', 'auto-detected', 'seek-help'],
+                'frequency': 'high',
+                'confidence': min(1.0, 0.7 + (depression_score / 30)),
+                'auto_detected': True,
+                'detection_score': depression_score,
+                'requires_professional_help': True
+            })
+    
+    if missing:
+        logger.info(f"✅ Safety net added {len(missing)} missing critical patterns")
+    
+    return missing
 
 
 async def _add_patterns_with_dedup(
@@ -509,6 +821,10 @@ def _calculate_stress_level(patterns: list[dict], recent_messages: list[dict]) -
     """
     Рассчитать уровень стресса на основе паттернов и сообщений
     
+    Uses:
+    1. Pattern-based scoring (burnout, panic, etc.)
+    2. Direct burnout score calculation from messages
+    
     Args:
         patterns: Список паттернов пользователя
         recent_messages: Последние сообщения
@@ -518,16 +834,16 @@ def _calculate_stress_level(patterns: list[dict], recent_messages: list[dict]) -
     """
     stress_score = 0
     
-    # Проверяем стресс-паттерны
+    # 1. PATTERN-BASED SCORING
     stress_patterns = ['burnout', 'exhaustion', 'выгорание', 'переработка']
-    critical_patterns = ['panic', 'паника', 'despair', 'отчаяние']
+    critical_patterns = ['panic', 'паника', 'despair', 'отчаяние', 'depression', 'депресс']
     
     for pattern in patterns:
         title_lower = pattern.get('title', '').lower()
         category_lower = pattern.get('category', '').lower()
         frequency = pattern.get('occurrences', 1)
         
-        # Критические паттерны
+        # Критические паттерны (panic, despair, acute depression)
         if any(kw in title_lower or kw in category_lower for kw in critical_patterns):
             stress_score += 4 * frequency
         
@@ -539,25 +855,36 @@ def _calculate_stress_level(patterns: list[dict], recent_messages: list[dict]) -
         if any(kw in title_lower for kw in ['страх', 'самозванец', 'fear', 'imposter']):
             stress_score += 2 * frequency
     
-    # Проверяем последние сообщения на burnout keywords
-    burnout_keywords = [
-        'работаю по', 'работаю 12', 'нет сил', 'не могу думать',
-        'забыл', 'хочется всё бросить', 'больше не могу',
-        'без выходных', 'каждый день работ'
-    ]
+    # 2. DIRECT BURNOUT SCORE from messages (more accurate)
+    recent_text = ' '.join([
+        msg.get('content', '').lower() 
+        for msg in recent_messages[-10:]
+        if msg.get('role') == 'user'
+    ])
     
-    recent_text = ' '.join([msg.get('content', '').lower() for msg in recent_messages[-10:]])
+    burnout_score = _calculate_burnout_score(recent_text)
     
-    burnout_count = sum(1 for kw in burnout_keywords if kw in recent_text)
-    stress_score += burnout_count * 2
+    # If burnout score is high, it contributes directly to stress
+    # Scaling: burnout_score 6-12 → stress +6-12
+    stress_score += burnout_score
     
-    # Классификация
-    if stress_score >= 15:
-        return 'critical'
-    elif stress_score >= 8:
-        return 'high'
-    elif stress_score >= 3:
-        return 'medium'
+    # 3. EXPLICIT CHECK: If burnout detected → force high/critical stress
+    if burnout_score >= 6:  # 2+ critical burnout symptoms
+        logger.warning(
+            f"🚨 High burnout score detected ({burnout_score}). "
+            f"Forcing stress_level >= 'high'"
+        )
+        # Ensure stress is at least 'high' if burnout present
+        if stress_score < 6:
+            stress_score = 6
+    
+    # 4. CLASSIFICATION (UPDATED THRESHOLDS - more aggressive)
+    if stress_score >= 10:
+        return 'critical'  # было 15
+    elif stress_score >= 6:
+        return 'high'      # было 8
+    elif stress_score >= 2:
+        return 'medium'    # было 3
     else:
         return 'low'
 

@@ -38,7 +38,37 @@ This ensures consistent embedding similarity and proper merging!
 
 ⚠️ NOTE: Perfectionism ≠ Imposter Syndrome (they often co-occur but are DISTINCT patterns!)
 
+🚨 CRITICAL PATTERNS CHECKLIST (MUST CHECK THESE FIRST):
+These are high-priority patterns that MUST be detected if symptoms present:
+
+1. **Burnout** (Professional Burnout):
+   SYMPTOMS (if 2+ present → CREATE this pattern):
+   - Working 10+ hours/day consistently
+   - Cognitive dysfunction (forgetting meetings, tasks, important things)
+   - Inability to concentrate/focus ("can't think", "can't concentrate")
+   - Physical/emotional exhaustion ("no energy", "exhausted", "worn out")
+   - Anhedonia ("don't remember when I was happy")
+   - Sense of futility ("why bother", "pointless", "like a robot")
+   
+   If you see 2+ symptoms → CREATE pattern "Burnout" with frequency >= 5 and confidence >= 0.8
+   This is CRITICAL for user safety!
+
+2. **Acute Depression**:
+   SYMPTOMS (if 3+ present → CREATE this pattern):
+   - Hopelessness ("no point", "why try", "nothing matters")
+   - Anhedonia ("don't remember when happy", "no pleasure")
+   - Worthlessness ("loser", "failure", "everything wrong")
+   - Fatigue persistent ("no energy", "exhausted always")
+   - Suicidal ideation (IMMEDIATE flag if present)
+   
+   If you see 3+ symptoms → CREATE pattern "Acute Depression" with frequency >= 6 and confidence >= 0.8
+   Suggest professional help in recommendations!
+
+⚠️ These critical patterns take PRIORITY over other patterns. Check them FIRST before analyzing others.
+
 ✅ GOOD pattern titles (use THESE exact terms when applicable):
+"Burnout" - professional burnout, working excessive hours, cognitive dysfunction
+"Acute Depression" - severe depressive symptoms requiring professional attention
 "Imposter Syndrome" - feeling inadequate despite evidence of competence
 "Perfectionism" - setting unrealistically high standards, fear of mistakes  
 "Social Anxiety in Professional Settings" - fear of judgment/criticism at work
