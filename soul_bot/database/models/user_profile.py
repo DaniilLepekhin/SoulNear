@@ -124,15 +124,9 @@ class UserProfile(Base):
     #     "clarification": 10
     #   }
     # }
-    conversation_metrics: Mapped[dict] = mapped_column(
-        JSONB,
-        default=lambda: {
-            "total_messages": 0,
-            "avg_session_length": 0,
-            "most_discussed_topics": [],
-            "question_types": {}
-        }
-    )
+    # ❌ REMOVED: conversation_metrics (unused field)
+    # - Declared but never updated anywhere in codebase
+    # - Migration: 004_cleanup_unused_fields.sql
     
     # ==========================================
     # 🎓 LEARNING PREFERENCES

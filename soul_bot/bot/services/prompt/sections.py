@@ -82,6 +82,11 @@ def render_patterns_section(profile) -> str:
         evidence = pattern.get('evidence', [])[:3]  # Макс 3 примера
         tags = pattern.get('tags', [])
         
+        # 🆕 V2 FIELDS: Глубокий анализ
+        contradiction = pattern.get('contradiction')
+        hidden_dynamic = pattern.get('hidden_dynamic')
+        blocked_resource = pattern.get('blocked_resource')
+        
         pattern_text = f"""**[{pattern_type}] {title}**
 Описание: {description}
 Частота: встречается {occurrences}x (уверенность {int(confidence * 100)}%)"""
@@ -90,6 +95,16 @@ def render_patterns_section(profile) -> str:
         if evidence:
             evidence_lines = [f'  • "{quote}"' for quote in evidence]
             pattern_text += f"\n📝 Примеры из диалогов пользователя:\n{chr(10).join(evidence_lines)}"
+        
+        # 🆕 V2: Добавляем глубокий анализ (если есть)
+        if contradiction:
+            pattern_text += f"\n🔍 Противоречие: {contradiction}"
+        
+        if hidden_dynamic:
+            pattern_text += f"\n🧠 Скрытая динамика: {hidden_dynamic}"
+        
+        if blocked_resource:
+            pattern_text += f"\n⚡ Заблокированный ресурс: {blocked_resource}"
         
         if tags:
             pattern_text += f"\nТеги: {', '.join(tags)}"
@@ -156,14 +171,34 @@ def render_insights_section(profile) -> str:
         impact = insight.get('impact', 'neutral')
         recommendations = insight.get('recommendations', [])
         
+        # 🆕 V2 FIELDS: Глубокие инсайты
+        the_system = insight.get('the_system')
+        the_blockage = insight.get('the_blockage')
+        the_way_out = insight.get('the_way_out')
+        why_this_matters = insight.get('why_this_matters')
+        
         impact_emoji = {'positive': '✅', 'negative': '⚠️', 'neutral': 'ℹ️'}.get(impact, 'ℹ️')
         
-        insight_text = f"""{impact_emoji} **{title}**
-{description}"""
+        insight_text = f"""{impact_emoji} **{title}**"""
         
-        if recommendations:
-            recs = [f"  • {rec}" for rec in recommendations[:3]]
-            insight_text += f"\nРекомендации:\n{chr(10).join(recs)}"
+        # V2: Используем новые поля если есть, иначе старый формат
+        if the_system or the_blockage or the_way_out:
+            # НОВЫЙ ФОРМАТ (глубокий анализ)
+            if the_system:
+                insight_text += f"\n\n🔄 Система: {the_system}"
+            if the_blockage:
+                insight_text += f"\n\n🚧 Блокировка: {the_blockage}"
+            if the_way_out:
+                insight_text += f"\n\n🛤️ Путь вперед: {the_way_out}"
+            if why_this_matters:
+                insight_text += f"\n\n💎 Почему это важно: {why_this_matters}"
+        else:
+            # СТАРЫЙ ФОРМАТ (backward compatibility)
+            if description:
+                insight_text += f"\n{description}"
+            if recommendations:
+                recs = [f"  • {rec}" for rec in recommendations[:3]]
+                insight_text += f"\nРекомендации:\n{chr(10).join(recs)}"
         
         insight_texts.append(insight_text)
     

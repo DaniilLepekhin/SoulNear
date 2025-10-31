@@ -144,31 +144,141 @@ async def _generate_patterns_from_quiz(
     ])
     
     prompt = f"""
-Analyze quiz answers and extract behavioral/emotional patterns.
+You are a psychological DETECTIVE analyzing quiz results.
+
+MISSION: DON'T classify ("they're anxious") - REVEAL what they CAN'T see!
+
+═══════════════════════════════════════════════════════════════════
+🎯 QUIZ DATA
+═══════════════════════════════════════════════════════════════════
 
 CATEGORY: {category}
 
-QUIZ ANSWERS:
+ANSWERS:
 {qa_text}
 
-Tasks:
-1. Find 2-3 significant patterns from these answers
-2. Each pattern should be specific and actionable
-3. DON'T just repeat the answers - find UNDERLYING patterns
+═══════════════════════════════════════════════════════════════════
+🔍 YOUR TASK: FIND THE HIDDEN (3-Step Framework)
+═══════════════════════════════════════════════════════════════════
 
-Return JSON:
+STEP 1: DETECT CONTRADICTIONS
+─────────────────────────────────────────────────────────────────
+Look for answers that CONFLICT with each other.
+
+EXAMPLES:
+✓ Q1: "I have many friends" + Q7: "I feel lonely often" 
+  → Contradiction: Surrounded but isolated
+  → Insight: Surface connections, avoiding depth
+
+✓ Q2: "I work 12 hours daily" + Q5: "I maintain work-life balance"
+  → Contradiction: Denial of burnout
+  → Insight: Rationalizing unsustainable behavior
+
+LOOK FOR:
+- Self-contradictory answers (says A, says opposite B)
+- Denial patterns (claims X but data shows ¬X)
+- Aspirational vs reality gap
+
+STEP 2: UNCOVER HIDDEN DYNAMIC  
+─────────────────────────────────────────────────────────────────
+What DRIVES the behavior? What's the REAL fear?
+
+DON'T say: "They procrastinate"
+SAY: "Procrastination protects them from facing inadequacy fears"
+
+FRAMEWORK: Surface behavior → Hidden fear → Core need
+
+EXAMPLE from quiz:
+Answers show: Perfectionism + fear of judgment + isolation
+Hidden dynamic: "Uses perfectionism to JUSTIFY not sharing work. 
+                Real fear: being seen as real self = rejection.
+                Perfectionism is ARMOR, not standard."
+
+STEP 3: IDENTIFY BLOCKED RESOURCE
+─────────────────────────────────────────────────────────────────
+Every pattern = DISTORTED STRENGTH
+
+"Many friends but lonely" → Socialability (strength!)
+BUT used for quantity not quality (misdirected)
+
+"Works 12h/day" → Strong work ethic (power!)
+BUT directed against self (burnout) not for self (growth)
+
+TASK: How can they REDIRECT this resource?
+
+═══════════════════════════════════════════════════════════════════
+📤 RETURN FORMAT (JSON)
+═══════════════════════════════════════════════════════════════════
+
 {{
   "patterns": [
     {{
       "type": "behavioral|emotional|cognitive",
-      "title": "Short pattern title (5-7 words)",
-      "description": "Detailed description",
-      "evidence": ["quote from answer 1", "quote from answer 2"],
-      "tags": ["tag1", "tag2"],
-      "confidence": 0.0-1.0
+      "title": "Clinical term in English (e.g. Loneliness Among People)",
+      
+      "description": "Surface-level observation from quiz answers",
+      
+      "contradiction": "What CONTRADICTION exists? 'Says X in Q1 but Y in Q5, revealing...'",
+      
+      "hidden_dynamic": "What DRIVES this? 'Real fear is [X]. Dynamic: behavior serves to [protect/avoid/control] by...'",
+      
+      "blocked_resource": "Hidden strength. 'Shows [quality] but directed against/away from self. Could redirect by...'",
+      
+      "evidence": ["Quote from answer 1", "Quote from answer 2"],
+      "tags": ["quiz-derived", "{category}"],
+      "confidence": 0.7-1.0
     }}
   ]
 }}
+
+═══════════════════════════════════════════════════════════════════
+✅ QUALITY CHECKLIST
+═══════════════════════════════════════════════════════════════════
+
+Before returning JSON, verify:
+
+1. ✓ Found at least ONE contradiction in answers?
+2. ✓ Hidden_dynamic explains WHY (not just describes WHAT)?
+3. ✓ Blocked_resource shows STRENGTH not just problem?
+4. ✓ Evidence = EXACT quotes from quiz answers?
+5. ✓ Title = established term (Imposter Syndrome, not "self-doubt")?
+6. ✓ Would user think "Whoa, how did you know that?"?
+
+═══════════════════════════════════════════════════════════════════
+🎯 EXAMPLES: DEPTH vs SURFACE
+═══════════════════════════════════════════════════════════════════
+
+❌ SURFACE (BAD):
+Title: "Social anxiety"
+Description: "User feels nervous in social situations"
+
+WHY BAD: User already knows this!
+
+✅ DEPTH (GOOD):
+Title: "Loneliness Among People"
+Contradiction: "Q2: 'I have 10+ close friends' + Q8: 'I feel lonely daily' 
+               → Keeping everyone at surface to avoid vulnerability"
+Hidden_dynamic: "Real fear: if I show real self, they'll leave. So I 
+                collect people but never let them IN. Quantity shields 
+                from quality."
+Blocked_resource: "Strong social skills + desire for connection (power!) 
+                  but used for ARMOR not INTIMACY. Redirect: choose 
+                  ONE person, risk being real."
+
+═══════════════════════════════════════════════════════════════════
+🔥 REMEMBER YOUR MISSION
+═══════════════════════════════════════════════════════════════════
+
+You're NOT generating quiz summary. You're REVEALING blind spot.
+
+User took this quiz hoping to learn something about themselves they 
+DON'T already know. Give them that revelation.
+
+DEPTH > CLASSIFICATION
+INSIGHT > SUMMARY
+REVELATION > DESCRIPTION
+
+Now analyze.
 """
     
     try:

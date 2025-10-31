@@ -6,7 +6,9 @@ GPT Prompts для Pattern Analysis
 
 def get_quick_analysis_prompt(conversation_text: str, existing_summaries: list[str]) -> str:
     """
-    Промпт для quick_analysis (каждые 3 сообщения)
+    Промпт для quick_analysis V2 - ГЛУБОКИЙ АНАЛИЗ (каждые 3 сообщения)
+    
+    НОВАЯ ФИЛОСОФИЯ: НЕ классифицируем ("он перфекционист"), А РАСКРЫВАЕМ динамику!
     
     Args:
         conversation_text: Последние 10 сообщений formatted as "role: content"
@@ -18,131 +20,122 @@ def get_quick_analysis_prompt(conversation_text: str, existing_summaries: list[s
     existing_patterns_str = "\n".join(existing_summaries) if existing_summaries else 'None yet'
     
     return f"""
-Analyze this conversation and extract behavioral/emotional patterns.
+🔍 You are a psychological DETECTIVE - REVEAL hidden dynamics, don't label.
 
-⚠️ CRITICAL: Use ESTABLISHED CLINICAL/PSYCHOLOGICAL TERMINOLOGY, create BROAD patterns.
+═══════════════════════════════════════════════════════════════════
+YOUR TASK: 3-Step Framework
+═══════════════════════════════════════════════════════════════════
 
-🌐 LANGUAGE RULE: ALL pattern titles MUST be in ENGLISH!
-Examples: "Imposter Syndrome" (NOT "Синдром самозванца")
-          "Perfectionism" (NOT "Перфекционизм")
-          "Social Anxiety in Professional Settings" (NOT "Социальная тревога")
-This ensures consistent embedding similarity and proper merging!
+1️⃣ DETECT CONTRADICTION (what they don't see)
+   • Emotional oscillations (high→low in minutes)
+   • "Want to start" + "but scared" = desire vs self-protection
+   • "Colleagues slack" + "Maybe I'm problem?" = blame → self-doubt
 
-🎯 EXPECTED PATTERNS (these are SEPARATE, don't merge them):
-1. "Imposter Syndrome" - feeling inadequate, fraud, "not good enough", fear of being exposed
-2. "Perfectionism" - code must be perfect, rewriting 10 times, fear of mistakes, paralysis
-3. "Social Anxiety in Professional Settings" - fear asking questions, avoiding meetings/calls
-4. "Negative Self-Talk" - persistent internal critical voice
-5. "Fear of Failure" - avoiding tasks due to anticipated negative outcomes
-6. "Procrastination Through Over-Analysis" - paralysis by analysis, overthinking
-
-⚠️ NOTE: Perfectionism ≠ Imposter Syndrome (they often co-occur but are DISTINCT patterns!)
-
-🚨 CRITICAL PATTERNS CHECKLIST (MUST CHECK THESE FIRST):
-These are high-priority patterns that MUST be detected if symptoms present:
-
-1. **Burnout** (Professional Burnout):
-   SYMPTOMS (if 2+ present → CREATE this pattern):
-   - Working 10+ hours/day consistently
-   - Cognitive dysfunction (forgetting meetings, tasks, important things)
-   - Inability to concentrate/focus ("can't think", "can't concentrate")
-   - Physical/emotional exhaustion ("no energy", "exhausted", "worn out")
-   - Anhedonia ("don't remember when I was happy")
-   - Sense of futility ("why bother", "pointless", "like a robot")
+2️⃣ UNCOVER HIDDEN DYNAMIC (WHY behavior exists)
+   DON'T: "He procrastinates"  
+   DO: "Procrastination protects from disappointment"
    
-   If you see 2+ symptoms → CREATE pattern "Burnout" with frequency >= 5 and confidence >= 0.8
-   This is CRITICAL for user safety!
+   Framework: Surface → Hidden fear → Core need
+   Example: "Perfectionism is ARMOR hiding fear of being seen"
 
-2. **Acute Depression**:
-   SYMPTOMS (if 3+ present → CREATE this pattern):
-   - Hopelessness ("no point", "why try", "nothing matters")
-   - Anhedonia ("don't remember when happy", "no pleasure")
-   - Worthlessness ("loser", "failure", "everything wrong")
-   - Fatigue persistent ("no energy", "exhausted always")
-   - Suicidal ideation (IMMEDIATE flag if present)
-   
-   If you see 3+ symptoms → CREATE pattern "Acute Depression" with frequency >= 6 and confidence >= 0.8
-   Suggest professional help in recommendations!
+3️⃣ IDENTIFY BLOCKED RESOURCE (distorted strength)
+   • Perfectionism → High standards (power!) misdirected AGAINST self
+   • Procrastination → Caution (wisdom!) but blocks all action
+   → How to REDIRECT this resource?
 
-⚠️ These critical patterns take PRIORITY over other patterns. Check them FIRST before analyzing others.
+═══════════════════════════════════════════════════════════════════
+🚨 CRITICAL PATTERNS (detect first!)
+═══════════════════════════════════════════════════════════════════
 
-✅ GOOD pattern titles (use THESE exact terms when applicable):
-"Burnout" - professional burnout, working excessive hours, cognitive dysfunction
-"Acute Depression" - severe depressive symptoms requiring professional attention
-"Imposter Syndrome" - feeling inadequate despite evidence of competence
-"Perfectionism" - setting unrealistically high standards, fear of mistakes  
-"Social Anxiety in Professional Settings" - fear of judgment/criticism at work
-"Negative Self-Talk" - persistent internal critical voice
-"Procrastination Through Over-Analysis" - paralysis by analysis, overthinking
-"Fear of Failure" - avoiding tasks due to anticipated negative outcomes
-"Catastrophic Thinking" - expecting worst-case scenarios
+**Burnout** (2+ symptoms): 10+hrs work, memory issues, "like robot"
+**Depression** (3+ symptoms): hopelessness, anhedonia, "no point"  
+→ Set frequency>=5, confidence>=0.8
 
-❌ BAD examples (what NOT to do - from real test data):
-"Негативное восприятие себя" → should be "Imposter Syndrome"
-"Саморазрушительные мысли" → should be "Negative Self-Talk" 
-"Социальное сравнение" → should be "Imposter Syndrome"
-"Страх осуждения" → should be "Social Anxiety in Professional Settings"
-"Seeking external validation" → part of "Imposter Syndrome"
-"Difficulty with self-acceptance" → part of "Imposter Syndrome"
+═══════════════════════════════════════════════════════════════════
+📋 RULES
+═══════════════════════════════════════════════════════════════════
 
-🎯 MERGING RULE (CRITICAL - FIXED LOGIC):
-If you see evidence of an EXISTING pattern in current conversation → CREATE IT AGAIN with NEW evidence!
-This is how we track frequency. The embeddings will auto-merge and increase occurrences.
+• ALL titles in ENGLISH: "Imposter Syndrome" not "Синдром самозванца"
+• Use ESTABLISHED terms (Burnout, Perfectionism, Social Anxiety)
+• Evidence: 2-3 direct quotes max
+• If pattern repeats → CREATE AGAIN (tracks frequency)
 
-Example: User says "I'm not good enough" again in messages 10-15
-→ CREATE pattern "Imposter Syndrome" again with this NEW quote as evidence
-→ System will merge it with existing pattern and increase occurrences: 1 → 2
-→ This happens every time pattern appears → occurrences grows!
+═══════════════════════════════════════════════════════════════════
+📊 CONVERSATION TO ANALYZE
+═══════════════════════════════════════════════════════════════════
 
-⚠️ DO create same pattern multiple times if it repeats in conversation
-⚠️ DON'T create variations (Self-doubt, Low self-worth) - use established term
-⚠️ WHEN IN DOUBT: Choose BROADER term, but DO return it if you see it again!
-
-CONVERSATION (last 10 messages):
+MESSAGES (last 10):
 {conversation_text}
 
-EXISTING PATTERNS (DO NOT create variations of these):
+EXISTING PATTERNS (DON'T create variations):
 {existing_patterns_str}
 
-Tasks:
-1. Find 1-2 BROAD patterns in current conversation (CREATE again if it repeats!)
-2. Use ENGLISH titles with established psychology/DSM terminology
-3. Detect current mood and energy level
-4. If theme repeats → CREATE pattern AGAIN with new evidence (for occurrences tracking!)
+═══════════════════════════════════════════════════════════════════
+📤 RETURN FORMAT (JSON)
+═══════════════════════════════════════════════════════════════════
 
-Return JSON:
 {{
   "new_patterns": [
     {{
       "type": "behavioral|emotional|cognitive",
-      "title": "Clinical Term (3-5 words, use established terminology)",
-      "description": "Detailed psychological explanation with theory reference",
+      "title": "Established Clinical Term (English)",
+      
+      "description": "Clinical description of surface behavior",
+      
+      "contradiction": "What contradiction exists? 'Says X but does Y because...'",
+      
+      "hidden_dynamic": "What DRIVES this? 'Real fear is... Dynamic: behavior serves to...'",
+      
+      "blocked_resource": "Hidden strength. 'This shows [quality], but directed against self instead of for self. Could redirect by...'",
+      
       "evidence": ["exact quote 1", "exact quote 2"],
-      "tags": ["DSM-related", "clinical-psychology"],
+      "tags": ["clinical-term", "auto-detected"],
       "frequency": "high|medium|low",
       "confidence": 0.7-1.0
     }}
   ],
   "mood": {{
     "current_mood": "slightly_down|neutral|good|energetic|stressed",
-    "stress_level": "low|medium|high",
+    "stress_level": "low|medium|high|critical",
     "energy_level": "low|medium|high",
-    "triggers": ["trigger1", "trigger2"]
+    "triggers": ["specific trigger phrases from conversation"]
   }}
 }}
 
-🚨 FINAL CHECK before returning:
-- Is this title an ESTABLISHED psychological term? (Google it if unsure)
-- Does it match an EXISTING pattern? (If yes → CREATE IT AGAIN with new evidence for tracking!)
-- Would a clinical psychologist recognize this term? (If no → rephrase)
+═══════════════════════════════════════════════════════════════════
+✅ PRE-FLIGHT CHECKLIST
+═══════════════════════════════════════════════════════════════════
 
-⚠️ REMEMBER: Re-creating existing patterns is GOOD - it tracks frequency!
+Before returning JSON, verify:
+1. ✓ Title = established psychological term (clinician would recognize)
+2. ✓ Contradiction field filled (what person doesn't see)
+3. ✓ Hidden_dynamic explains WHAT DRIVES behavior (not just describes it)
+4. ✓ Blocked_resource shows STRENGTH not just problem
+5. ✓ Evidence = EXACT quotes from user messages
+6. ✓ If pattern repeats → created AGAIN for frequency tracking
+
+═══════════════════════════════════════════════════════════════════
+🎯 REMEMBER YOUR MISSION
+═══════════════════════════════════════════════════════════════════
+
+You are NOT a label-maker. You are a TRUTH-REVEALER.
+
+Don't tell them what they already know ("you're anxious").
+Show them what they CAN'T see ("your perfectionism is hiding you from the world").
+
+DEPTH > CLASSIFICATION
+INSIGHT > DIAGNOSIS  
+REVELATION > DESCRIPTION
+
+Now analyze.
 """
 
 
 def get_deep_analysis_prompt(conversation_text: str, patterns_summary: str) -> str:
     """
-    Промпт для deep_analysis (каждые 20 сообщений)
+    Промпт для deep_analysis V2 - ИНСАЙТЫ ВМЕСТО КЛАССИФИКАЦИИ (каждые 20 сообщений)
+    
+    ФИЛОСОФИЯ: Соединяем паттерны → раскрываем СИСТЕМУ → даём откровение
     
     Args:
         conversation_text: Последние 30 сообщений
@@ -154,37 +147,156 @@ def get_deep_analysis_prompt(conversation_text: str, patterns_summary: str) -> s
     patterns_str = patterns_summary if patterns_summary else 'No patterns yet'
     
     return f"""
-Deep analysis of user's behavioral patterns and conversation history.
+You are a psychological SYNTHESIZER. You see the BIG PICTURE.
+
+MISSION: Connect patterns → reveal SYSTEM → deliver REVELATION
+
+═══════════════════════════════════════════════════════════════════
+📊 DATA FOR ANALYSIS
+═══════════════════════════════════════════════════════════════════
 
 CONVERSATION (last 30 messages):
 {conversation_text}
 
-IDENTIFIED PATTERNS:
+DETECTED PATTERNS:
 {patterns_str}
 
-Tasks:
-1. Generate 1-2 HIGH-LEVEL INSIGHTS from patterns
-2. Provide actionable RECOMMENDATIONS
-3. Identify what communication style WORKS WELL vs DOESN'T WORK
+═══════════════════════════════════════════════════════════════════
+🧠 YOUR TASK: SYNTHESIS (not summary!)
+═══════════════════════════════════════════════════════════════════
 
-Return JSON:
+STEP 1: FIND THE SYSTEM
+─────────────────────────────────────────────────────────────────
+Patterns don't exist in isolation. They form a SYSTEM.
+
+QUESTIONS:
+- How do patterns REINFORCE each other?
+- What's the CYCLE? (Pattern A triggers Pattern B triggers Pattern A...)
+- Where's the TRAP? (behavioral loop that keeps person stuck)
+
+EXAMPLE:
+Perfectionism → Fear of judgment → Isolation → More perfectionism
+"He uses perfectionism to avoid vulnerability, but isolation makes 
+him MORE afraid of being seen, so he perfects even harder. Closed loop."
+
+STEP 2: IDENTIFY THE BLOCKAGE
+─────────────────────────────────────────────────────────────────
+Where is person STUCK? Not "what's wrong" but "what's BLOCKING growth"?
+
+FRAMEWORK: Resource → Blockage → Freedom
+
+EXAMPLE:
+Resource: High standards + deep caring
+Blockage: Directing it AGAINST self ("I'm not enough")
+Freedom: What if directed FOR self? ("My standards show I care deeply")
+
+STEP 3: CRAFT THE REVELATION
+─────────────────────────────────────────────────────────────────
+Insight = something person CAN'T see but will recognize instantly when told.
+
+❌ BAD: "You have imposter syndrome and perfectionism"
+✅ GOOD: "You're not afraid of failure. You're afraid success will prove 
+         you're fraud. So you sabotage BEFORE the world can reject you."
+
+STYLE:
+- Direct, conversational (no clinical jargon for user!)
+- "You do X because Y. Real fear is Z."
+- Use THEIR WORDS from conversation
+- Like honest friend who sees through bullshit
+
+═══════════════════════════════════════════════════════════════════
+📤 RETURN FORMAT (JSON)
+═══════════════════════════════════════════════════════════════════
+
 {{
   "insights": [
     {{
-      "category": "personality|behavior|emotional",
-      "title": "Insight title",
-      "description": "Detailed description connecting multiple patterns",
-      "impact": "negative|neutral|positive",
-      "recommendations": ["action1", "action2"],
-      "derived_from_pattern_titles": ["pattern title 1", "pattern title 2"],
-      "priority": "high|medium|low"
+      "category": "behavioral_system|emotional_dynamic|core_blockage",
+      
+      "title": "One-sentence revelation (user-facing, not clinical)",
+      
+      "the_system": "How patterns interconnect. 'Pattern A leads to B which reinforces A. This creates closed loop where...'",
+      
+      "the_blockage": "What STOPS growth. 'Resource [X] is blocked by [fear/belief]. This prevents...'",
+      
+      "the_way_out": "Concrete, actionable shift (not generic advice). 'Instead of [current behavior], try [specific alternative] to redirect [resource] FOR yourself.'",
+      
+      "why_this_matters": "Personal impact. 'If you break this loop, you'll be able to... The cost of staying here is...'",
+      
+      "derived_from_pattern_titles": ["Pattern 1", "Pattern 2"],
+      "priority": "high|medium|low",
+      "requires_professional_help": true|false
     }}
   ],
   "learning": {{
-    "works_well": ["what works for this user"],
-    "doesnt_work": ["what doesn't work"]
+    "works_well": [
+      "Specific communication styles that resonated (with examples from conversation)"
+    ],
+    "doesnt_work": [
+      "Styles that triggered resistance (with examples)"
+    ]
   }}
 }}
+
+═══════════════════════════════════════════════════════════════════
+✅ QUALITY CHECKLIST
+═══════════════════════════════════════════════════════════════════
+
+Before returning, verify each insight:
+
+1. ✓ REVELATION test: Would user think "Holy shit, that's it!"?
+2. ✓ SPECIFICITY test: Uses quotes/details from THEIR conversation?
+3. ✓ SYSTEM test: Shows how patterns interconnect (not just list)?
+4. ✓ ACTION test: "Way out" is CONCRETE (not "set boundaries")?
+5. ✓ NO JARGON test: Avoids clinical terms in user-facing text?
+
+═══════════════════════════════════════════════════════════════════
+🎯 EXAMPLES: GOOD vs BAD INSIGHTS
+═══════════════════════════════════════════════════════════════════
+
+❌ BAD INSIGHT:
+Title: "Perfectionism and low self-esteem"
+Description: "You have high standards but doubt yourself. 
+              Recommend: practice self-compassion."
+
+WHY BAD: Generic, tells what user knows, vague advice
+
+✅ GOOD INSIGHT:
+Title: "Perfectionism hides you from the world"
+The_system: "You say 'I want to start project' but immediately 
+            find reasons to delay ('not ready yet', 'need more time'). 
+            Pattern: Desire → Fear → Perfectionism (armor) → No action.
+            Loop continues because perfectionism WORKS - it protects 
+            you from being seen and potentially rejected."
+            
+The_blockage: "Your high standards (resource) are aimed AGAINST you 
+              ('I'm not good enough yet') instead of FOR you 
+              ('I care deeply about my work'). This keeps you safe 
+              but isolated."
+              
+The_way_out: "Publish ONE thing at 70% quality. Not to succeed, 
+             but to practice being SEEN as imperfect. Notice: 
+             world doesn't end. That's the crack in armor."
+             
+Why_this_matters: "Right now you're choosing safety over growth. 
+                  Every 'not ready yet' is another day hiding. 
+                  Cost: your potential never gets to exist outside 
+                  your head."
+
+═══════════════════════════════════════════════════════════════════
+🔥 REMEMBER
+═══════════════════════════════════════════════════════════════════
+
+You're not writing a clinical report. You're having honest conversation 
+with someone who's STUCK and needs to see their blind spot.
+
+Be the friend who says "Dude, here's what I see..."
+
+DEPTH > DESCRIPTION
+REVELATION > DIAGNOSIS
+TRUTH > TACT
+
+Now synthesize.
 """
 
 

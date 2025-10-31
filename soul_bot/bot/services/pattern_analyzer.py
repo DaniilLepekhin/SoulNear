@@ -34,7 +34,9 @@ from bot.services.constants import (
     MAX_INSIGHTS,
     MAX_LEARNING_ITEMS,
     MODEL_ANALYSIS,
-    TEMPERATURE_ANALYSIS
+    TEMPERATURE_ANALYSIS,
+    BURNOUT_SCORE_THRESHOLD,    # 🆕 V2.1
+    DEPRESSION_SCORE_THRESHOLD  # 🆕 V2.1
 )
 from bot.services.prompt.analysis_prompts import get_quick_analysis_prompt, get_deep_analysis_prompt
 from database.repository import user_profile, conversation_history
@@ -181,16 +183,36 @@ async def _analyze_conversation_quick(
     
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",  # Дешевле для quick analysis
+            model=MODEL_ANALYSIS,  # 🆕 V2.1: Use constant (now gpt-4o for better depth)
             messages=[
                 {"role": "system", "content": "You are an expert psychologist analyzing conversation patterns."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.3
+            temperature=TEMPERATURE_ANALYSIS
         )
         
         result = json.loads(response.choices[0].message.content)
+        
+        # 🆕 V2.1: Log GPT response для debugging
+        patterns_count = len(result.get('new_patterns', []))
+        logger.info(f"✅ GPT quick_analysis returned {patterns_count} patterns (model: {MODEL_ANALYSIS})")
+        
+        if patterns_count > 0:
+            # Log first pattern title for visibility
+            first_title = result['new_patterns'][0].get('title', 'N/A')
+            logger.debug(f"📋 First pattern: '{first_title}'")
+            
+            # Log if V2 fields present
+            has_v2 = any(
+                'contradiction' in p or 'hidden_dynamic' in p or 'blocked_resource' in p
+                for p in result['new_patterns']
+            )
+            if has_v2:
+                logger.info("✨ V2 fields detected in patterns!")
+            else:
+                logger.warning("⚠️ V2 fields MISSING in patterns (GPT didn't return them)")
+        
         return result
         
     except Exception as e:
@@ -518,9 +540,10 @@ def _calculate_depression_score(recent_text: str) -> int:
     
     # MAJOR SYMPTOMS (3 points each):
     major_symptoms = {
-        'hopelessness': r'(нет смысла|зачем стараться|всё бесполезно)',
+        'hopelessness': r'(нет смысла|зачем стараться|всё бесполезно|не вижу смысла|какой смысл)',
         'anhedonia': r'не помню когда.*(счастлив|радовал|удовольств)',
-        'worthlessness': r'(лузер|неудачник|всё неправильно|некомпетент)',
+        'worthlessness': r'(лузер|неудачник|всё неправильно|некомпетент|ничего не стою|бесполезн)',
+        'no_way_out': r'(не вижу выхода|нет выхода|безвыходн)',  # 🆕 V2.1: Added pattern
     }
     
     for symptom, pattern in major_symptoms.items():
@@ -613,8 +636,8 @@ def _check_critical_patterns_missing(
     if not has_burnout:
         burnout_score = _calculate_burnout_score(recent_text)
         
-        # Threshold: 6 points = 2 critical symptoms
-        if burnout_score >= 6:
+        # 🆕 V2.1: Use constant threshold
+        if burnout_score >= BURNOUT_SCORE_THRESHOLD:
             logger.warning(
                 f"🚨 GPT MISSED critical pattern: Burnout (score={burnout_score}). Force-adding."
             )
@@ -642,8 +665,8 @@ def _check_critical_patterns_missing(
     if not has_depression:
         depression_score = _calculate_depression_score(recent_text)
         
-        # Threshold: 9 points = 3 major symptoms
-        if depression_score >= 9:
+        # 🆕 V2.1: Use constant threshold (lowered from 9 to 7 for better detection)
+        if depression_score >= DEPRESSION_SCORE_THRESHOLD:
             logger.warning(
                 f"🚨 GPT MISSED critical pattern: Acute Depression (score={depression_score}). Force-adding."
             )
@@ -722,6 +745,17 @@ async def _add_patterns_with_dedup(
                 
                 duplicate['last_detected'] = datetime.now().isoformat()
                 duplicate['confidence'] = max(duplicate['confidence'], new_pattern.get('confidence', 0.7))
+                
+                # 🆕 V2: Update deep analysis fields (always take latest from GPT)
+                if 'contradiction' in new_pattern:
+                    duplicate['contradiction'] = new_pattern['contradiction']
+                if 'hidden_dynamic' in new_pattern:
+                    duplicate['hidden_dynamic'] = new_pattern['hidden_dynamic']
+                if 'blocked_resource' in new_pattern:
+                    duplicate['blocked_resource'] = new_pattern['blocked_resource']
+                # Also update description if GPT refined it
+                if 'description' in new_pattern and new_pattern['description']:
+                    duplicate['description'] = new_pattern['description']
                 
                 logger.info(f"✅ MERGED: '{new_pattern['title']}' → '{duplicate['title']}' | similarity: {similarity:.2f} | occurrences: {old_occurrences} → {duplicate['occurrences']}")
             else:

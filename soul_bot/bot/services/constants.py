@@ -33,6 +33,21 @@ QUICK_ANALYSIS_MIN_MESSAGES = 4   # Минимум для quick analysis
 DEEP_ANALYSIS_MIN_MESSAGES = 10   # Минимум для deep analysis
 
 # ==========================================
+# 🚨 SAFETY NET THRESHOLDS (Critical Patterns)
+# ==========================================
+
+# Burnout detection threshold
+BURNOUT_SCORE_THRESHOLD = 6  # Force-add burnout pattern if score >= 6
+# Scoring: Critical symptoms (3pts each), Major (2pts), Minor (1pt)
+# Example: 15h work + memory loss = 3+3 = 6pts (threshold met)
+
+# Depression detection threshold
+DEPRESSION_SCORE_THRESHOLD = 7  # Force-add depression pattern if score >= 7
+# Was 9, lowered to 7 for better detection
+# Scoring: Critical (4pts each), Major (3pts), Minor (1pt)
+# Example: "всё бессмысленно" + "зачем жить" = 4+4 = 8pts (threshold met)
+
+# ==========================================
 # 📊 EXPECTED PATTERNS (для промптов)
 # ==========================================
 
@@ -73,7 +88,7 @@ ALL_EXPECTED_PATTERNS = [
 
 # Models
 MODEL_CHAT = "gpt-4o"           # Основной чат
-MODEL_ANALYSIS = "gpt-4o-mini"  # Анализ паттернов (дешевле)
+MODEL_ANALYSIS = "gpt-4o"       # Анализ паттернов (was gpt-4o-mini, upgraded for V2 depth)
 MODEL_EMBEDDING = "text-embedding-3-small"  # Embeddings (1536 dim)
 
 # Temperature
