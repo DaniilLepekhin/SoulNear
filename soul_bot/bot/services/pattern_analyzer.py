@@ -11,6 +11,7 @@ Architecture: Moderate + Embeddings
 """
 import logging
 import uuid
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Optional
 import json
@@ -459,20 +460,27 @@ async def _update_emotional_state(user_id: int, mood_data: dict):
 async def _update_learning_preferences(user_id: int, learning_data: dict):
     """
     Обновить learning preferences (что работает/не работает)
+    
+    Использует OrderedDict для сохранения порядка (новые элементы в конец).
+    Это важно для UI - показываем последние предпочтения первыми.
     """
     profile = await user_profile.get_or_create(user_id)
     learning_prefs = profile.learning_preferences
     
-    # Добавляем новые insights (без дубликатов)
-    works_well = set(learning_prefs.get('works_well', []))
-    doesnt_work = set(learning_prefs.get('doesnt_work', []))
+    # Используем OrderedDict для сохранения порядка (новые в конец)
+    # Ключи = items, значения = None (нужны только уникальные ключи)
+    works_well = OrderedDict.fromkeys(learning_prefs.get('works_well', []))
+    doesnt_work = OrderedDict.fromkeys(learning_prefs.get('doesnt_work', []))
     
-    works_well.update(learning_data.get('works_well', []))
-    doesnt_work.update(learning_data.get('doesnt_work', []))
+    # Добавляем новые элементы (дедупликация автоматическая)
+    for item in learning_data.get('works_well', []):
+        works_well[item] = None
+    for item in learning_data.get('doesnt_work', []):
+        doesnt_work[item] = None
     
-    # Limit: по 10 каждого
-    learning_prefs['works_well'] = list(works_well)[-10:]
-    learning_prefs['doesnt_work'] = list(doesnt_work)[-10:]
+    # Limit: последние 10 (самые свежие)
+    learning_prefs['works_well'] = list(works_well.keys())[-MAX_LEARNING_ITEMS:]
+    learning_prefs['doesnt_work'] = list(doesnt_work.keys())[-MAX_LEARNING_ITEMS:]
     
     # Сохраняем
     async with db() as session:
