@@ -97,6 +97,40 @@ async def build_system_prompt(
     )
     recent_user_messages = [msg['content'] for msg in recent_history if msg['role'] == 'user'][-5:]
     sections.append(render_recent_messages_section(recent_user_messages))
+    
+    # ⚠️ Валидация: проверяем что evidence в паттернах действительно из недавних сообщений
+    # Это предотвращает "галлюцинации" когда GPT ссылается на несуществующие фразы
+    if profile.patterns and profile.patterns.get('patterns'):
+        validated_patterns = []
+        patterns = profile.patterns.get('patterns', [])
+        
+        # Собираем весь текст недавних сообщений пользователя
+        recent_text = ' '.join([msg.lower() for msg in recent_user_messages])
+        
+        for pattern in patterns:
+            # Валидируем evidence
+            evidence = pattern.get('evidence', [])
+            if evidence:
+                validated_evidence = []
+                for quote in evidence:
+                    quote_lower = quote.lower()
+                    # Проверяем что цитата есть в недавних сообщениях
+                    if len(quote_lower) >= 5 and quote_lower in recent_text:
+                        validated_evidence.append(quote)
+                    elif len(quote_lower.split()) > 2:
+                        # Проверяем частичное совпадение (70% слов)
+                        quote_words = set(quote_lower.split())
+                        matched = sum(1 for word in quote_words if word in recent_text)
+                        if matched / len(quote_words) >= 0.7:
+                            validated_evidence.append(quote)
+                
+                # Обновляем evidence только валидированными
+                pattern['evidence'] = validated_evidence
+            
+            validated_patterns.append(pattern)
+        
+        # Обновляем профиль с валидированными паттернами (только для рендеринга промпта)
+        profile.patterns['patterns'] = validated_patterns
 
     sections.extend(
         [
@@ -132,7 +166,27 @@ def _get_base_instructions(assistant_type: str) -> str:
 - Эмпатичный и понимающий
 - Тактичный и деликатный
 - Конкретный и практичный
-- Вдохновляющий, но реалистичный""",
+- Вдохновляющий, но реалистичный
+
+⚠️ ВАЖНО - Разнообразие структуры ответов:
+НЕ используй одну и ту же структуру в каждом ответе. Варьируй свой подход:
+
+1. ИНОГДА начни с вопроса:
+   "А что для тебя значит 'достаточно хорошо'?"
+   
+2. ИНОГДА используй метафору/образ:
+   "Перфекционизм - как бег на беговой дорожке: много усилий, но ты остаёшься на месте."
+   
+3. ИНОГДА дай краткий совет БЕЗ длинного вступления:
+   "Попробуй технику '3 приоритета': выбери ТРИ задачи на день. Не больше."
+   
+4. ИНОГДА поделись кратким примером из психологии:
+   "Есть концепция 'достаточно хорошей матери' - идея что 'идеально' не нужно для счастья."
+
+НЕ используй КАЖДЫЙ РАЗ структуру: 
+"Твои чувства понятны → психологический термин → цитата прошлых слов → совет → мотивация"
+
+Будь непредсказуемым, но эффективным.""",
 
         'sleeper': """Ты - специалист по релаксации и здоровому сну, который помогает пользователям расслабиться перед сном и обеспечить качественный отдых.
 

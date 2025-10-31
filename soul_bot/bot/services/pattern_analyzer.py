@@ -96,6 +96,14 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
         new_patterns_count = len(analysis.get('new_patterns', []))
         logger.info(f"[QUICK ANALYSIS] User {user_id}: GPT returned {new_patterns_count} new patterns")
         
+        # ⚠️ Валидация: проверяем что examples действительно из текущей сессии
+        if analysis.get('new_patterns'):
+            validated_patterns = [
+                _validate_pattern_examples(pattern, messages)
+                for pattern in analysis['new_patterns']
+            ]
+            analysis['new_patterns'] = validated_patterns
+        
         # Обновляем паттерны (с дедупликацией)
         if analysis.get('new_patterns'):
             await _add_patterns_with_dedup(user_id, analysis['new_patterns'], existing_patterns)
@@ -106,7 +114,25 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
         
         # Обновляем emotional state
         if analysis.get('mood'):
-            await _update_emotional_state(user_id, analysis['mood'])
+            mood_data = analysis['mood'].copy()
+            
+            # ⚠️ Двойная проверка stress level: наша heuristic vs GPT
+            # Если наша функция находит более высокий стресс - используем её
+            updated_profile = await user_profile.get_or_create(user_id)
+            all_patterns = updated_profile.patterns.get('patterns', [])
+            calculated_stress = _calculate_stress_level(all_patterns, messages)
+            gpt_stress = mood_data.get('stress_level', 'medium')
+            
+            # Приоритет: critical > high > medium > low
+            stress_priority = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1}
+            if stress_priority.get(calculated_stress, 0) > stress_priority.get(gpt_stress, 0):
+                logger.info(
+                    f"⚠️ Stress level override: GPT={gpt_stress}, "
+                    f"calculated={calculated_stress}. Using calculated value."
+                )
+                mood_data['stress_level'] = calculated_stress
+            
+            await _update_emotional_state(user_id, mood_data)
         
         logger.info(f"Quick analysis complete: {len(analysis.get('new_patterns', []))} patterns, mood={analysis.get('mood', {}).get('current_mood')}")
         
@@ -263,6 +289,74 @@ async def _analyze_conversation_deep(
 # 🔄 ДЕДУПЛИКАЦИЯ И МЕРДЖ ПАТТЕРНОВ
 # ==========================================
 
+def _validate_pattern_examples(pattern: dict, recent_messages: list[dict]) -> dict:
+    """
+    Валидация что examples в паттерне действительно присутствуют в сообщениях
+    
+    Args:
+        pattern: Паттерн с полем 'evidence' (examples)
+        recent_messages: Последние сообщения пользователя
+        
+    Returns:
+        Валидированный паттерн (удаляет несуществующие examples)
+    """
+    evidence = pattern.get('evidence', [])
+    if not evidence:
+        return pattern
+    
+    # Собираем все тексты сообщений пользователя (только user, не assistant)
+    user_messages_text = ' '.join([
+        msg.get('content', '').lower()
+        for msg in recent_messages
+        if msg.get('role') == 'user'
+    ])
+    
+    # Фильтруем evidence: оставляем только те что есть в сообщениях
+    validated_evidence = []
+    for example in evidence:
+        example_lower = example.lower().strip()
+        
+        # Если пример короткий (< 5 символов) - скипаем (слишком общий)
+        if len(example_lower) < 5:
+            logger.debug(f"⚠️ Example too short, skipping: '{example}'")
+            continue
+        
+        # Проверяем что пример присутствует в сообщениях (или его часть >= 70%)
+        if example_lower in user_messages_text:
+            validated_evidence.append(example)
+        else:
+            # Попробуем найти частичное совпадение (хотя бы 70% слов)
+            example_words = set(example_lower.split())
+            if len(example_words) > 0:
+                # Считаем сколько слов из example есть в messages
+                matched_words = sum(1 for word in example_words if word in user_messages_text)
+                match_ratio = matched_words / len(example_words)
+                
+                if match_ratio >= 0.7:  # 70% слов совпало
+                    validated_evidence.append(example)
+                    logger.debug(f"✅ Partial match ({match_ratio:.0%}): '{example}'")
+                else:
+                    logger.warning(
+                        f"❌ Example NOT found in messages (match: {match_ratio:.0%}): '{example}'. "
+                        f"Pattern: {pattern.get('title')}"
+                    )
+    
+    # Обновляем паттерн
+    pattern['evidence'] = validated_evidence
+    pattern['validated_at'] = datetime.now().isoformat()
+    
+    # Если все examples были отфильтрованы - понижаем confidence
+    if len(evidence) > 0 and len(validated_evidence) == 0:
+        old_confidence = pattern.get('confidence', 0.7)
+        pattern['confidence'] = max(0.3, old_confidence * 0.5)
+        logger.warning(
+            f"⚠️ All examples invalid for pattern '{pattern.get('title')}'. "
+            f"Confidence lowered: {old_confidence:.2f} → {pattern['confidence']:.2f}"
+        )
+    
+    return pattern
+
+
 async def _add_patterns_with_dedup(
     user_id: int,
     new_patterns: list[dict],
@@ -411,6 +505,130 @@ async def _add_insights(user_id: int, new_insights: list[dict], existing_pattern
 # 😊 EMOTIONAL STATE
 # ==========================================
 
+def _calculate_stress_level(patterns: list[dict], recent_messages: list[dict]) -> str:
+    """
+    Рассчитать уровень стресса на основе паттернов и сообщений
+    
+    Args:
+        patterns: Список паттернов пользователя
+        recent_messages: Последние сообщения
+        
+    Returns:
+        'critical' | 'high' | 'medium' | 'low'
+    """
+    stress_score = 0
+    
+    # Проверяем стресс-паттерны
+    stress_patterns = ['burnout', 'exhaustion', 'выгорание', 'переработка']
+    critical_patterns = ['panic', 'паника', 'despair', 'отчаяние']
+    
+    for pattern in patterns:
+        title_lower = pattern.get('title', '').lower()
+        category_lower = pattern.get('category', '').lower()
+        frequency = pattern.get('occurrences', 1)
+        
+        # Критические паттерны
+        if any(kw in title_lower or kw in category_lower for kw in critical_patterns):
+            stress_score += 4 * frequency
+        
+        # Burnout с высокой частотой
+        if any(kw in title_lower or kw in category_lower for kw in stress_patterns):
+            stress_score += 3 * frequency
+        
+        # Страх неудачи, синдром самозванца
+        if any(kw in title_lower for kw in ['страх', 'самозванец', 'fear', 'imposter']):
+            stress_score += 2 * frequency
+    
+    # Проверяем последние сообщения на burnout keywords
+    burnout_keywords = [
+        'работаю по', 'работаю 12', 'нет сил', 'не могу думать',
+        'забыл', 'хочется всё бросить', 'больше не могу',
+        'без выходных', 'каждый день работ'
+    ]
+    
+    recent_text = ' '.join([msg.get('content', '').lower() for msg in recent_messages[-10:]])
+    
+    burnout_count = sum(1 for kw in burnout_keywords if kw in recent_text)
+    stress_score += burnout_count * 2
+    
+    # Классификация
+    if stress_score >= 15:
+        return 'critical'
+    elif stress_score >= 8:
+        return 'high'
+    elif stress_score >= 3:
+        return 'medium'
+    else:
+        return 'low'
+
+
+def _detect_contradictions(emotional_state: dict, patterns: list[dict]) -> dict:
+    """
+    Обнаружить противоречия между emotional_state и patterns
+    
+    Args:
+        emotional_state: Текущее эмоциональное состояние
+        patterns: Список паттернов
+        
+    Returns:
+        Скорректированное эмоциональное состояние с флагом 'auto_corrected'
+    """
+    corrected_state = emotional_state.copy()
+    auto_corrections = []
+    
+    stress_level = emotional_state.get('stress_level', 'medium')
+    
+    # Подсчитываем частоту burnout/stress паттернов
+    stress_frequency = sum(
+        p.get('occurrences', 1) 
+        for p in patterns 
+        if any(kw in p.get('title', '').lower() or kw in p.get('category', '').lower()
+               for kw in ['burnout', 'выгорание', 'stress', 'стресс', 'exhaustion'])
+    )
+    
+    # Противоречие: stress_level='low' но высокая частота stress patterns
+    if stress_level in ['low', 'medium'] and stress_frequency >= 5:
+        logger.warning(
+            f"⚠️ Contradiction detected: stress_level={stress_level}, "
+            f"but burnout patterns frequency={stress_frequency}. Auto-correcting to 'high'."
+        )
+        corrected_state['stress_level'] = 'high'
+        auto_corrections.append({
+            'field': 'stress_level',
+            'old_value': stress_level,
+            'new_value': 'high',
+            'reason': f'High burnout pattern frequency ({stress_frequency})'
+        })
+    
+    # Противоречие: energy_level='high' но много усталости в паттернах
+    energy_level = emotional_state.get('energy_level', 'medium')
+    fatigue_frequency = sum(
+        p.get('occurrences', 1)
+        for p in patterns
+        if any(kw in p.get('title', '').lower()
+               for kw in ['усталость', 'нет сил', 'exhaustion', 'fatigue', 'burnout'])
+    )
+    
+    if energy_level == 'high' and fatigue_frequency >= 3:
+        logger.warning(
+            f"⚠️ Contradiction detected: energy_level={energy_level}, "
+            f"but fatigue patterns frequency={fatigue_frequency}. Auto-correcting to 'low'."
+        )
+        corrected_state['energy_level'] = 'low'
+        auto_corrections.append({
+            'field': 'energy_level',
+            'old_value': energy_level,
+            'new_value': 'low',
+            'reason': f'High fatigue pattern frequency ({fatigue_frequency})'
+        })
+    
+    if auto_corrections:
+        corrected_state['auto_corrections'] = auto_corrections
+        corrected_state['last_correction'] = datetime.now().isoformat()
+    
+    return corrected_state
+
+
 async def _update_emotional_state(user_id: int, mood_data: dict):
     """
     Обновить эмоциональное состояние
@@ -439,6 +657,10 @@ async def _update_emotional_state(user_id: int, mood_data: dict):
     
     # Limit: последние 30 записей
     emotional_state['mood_history'] = mood_history[-30:]
+    
+    # ⚠️ Проверка противоречий: если GPT сказал "stress=low", но паттерны говорят "burnout"
+    patterns = profile.patterns.get('patterns', [])
+    emotional_state = _detect_contradictions(emotional_state, patterns)
     
     # Сохраняем
     async with db() as session:
