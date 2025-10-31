@@ -610,3 +610,84 @@ async def unified_style_handler(call: CallbackQuery):
 async def noop_handler(call: CallbackQuery):
     """Handler для кнопок-разделителей (noop = no operation)"""
     await call.answer()
+
+
+# ==========================================
+# ⚡ QUICK SWITCH PRESETS
+# ==========================================
+
+@dp.callback_query(F.data == 'style_presets')
+async def style_presets_callback(call: CallbackQuery):
+    """Показать меню быстрых пресетов"""
+    if not is_feature_enabled('ENABLE_STYLE_SETTINGS'):
+        await call.answer("⚠️ Настройки стиля временно недоступны", show_alert=True)
+        return
+    
+    from bot.keyboards.profile import build_style_presets_menu
+    
+    keyboard = build_style_presets_menu()
+    
+    text = (
+        f'⚡ <b>Быстрые пресеты стиля</b>\n\n'
+        f'Выбери готовую комбинацию настроек для быстрого старта!\n\n'
+        f'Каждый пресет это комбинация:\n'
+        f'• Тон (формальный/дружелюбный/мотивирующий)\n'
+        f'• Личность (коуч/друг/терапевт/наставник)\n'
+        f'• Длина ответов (кратко/средне/подробно)\n\n'
+        f'💡 <i>Изменения применяются моментально</i>'
+    )
+    
+    try:
+        await call.message.delete()
+        await call.message.answer(text=text, reply_markup=keyboard)
+    except:
+        await call.answer()
+
+
+@dp.callback_query(F.data.startswith('preset_'))
+async def apply_preset_callback(call: CallbackQuery):
+    """Применить пресет стиля"""
+    if not is_feature_enabled('ENABLE_STYLE_SETTINGS'):
+        await call.answer("⚠️ Настройки стиля временно недоступны", show_alert=True)
+        return
+    
+    from bot.keyboards.profile import STYLE_PRESETS
+    
+    preset_id = call.data.replace('preset_', '')
+    preset = STYLE_PRESETS.get(preset_id)
+    
+    if not preset:
+        await call.answer("❌ Пресет не найден", show_alert=True)
+        return
+    
+    user_id = call.from_user.id
+    
+    # Применяем все настройки сразу
+    await db_user_profile.update_style(
+        user_id,
+        tone_style=preset['tone'],
+        personality=preset['personality'],
+        message_length=preset['length']
+    )
+    
+    await call.answer(f"✅ Применён: {preset['name']}", show_alert=False)
+    
+    # Показываем обновлённое меню с галочкой
+    from bot.keyboards.profile import build_style_presets_menu
+    keyboard = build_style_presets_menu(current_preset_id=preset_id)
+    
+    text = (
+        f'⚡ <b>Быстрые пресеты стиля</b>\n\n'
+        f'✅ <b>Применён:</b> {preset["name"]}\n'
+        f'<i>{preset["description"]}</i>\n\n'
+        f'Настройки:\n'
+        f'• Тон: <code>{preset["tone"]}</code>\n'
+        f'• Личность: <code>{preset["personality"]}</code>\n'
+        f'• Длина: <code>{preset["length"]}</code>\n\n'
+        f'💡 <i>Можешь выбрать другой пресет или перейти к детальным настройкам</i>'
+    )
+    
+    try:
+        await call.message.edit_text(text=text, reply_markup=keyboard)
+    except:
+        await call.answer()

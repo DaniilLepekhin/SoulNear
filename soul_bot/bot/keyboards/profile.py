@@ -3,7 +3,8 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 profile_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🧠 Мой психологический профиль', callback_data='view_psychological_profile')],
     [InlineKeyboardButton(text='🛠 Изменить информацию', callback_data='update_user_info')],
-    [InlineKeyboardButton(text='🎨 Настройки стиля', callback_data='style_settings')],
+    [InlineKeyboardButton(text='⚡ Быстрые пресеты стиля', callback_data='style_presets')],
+    [InlineKeyboardButton(text='🎨 Настройки стиля (детально)', callback_data='style_settings')],
     [InlineKeyboardButton(text='💳 Подписка', callback_data='premium')],
     [InlineKeyboardButton(text='↩️ Назад', callback_data='menu')]
 ])
@@ -144,3 +145,89 @@ def build_style_settings_menu_v2(current_tone: str, current_personality: str, cu
         length_row2,
         [InlineKeyboardButton(text='↩️ Назад к профилю', callback_data='profile')]
     ])
+
+
+# ==========================================
+# ⚡ QUICK SWITCH PRESETS (быстрые комбо-настройки)
+# ==========================================
+
+STYLE_PRESETS = {
+    'coach_brief': {
+        'name': '💪 Коуч (кратко)',
+        'description': 'Мотивация и действия, без лишних слов',
+        'tone': 'motivating',
+        'personality': 'coach',
+        'length': 'brief'
+    },
+    'friend_detailed': {
+        'name': '👥 Друг (подробно)',
+        'description': 'Поддержка и эмпатия, развёрнутые ответы',
+        'tone': 'friendly',
+        'personality': 'friend',
+        'length': 'detailed'
+    },
+    'therapist_medium': {
+        'name': '🧘 Терапевт (средне)',
+        'description': 'Деликатно и безоценочно, фокус на чувствах',
+        'tone': 'friendly',  # терапевт должен быть дружелюбным, не формальным
+        'personality': 'therapist',
+        'length': 'medium'
+    },
+    'mentor_balanced': {
+        'name': '🧙 Мудрец (сбалансировано)',
+        'description': 'Мудрость и опыт, золотая середина',
+        'tone': 'friendly',
+        'personality': 'mentor',
+        'length': 'medium'
+    },
+    'quick_support': {
+        'name': '⚡ Быстрая поддержка',
+        'description': 'Краткая эмпатия и совет',
+        'tone': 'friendly',
+        'personality': 'friend',
+        'length': 'ultra_brief'
+    },
+    'formal_coach': {
+        'name': '🎩 Деловой коуч',
+        'description': 'Профессионально и по делу',
+        'tone': 'formal',
+        'personality': 'coach',
+        'length': 'medium'
+    }
+}
+
+
+def build_style_presets_menu(current_preset_id: str = None):
+    """
+    Меню быстрых пресетов стиля
+    
+    Args:
+        current_preset_id: ID текущего пресета (если применён)
+        
+    Returns:
+        Клавиатура с пресетами
+    """
+    buttons = []
+    
+    for preset_id, preset in STYLE_PRESETS.items():
+        # Добавляем галочку если это текущий пресет
+        text = preset['name']
+        if current_preset_id == preset_id:
+            text = f"✓ {text}"
+        
+        buttons.append([
+            InlineKeyboardButton(
+                text=text,
+                callback_data=f'preset_{preset_id}'
+            )
+        ])
+    
+    # Кнопки навигации
+    buttons.append([
+        InlineKeyboardButton(text='⚙️ Детальные настройки', callback_data='style_settings')
+    ])
+    buttons.append([
+        InlineKeyboardButton(text='↩️ Назад к профилю', callback_data='profile')
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

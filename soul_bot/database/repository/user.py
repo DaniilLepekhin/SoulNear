@@ -116,30 +116,6 @@ async def block(user_id: int) -> None:
         await session.commit()
 
 
-async def update_helper_thread(user_id: int, thread_id: str) -> None:
-    async with db() as session:
-        await session.execute(update(User).
-                              where(User.user_id == user_id).
-                              values(helper_thread_id=thread_id))
-        await session.commit()
-
-
-async def update_assistant_thread(user_id: int, thread_id: str) -> None:
-    async with db() as session:
-        await session.execute(update(User).
-                              where(User.user_id == user_id).
-                              values(assistant_thread_id=thread_id))
-        await session.commit()
-
-
-async def update_sleeper_thread(user_id: int, thread_id: str) -> None:
-    async with db() as session:
-        await session.execute(update(User).
-                              where(User.user_id == user_id).
-                              values(sleeper_thread_id=thread_id))
-        await session.commit()
-
-
 async def decrement_requests(user_id: int, assistant: str):
     execute = ''
     match assistant:

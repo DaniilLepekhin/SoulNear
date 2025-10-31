@@ -128,6 +128,97 @@ def _select_primary_pattern(patterns: List[dict]) -> Optional[dict]:
     return None
 
 
+def _is_personalization_relevant(user_message: str, primary_pattern: dict) -> bool:
+    """
+    Проверяет релевантность персонализации к текущему сообщению.
+    
+    Логика (fast heuristic, < 5ms):
+    1. Factual question без эмоций → False (персонализация не нужна)
+    2. Pattern keywords присутствуют → True (тема релевантна)
+    3. Emotional content → True (всегда персонализируем)
+    4. Very short message (< 5 words) → False (скорее всего не эмоционально)
+    5. Default → True (conservative: лучше показать, чем пропустить)
+    
+    Args:
+        user_message: Текущее сообщение пользователя
+        primary_pattern: Главный паттерн для персонализации
+        
+    Returns:
+        True если персонализация релевантна, False если стоит пропустить
+        
+    Examples:
+        >>> _is_personalization_relevant("Какая погода?", {...})
+        False  # Factual question
+        
+        >>> _is_personalization_relevant("Чувствую тревогу", {...})
+        True  # Emotional content
+        
+        >>> _is_personalization_relevant("Опять прокрастинирую", {"tags": ["procrastination"]})
+        True  # Pattern keywords present
+    """
+    if not user_message:
+        return False
+    
+    message_lower = user_message.lower().strip()
+    if not message_lower:
+        return False
+    
+    # 1. Emotional content? → ALWAYS relevant (highest priority)
+    emotional_keywords = [
+        'чувствую', 'грустно', 'тревожно', 'боюсь', 'злюсь',
+        'не могу', 'страшно', 'тяжело', 'больно', 'одиноко',
+        'устал', 'выгорел', 'паник', 'депресс', 'стресс',
+        'переживаю', 'волнуюсь', 'нервничаю', 'расстроен'
+    ]
+    if any(kw in message_lower for kw in emotional_keywords):
+        logger.debug("Personalization relevant: emotional content detected")
+        return True
+    
+    # 2. Pattern keywords present? → relevant (even if factual question)
+    if primary_pattern:
+        pattern_tags = primary_pattern.get('tags', [])
+        pattern_title = primary_pattern.get('title', '').lower()
+        
+        # Проверяем теги паттерна
+        if pattern_tags:
+            for tag in pattern_tags:
+                if isinstance(tag, str) and tag.lower() in message_lower:
+                    logger.debug("Personalization relevant: pattern tag '%s' found", tag)
+                    return True
+        
+        # Проверяем название паттерна (разбиваем на слова)
+        if pattern_title:
+            # Разбиваем на слова (например "Imposter Syndrome" → ["imposter", "syndrome"])
+            title_words = [w for w in pattern_title.split() if len(w) > 3]
+            if any(word in message_lower for word in title_words):
+                logger.debug("Personalization relevant: pattern title keyword found")
+                return True
+    
+    # 3. Factual questions WITHOUT emotions or pattern keywords → skip
+    factual_indicators = [
+        'какая', 'какой', 'какое', 'сколько', 'когда', 'где',
+        'кто', 'что такое', 'как называется', 'почему', 'зачем',
+        'можешь', 'можно ли', 'как сделать'
+    ]
+    
+    has_question_mark = '?' in user_message
+    has_factual_indicator = any(ind in message_lower for ind in factual_indicators)
+    
+    if has_question_mark and has_factual_indicator:
+        logger.debug("Skipping personalization: factual question without emotions/keywords")
+        return False
+    
+    # 4. Very short message (< 5 words) → probably not emotional
+    word_count = len(user_message.split())
+    if word_count < 5:
+        logger.debug("Skipping personalization: message too short (%d words)", word_count)
+        return False
+    
+    # 5. Default: apply personalization (conservative approach)
+    logger.debug("Personalization relevant: default (conservative)")
+    return True
+
+
 async def build_personalized_response(
     *,
     user_id: int,
@@ -149,6 +240,13 @@ async def build_personalized_response(
 
     if not primary_pattern:
         logger.debug("[%s] personalization skipped: no pattern with evidence", user_id)
+        return base_response
+    
+    # 🔥 НОВОЕ: Проверяем релевантность персонализации
+    is_relevant = _is_personalization_relevant(user_message, primary_pattern)
+    
+    if not is_relevant:
+        logger.debug("[%s] personalization skipped: not relevant to current message", user_id)
         return base_response
 
     evidence_list = primary_pattern['evidence']

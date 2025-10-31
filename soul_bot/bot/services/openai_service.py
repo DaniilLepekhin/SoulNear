@@ -42,6 +42,8 @@ from bot.services.realtime_mood_detector import (
     should_override_system_prompt,
     build_emergency_prompt
 )
+from bot.services.temperature_adapter import adapt_style_to_temperature, apply_overrides
+from bot.services.formatting import format_bot_message
 
 # Инициализация OpenAI клиента
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -81,9 +83,33 @@ async def build_system_prompt(
 
     if base_instructions is None:
         base_instructions = _get_base_instructions(assistant_type)
+    
+    # 🌡️ НОВОЕ: Temperature adaptation (авто-адаптация стиля по эмоциональному состоянию)
+    temp_overrides = adapt_style_to_temperature(profile)
+    
+    # Применяем overrides к текущим настройкам
+    effective_tone, effective_personality, effective_length = apply_overrides(
+        current_tone=profile.tone_style or 'friendly',
+        current_personality=profile.personality or 'mentor',
+        current_length=profile.message_length or 'medium',
+        overrides=temp_overrides
+    )
+    
+    # Если есть overrides, логируем для отладки
+    if temp_overrides['tone_override'] or temp_overrides['length_override']:
+        logger.info(
+            f"[{user_id}] Temperature adaptation: "
+            f"tone {profile.tone_style}→{effective_tone}, "
+            f"length {profile.message_length}→{effective_length}"
+        )
 
     sections = [
-        render_style_section(_build_style_instructions(profile)),
+        render_style_section(_build_style_instructions(
+            profile,
+            effective_tone=effective_tone,
+            effective_personality=effective_personality,
+            effective_length=effective_length
+        )),
         render_base_instructions(base_instructions),
         render_user_info(user),
         render_patterns_section(profile),
@@ -329,10 +355,24 @@ def _cached_style_instructions(tone_style: str, personality: str, message_length
     return "\n".join(style_parts) if len(style_parts) > 1 else ""
 
 
-def _build_style_instructions(profile) -> str:
-    tone_style = getattr(profile, 'tone_style', '') or ''
-    personality = getattr(profile, 'personality', '') or ''
-    message_length = getattr(profile, 'message_length', '') or ''
+def _build_style_instructions(
+    profile,
+    effective_tone: str = None,
+    effective_personality: str = None,
+    effective_length: str = None
+) -> str:
+    """
+    Построить стиль-инструкции с поддержкой temperature overrides
+    
+    Args:
+        profile: Профиль пользователя
+        effective_tone: Переопределённый тон (если None, берём из profile)
+        effective_personality: Переопределённая личность
+        effective_length: Переопределённая длина
+    """
+    tone_style = effective_tone or getattr(profile, 'tone_style', '') or ''
+    personality = effective_personality or getattr(profile, 'personality', '') or ''
+    message_length = effective_length or getattr(profile, 'message_length', '') or ''
     return _cached_style_instructions(tone_style, personality, message_length)
 
 
@@ -459,11 +499,16 @@ async def get_chat_completion(
         messages.extend(history)
         messages.append({"role": "user", "content": message})
         
+        # 🌡️ Применяем temperature adaptation
+        profile = await user_profile.get_or_create(user_id)
+        temp_overrides = adapt_style_to_temperature(profile)
+        effective_temperature = temperature * temp_overrides['intensity_modifier']
+        
         # 4. Вызываем ChatCompletion API
         response: ChatCompletion = await client.chat.completions.create(
             model=model,
             messages=messages,
-            temperature=temperature,
+            temperature=effective_temperature,
             max_tokens=2000
         )
         
@@ -481,6 +526,13 @@ async def get_chat_completion(
 
         if profile and profile.message_length:
             assistant_message = _enforce_message_length(assistant_message, profile.message_length)
+            
+            # 📝 НОВОЕ: Adaptive formatting (адаптивное форматирование)
+            assistant_message = format_bot_message(
+                text=assistant_message,
+                message_length_preference=profile.message_length,
+                learning_preferences=profile.learning_preferences
+            )
         
         # 6. Сохраняем сообщения в историю
         await save_conversation(

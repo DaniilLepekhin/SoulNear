@@ -277,10 +277,17 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     category_info = QUIZ_CATEGORIES.get(question.get('category', 'personality'))
     emoji = category_info.get('emoji', '🧠')
     
+    # 🔥 НОВОЕ: Визуальный прогресс-бар
+    progress = current / total
+    filled = int(progress * 10)  # 10 сегментов
+    bar = "█" * filled + "░" * (10 - filled)
+    percentage = int(progress * 100)
+    
     # Экранируем HTML в тексте вопроса (GPT может вернуть HTML теги)
     safe_question_text = html.escape(question['text'])
     
-    text = f"{emoji} <b>Вопрос {current}/{total}</b>\n\n"
+    text = f"{emoji} <b>Вопрос {current}/{total}</b>\n"
+    text += f"{bar} {percentage}%\n\n"
     text += f"{safe_question_text}\n\n"
     
     # Добавляем hint в зависимости от типа
