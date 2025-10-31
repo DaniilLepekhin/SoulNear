@@ -39,6 +39,7 @@ personality_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🧙‍♂️ Мудрый наставник', callback_data='personality_mentor')],
     [InlineKeyboardButton(text='👥 Поддерживающий друг', callback_data='personality_friend')],
     [InlineKeyboardButton(text='💪 Строгий коуч', callback_data='personality_coach')],
+    [InlineKeyboardButton(text='🧘 Терапевт', callback_data='personality_therapist')],
     [InlineKeyboardButton(text='↩️ Назад', callback_data='style_settings')]
 ])
 
@@ -50,3 +51,96 @@ length_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📚 Подробно (5-7 абзацев)', callback_data='length_detailed')],
     [InlineKeyboardButton(text='↩️ Назад', callback_data='style_settings')]
 ])
+
+
+# ==========================================
+# 🚀 UNIFIED STYLE MENU V2 (все в одном экране)
+# ==========================================
+
+def build_style_settings_menu_v2(current_tone: str, current_personality: str, current_length: str):
+    """
+    Улучшенное меню настроек - ВСЁ в одном экране
+    
+    Формат callback_data: style_{category}_{value}
+    Например: style_tone_friendly, style_personality_mentor
+    
+    Преимущества:
+    - 1 клик вместо 5 для изменения настройки
+    - Видны текущие значения (галочки ✓)
+    - Не нужно переходить между экранами
+    """
+    # Тон (inline, в одну строку)
+    tone_buttons = [
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_tone == 'formal' else ''}🎩",
+            callback_data='style_tone_formal'
+        ),
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_tone == 'friendly' else ''}😊",
+            callback_data='style_tone_friendly'
+        ),
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_tone == 'sarcastic' else ''}😏",
+            callback_data='style_tone_sarcastic'
+        ),
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_tone == 'motivating' else ''}🔥",
+            callback_data='style_tone_motivating'
+        ),
+    ]
+    
+    # Личность (2 в ряд)
+    personality_row1 = [
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_personality == 'mentor' else ''}🧙 Наставник",
+            callback_data='style_personality_mentor'
+        ),
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_personality == 'friend' else ''}👥 Друг",
+            callback_data='style_personality_friend'
+        ),
+    ]
+    personality_row2 = [
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_personality == 'coach' else ''}💪 Коуч",
+            callback_data='style_personality_coach'
+        ),
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_personality == 'therapist' else ''}🧘 Терапевт",
+            callback_data='style_personality_therapist'
+        ),
+    ]
+    
+    # Длина (2 в ряд)
+    length_row1 = [
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_length == 'ultra_brief' else ''}⚡⚡",
+            callback_data='style_length_ultra_brief'
+        ),
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_length == 'brief' else ''}⚡",
+            callback_data='style_length_brief'
+        ),
+    ]
+    length_row2 = [
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_length == 'medium' else ''}📝",
+            callback_data='style_length_medium'
+        ),
+        InlineKeyboardButton(
+            text=f"{'✓ ' if current_length == 'detailed' else ''}📚",
+            callback_data='style_length_detailed'
+        ),
+    ]
+    
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='━━━ ТОН ━━━', callback_data='noop')],
+        tone_buttons,
+        [InlineKeyboardButton(text='━━ ЛИЧНОСТЬ ━━', callback_data='noop')],
+        personality_row1,
+        personality_row2,
+        [InlineKeyboardButton(text='━━━ ДЛИНА ━━━', callback_data='noop')],
+        length_row1,
+        length_row2,
+        [InlineKeyboardButton(text='↩️ Назад к профилю', callback_data='profile')]
+    ])
