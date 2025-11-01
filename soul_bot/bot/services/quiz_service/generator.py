@@ -1091,21 +1091,17 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
 
     # Инструкция в зависимости от типа (элегантная, не техническая)
     if question_type == 'scale':
-        body_parts.append("┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
-        body_parts.append("📊 Выбери точку на шкале:")
+        body_parts.append("📊 <i>Выбери точку на шкале:</i>")
         # Показываем preview шкалы
         options = question.get('options', [])
         if options and len(options) == 5:
             body_parts.append(f"<i>{options[0]} → {options[-1]}</i>")
     
     elif question_type == 'multiple_choice':
-        body_parts.append("┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
-        body_parts.append("☑️ Выбери вариант, который откликается:")
+        body_parts.append("☑️ <i>Выбери вариант, который откликается:</i>")
     
     else:  # text
-        body_parts.append("┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈")
-        body_parts.append("✍️ Напиши что думаешь — без фильтров")
-        body_parts.append("🎙️ <i>Или отправь голосовое сообщение</i>")
+        body_parts.append("✍️ <i>Напиши что думаешь, можно войсом</i> 🎙️")
 
     return "\n".join(body_parts)
 
