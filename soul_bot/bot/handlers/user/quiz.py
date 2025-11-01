@@ -221,8 +221,7 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
                     parse_mode='HTML'
                 )
         except Exception as e:
-            import logging
-            logging.error(f"Adaptive branching failed: {e}")
+            logging.error(f"Adaptive branching failed: {e}", exc_info=True)
     
     # Проверяем завершён ли квиз
     logging.info(
