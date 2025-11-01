@@ -78,29 +78,30 @@ class AdaptiveQuizService:
         # Prepare context from answers
         answers_text = self._format_answers_for_analysis(session)
         
-        prompt = f"""Analyze these quiz answers and identify psychological patterns.
+        prompt = f"""
+Разбери ответы квиза и опиши, какие скрытые паттерны проступают. Пиши только по-русски.
 
-Category: {session.category}
-Answers so far:
+Категория: {session.category}
+Ответы на сейчас:
 {answers_text}
 
-Task:
-1. Identify 1-3 psychological patterns
-2. Rate confidence (0.0-1.0) for each pattern
-3. Provide brief evidence
+Задача:
+1. Найди 1–3 паттерна (если меньше — ничего страшного).
+2. Для каждого дай уверенность (0.0–1.0) и короткое объяснение.
+3. Приведи две точные цитаты из ответов в качестве доказательства.
 
-Return JSON:
+Формат ответа (JSON массив):
 [
-  {{
-    "title": "Pattern name (English)",
-    "title_ru": "Название паттерна (Russian)",
+  {
+    "title": "Короткое русское название",
+    "title_ru": "То же название (на русском)",
     "confidence": 0.85,
-    "evidence": ["Quote from answer 1", "Quote from answer 2"],
-    "description": "Brief explanation"
-  }}
+    "evidence": ["Цитата 1", "Цитата 2"],
+    "description": "Пара предложений, что это значит (по-русски)"
+  }
 ]
 
-Focus on patterns with strong evidence only."""
+Упор на паттерны, у которых есть чёткие противоречия или повторяющиеся реакции."""
 
         try:
             response = await self.gpt.generate_completion(
@@ -267,7 +268,7 @@ IMPORTANT:
         # 🔥 UPGRADE: Focus on strongest pattern only
         if strong_patterns:
             top_pattern = strong_patterns[0]
-            logger.info(f"Focusing on strongest pattern: {top_pattern.get('title')} (confidence: {top_pattern.get('confidence')})")
+            logger.info(f"Focusing on strongest pattern: {top_pattern.get('title_ru', top_pattern.get('title'))} (confidence: {top_pattern.get('confidence')})")
             
             followups = await self.generate_followup_questions(top_pattern, session)
             all_followups.extend(followups)

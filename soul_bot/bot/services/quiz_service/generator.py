@@ -1084,12 +1084,11 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     preface = question.get('preface')
     question_type = question.get('type', 'text')
 
-    # Показываем счётчик только в начале (1-2) и конце (8+)
-    # В середине просто emoji — меньше стресса
-    if current <= 2 or current >= (total - 2) if total else False:
-        header = f"{emoji} <b>Вопрос {current}</b>"
+    # Показываем прогресс, чтобы человек понимал, сколько осталось
+    if total:
+        header = f"{emoji} <b>Вопрос {current}/{total}</b>"
     else:
-        header = f"{emoji}"
+        header = f"{emoji} <b>Вопрос {current}</b>"
 
     body_parts: list[str] = [header, ""]  # Пустая строка для отступа
 
@@ -1101,6 +1100,18 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     # Сам вопрос — жирным
     body_parts.append(f"<b>{safe_question_text}</b>")
     body_parts.append("")  # Отступ перед инструкцией
+
+    # Дополнительный прогресс-индикатор ближе к финалу
+    if total and total - current <= 3 and total - current >= 1:
+        remaining = total - current
+        if remaining == 1:
+            remaining_text = "Остался 1 вопрос"
+        elif remaining < 5:
+            remaining_text = f"Осталось {remaining} вопроса"
+        else:
+            remaining_text = f"Осталось {remaining} вопросов"
+        body_parts.append(f"⏳ <i>{remaining_text}</i>")
+        body_parts.append("")
 
     # Инструкция в зависимости от типа (элегантная, не техническая)
     if question_type == 'scale':

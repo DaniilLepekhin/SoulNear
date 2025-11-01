@@ -138,7 +138,10 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
         )
         
         # Сохраняем session_id в FSM
-        await state.update_data(quiz_session_id=quiz_session.id)
+        await state.update_data(
+            quiz_session_id=quiz_session.id,
+            last_question_message_id=None
+        )
         await state.set_state(QuizStates.waiting_for_answer)
         
         # Скрываем клавиатуру категорий
@@ -417,6 +420,15 @@ async def _show_current_question(
         await message.answer("⚠️ Ошибка: вопрос не найден. Попробуйте /quiz заново")
         return
     
+    # Удаляем предыдущий вопрос, если он есть
+    data = await state.get_data()
+    last_question_message_id = data.get('last_question_message_id')
+    if last_question_message_id:
+        try:
+            await message.bot.delete_message(chat_id=message.chat.id, message_id=last_question_message_id)
+        except Exception:
+            pass
+
     question = quiz_session.questions[current_idx]
     
     # Форматируем вопрос
@@ -434,15 +446,8 @@ async def _show_current_question(
         InlineKeyboardButton(text="❌ Отменить квиз", callback_data="quiz_cancel")
     ])
     
-    # 🔥 Удаляем статус сообщение ПРЯМО перед отправкой нового вопроса
-    if status_msg_to_delete:
-        try:
-            await status_msg_to_delete.delete()
-        except Exception:
-            pass
-    
     try:
-        await message.answer(
+        sent_message = await message.answer(
             text=text,
             reply_markup=keyboard,
             parse_mode='HTML'
@@ -450,6 +455,16 @@ async def _show_current_question(
     except Exception as e:
         logging.error(f"[quiz] Failed to send question: {e}", exc_info=True)
         raise
+
+    # Удаляем статус после появления нового вопроса
+    if status_msg_to_delete:
+        try:
+            await status_msg_to_delete.delete()
+        except Exception:
+            pass
+
+    # Сохраняем ID последнего вопроса для последующего удаления
+    await state.update_data(last_question_message_id=sent_message.message_id)
 
 
 # ==========================================
@@ -462,6 +477,9 @@ async def _finish_quiz(message: Message, quiz_session, state: FSMContext):
     """
     user_id = message.chat.id
     
+    # Сбрасываем последнее сообщение вопроса
+    await state.update_data(last_question_message_id=None)
+
     # Показываем loading
     status_msg = await message.answer("🔄 Анализирую результаты...")
     
@@ -561,7 +579,10 @@ async def resume_quiz_callback(call: CallbackQuery, state: FSMContext):
         return
     
     # Сохраняем в FSM
-    await state.update_data(quiz_session_id=quiz_session.id)
+    await state.update_data(
+        quiz_session_id=quiz_session.id,
+        last_question_message_id=None
+    )
     await state.set_state(QuizStates.waiting_for_answer)
     
     # Скрываем клавиатуру Resume/New
@@ -714,7 +735,8 @@ async def _maybe_send_mid_insight(message: Message, quiz_session, state: FSMCont
 def _format_mid_insight(pattern: dict) -> str:
     import html
 
-    title = html.escape(pattern.get('title', 'Паттерн'))
+    title_raw = pattern.get('title_ru') or pattern.get('title') or 'Паттерн'
+    title = html.escape(title_raw)
     contradiction = pattern.get('contradiction')
     hidden_dynamic = pattern.get('hidden_dynamic')
     blocked_resource = pattern.get('blocked_resource')
