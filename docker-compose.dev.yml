@@ -1,5 +1,5 @@
 # Docker Compose для разработки
-# Использование: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Использование: make dev
 
 version: '3.8'
 

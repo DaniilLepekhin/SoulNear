@@ -11,11 +11,11 @@ help: ## Показать эту справку
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 build: ## Собрать все образы
-	ENV=$(ENV) docker-compose build
+	docker-compose --env-file .env.$(ENV) build
 
 up: ## Запустить все сервисы
 	@./validate-env.sh || exit 1
-	ENV=$(ENV) docker-compose up -d
+	docker-compose --env-file .env.$(ENV) up -d
 
 down: ## Остановить все сервисы
 	docker-compose down
@@ -48,7 +48,7 @@ stats: ## Показать использование ресурсов
 	docker stats --no-stream
 
 rebuild: ## Пересобрать и запустить
-	ENV=$(ENV) docker-compose up -d --build
+	docker-compose --env-file .env.$(ENV) up -d --build
 
 clean: ## Остановить и удалить контейнеры (без volumes)
 	docker-compose down
@@ -97,13 +97,13 @@ setup: ## Первичная настройка (создать .env.prod из �
 
 # Development mode с hot reload
 dev: ## Запустить в dev режиме с hot reload
-	ENV=dev docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+	docker-compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up
 
 dev-build: ## Собрать и запустить в dev режиме
-	ENV=dev docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+	docker-compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 dev-down: ## Остановить dev режим
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+	docker-compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml down
 
 # Shortcuts
 start: up ## Алиас для up

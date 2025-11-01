@@ -20,7 +20,7 @@ check_var() {
     local var_name=$1
     local var_value=$(grep "^${var_name}=" "${ENV_FILE}" | cut -d '=' -f2-)
     
-    if [ -z "${var_value}" ] || [ "${var_value}" = "your_${var_name,,}_here" ] || [[ "${var_value}" == *"your_"* ]]; then
+    if [ -z "${var_value}" ] || [[ "${var_value}" == *"your_"* ]] || [[ "${var_value}" == *"_here"* ]]; then
         echo "❌ ${var_name} не заполнен или содержит placeholder"
         return 1
     else

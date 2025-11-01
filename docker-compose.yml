@@ -29,8 +29,6 @@ services:
       dockerfile: Dockerfile
     container_name: soulnear_bot
     restart: unless-stopped
-    env_file:
-      - .env.${ENV:-prod}
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
@@ -50,8 +48,6 @@ services:
       dockerfile: Dockerfile
     container_name: soulnear_api
     restart: unless-stopped
-    env_file:
-      - .env.${ENV:-prod}
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
