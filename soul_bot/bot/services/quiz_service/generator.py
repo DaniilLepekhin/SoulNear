@@ -172,18 +172,31 @@ def _validate_and_fix_question_type(question: dict, previous_answers: list[dict]
     
     # RULE 1: Если последние 2 = text И текущий = text → force другой тип
     if len(recent_types) >= 2 and recent_types[-2:] == ['text', 'text'] and current_type == 'text':
-        new_type = random.choice(['scale', 'multiple_choice'])
-        logger.warning(
-            f"⚠️ Validation: 3 text questions in a row detected. "
-            f"Forcing type change: text → {new_type}"
-        )
-        question['type'] = new_type
+        # Проверяем, это ОТКРЫТЫЙ вопрос (требует развёрнутого ответа)?
+        question_text = question.get('text', '').lower()
+        open_question_markers = ['почему', 'как ты', 'что думаешь', 'что чувствуешь', 'расскажи', 'опиши']
+        is_open_question = any(marker in question_text for marker in open_question_markers)
         
-        # Добавляем default options если их нет
-        if new_type == 'scale' and not question.get('options'):
-            question['options'] = ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
-        elif new_type == 'multiple_choice' and not question.get('options'):
-            question['options'] = ["Скорее да", "Скорее нет", "Это зависит"]
+        if is_open_question:
+            # Открытые вопросы НЕЛЬЗЯ менять на multiple_choice с generic опциями
+            logger.info(
+                f"💡 Validation: Open question detected ('{question_text[:50]}...'). "
+                f"Keeping as 'text' despite 3 text questions in a row."
+            )
+        else:
+            # Не открытый вопрос → можем поменять тип
+            new_type = random.choice(['scale', 'multiple_choice'])
+            logger.warning(
+                f"⚠️ Validation: 3 text questions in a row detected. "
+                f"Forcing type change: text → {new_type}"
+            )
+            question['type'] = new_type
+            
+            # Добавляем default options если их нет
+            if new_type == 'scale' and not question.get('options'):
+                question['options'] = ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
+            elif new_type == 'multiple_choice' and not question.get('options'):
+                question['options'] = ["Скорее да", "Скорее нет", "Это зависит"]
     
     # RULE 2: Если последние 3 = НЕ text → желательно text
     if len(recent_types) >= 3 and all(t != 'text' for t in recent_types) and current_type != 'text':
