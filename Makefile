@@ -17,6 +17,10 @@ up: ## Запустить все сервисы
 	@./validate-env.sh || exit 1
 	docker-compose --env-file .env.$(ENV) up -d
 
+up-fresh: ## Запустить с полным пересозданием контейнеров
+	@./validate-env.sh || exit 1
+	docker-compose --env-file .env.$(ENV) up -d --force-recreate
+
 down: ## Остановить все сервисы
 	docker-compose down
 
@@ -59,7 +63,13 @@ clean-all: ## Остановить и удалить контейнеры с vol
 	echo; \
 	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
 		docker-compose down -v; \
+		docker rm -f soulnear_postgres soulnear_bot soulnear_api 2>/dev/null || true; \
 	fi
+
+clean-force: ## Принудительная очистка без подтверждения (для CI/CD)
+	docker-compose down -v
+	docker rm -f soulnear_postgres soulnear_bot soulnear_api 2>/dev/null || true
+	docker volume prune -f
 
 shell-bot: ## Зайти в shell бота
 	docker exec -it soulnear_bot bash
