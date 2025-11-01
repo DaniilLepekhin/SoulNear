@@ -14,8 +14,8 @@ SIMILARITY_THRESHOLD_DUPLICATE = 0.60  # Для мерджа паттернов 
 SIMILARITY_THRESHOLD_RELATED = 0.55    # Для related_patterns
 
 # Частота анализа
-QUICK_ANALYSIS_FREQUENCY = 3   # Каждые N сообщений
-DEEP_ANALYSIS_FREQUENCY = 20   # Каждые N сообщений
+QUICK_ANALYSIS_FREQUENCY = 3   # Каждые N сообщений (паттерны)
+DEEP_ANALYSIS_FREQUENCY = 10   # Каждые N сообщений (инсайты) — было 20, снижено для быстрого обучения
 
 # Limits
 MAX_PATTERNS_PER_USER = 50     # Максимум паттернов в профиле

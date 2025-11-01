@@ -92,7 +92,7 @@ async def delete_context_message(message: Message, state: FSMContext):
     msg = await message.answer("Очищаю контекст...")
     try:
         # Очищаем историю через новый API (ChatCompletion)
-        await conversation_history.clear(user_id, 'helper')
+        await conversation_history.clear_history(user_id, 'helper')
         await msg.edit_text(
             "✅ Контекст удален. Теперь вы с SOUL.near можете сосредоточиться на текущей теме, не отвлекаясь на предыдущие обсуждения."
         )

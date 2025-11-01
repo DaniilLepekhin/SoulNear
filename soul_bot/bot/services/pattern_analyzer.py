@@ -98,6 +98,10 @@ QUICK_ANALYSIS_RESPONSE_FORMAT = {
                                 "minimum": 0.0,
                                 "maximum": 1.0,
                             },
+                            "response_hint": {
+                                "type": "string",
+                                "maxLength": 400
+                            }
                         },
                         "required": [
                             "type",
@@ -109,6 +113,7 @@ QUICK_ANALYSIS_RESPONSE_FORMAT = {
                             "evidence",
                             "frequency",
                             "confidence",
+                            "response_hint",
                         ],
                         "additionalProperties": True,
                     },
@@ -201,9 +206,57 @@ def _normalize_new_patterns(patterns: list[dict] | None) -> list[dict]:
             tags = []
         pattern['tags'] = [str(tag) for tag in tags][:5]
 
+        response_hint = pattern.get('response_hint')
+        if isinstance(response_hint, str):
+            pattern['response_hint'] = response_hint.strip()
+        else:
+            pattern['response_hint'] = None
+
         normalized.append(pattern)
 
     return normalized
+
+
+def _build_response_hint_from_pattern(pattern: dict) -> Optional[dict]:
+    """Подготовить hint для следующего ответа на основе паттерна."""
+
+    hint_text = (pattern.get('response_hint') or '').strip()
+    if not hint_text:
+        return None
+
+    source = {
+        'type': 'pattern',
+        'title': pattern.get('title'),
+        'frequency': pattern.get('frequency'),
+    }
+    if pattern.get('contradiction'):
+        source['contradiction'] = pattern.get('contradiction')
+
+    return {
+        'hint': hint_text,
+        'source': source,
+    }
+
+
+def _build_response_hint_from_insight(insight: dict) -> Optional[dict]:
+    """Подготовить hint на основе инсайта."""
+
+    hint_text = (insight.get('response_hint') or '').strip()
+    if not hint_text:
+        return None
+
+    source = {
+        'type': 'insight',
+        'title': insight.get('title'),
+        'priority': insight.get('priority'),
+    }
+    if insight.get('category'):
+        source['category'] = insight.get('category')
+
+    return {
+        'hint': hint_text,
+        'source': source,
+    }
 
 
 # ==========================================
@@ -290,6 +343,14 @@ async def quick_analysis(user_id: int, assistant_type: str = 'helper'):
             updated_profile = await user_profile.get_or_create(user_id)
             total_patterns = len(updated_profile.patterns.get('patterns', []))
             logger.info(f"[QUICK ANALYSIS] User {user_id}: Total patterns after merge: {total_patterns}")
+
+            pattern_hints = [
+                _build_response_hint_from_pattern(pattern)
+                for pattern in analysis['new_patterns']
+            ]
+            pattern_hints = [hint for hint in pattern_hints if hint]
+            if pattern_hints:
+                await user_profile.add_response_hints(user_id, pattern_hints)
         
         # Обновляем emotional state
         if analysis.get('mood'):
@@ -444,6 +505,14 @@ async def deep_analysis(user_id: int, assistant_type: str = 'helper'):
         # Генерируем инсайты
         if analysis.get('insights'):
             await _add_insights(user_id, analysis['insights'], existing_patterns)
+
+            insight_hints = [
+                _build_response_hint_from_insight(insight)
+                for insight in analysis['insights']
+            ]
+            insight_hints = [hint for hint in insight_hints if hint]
+            if insight_hints:
+                await user_profile.add_response_hints(user_id, insight_hints)
         
         # Обновляем related patterns
         if existing_patterns:

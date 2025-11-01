@@ -6,6 +6,7 @@ import logging
 from typing import List, Optional
 
 from .actions import get_default_actions
+from database.repository import user_profile as user_profile_repo
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +237,13 @@ async def build_personalized_response(
         logger.debug("[%s] personalization skipped: invalid profile", user_id)
         return base_response
 
+    preferences = getattr(profile, 'preferences', {}) if profile else {}
+    active_hints = []
+    if isinstance(preferences, dict):
+        raw_hints = preferences.get('active_response_hints') or []
+        if isinstance(raw_hints, list):
+            active_hints = [hint for hint in raw_hints if isinstance(hint, dict)]
+
     primary_pattern = _select_primary_pattern(patterns)
 
     if not primary_pattern:
@@ -245,7 +253,14 @@ async def build_personalized_response(
     # 🔥 НОВОЕ: Проверяем релевантность персонализации
     is_relevant = _is_personalization_relevant(user_message, primary_pattern)
     
-    if not is_relevant:
+    pending_hint = None
+    for hint in active_hints:
+        status = hint.get('status', 'pending')
+        if status in (None, 'pending'):
+            pending_hint = hint
+            break
+
+    if not is_relevant and pending_hint is None:
         logger.debug("[%s] personalization skipped: not relevant to current message", user_id)
         return base_response
 
@@ -265,21 +280,40 @@ async def build_personalized_response(
 
     message_length = getattr(profile, 'message_length', 'brief')
 
+    hint_sentence = None
+    hint_id = None
+    if pending_hint:
+        text = (pending_hint.get('hint') or '').strip()
+        if text:
+            hint_sentence = _ensure_period(text)
+            hint_id = pending_hint.get('id')
+
     if message_length == 'ultra_brief':
-        final_message = ' '.join(
-            part for part in (quote_sentence, action_sentence) if part
-        ).strip()
+        parts = []
+        if hint_sentence:
+            parts.append(hint_sentence)
+        for part in (quote_sentence, action_sentence):
+            if part and part not in parts:
+                parts.append(part)
+        final_message = ' '.join(parts).strip()
     else:
         base_sentence = _ensure_period(_extract_first_sentence(base_response))
         supportive_sentence = _ensure_period(_build_supportive_sentence(profile))
-        result_parts = [quote_sentence]
+        result_parts = []
 
-        if base_sentence and base_sentence not in quote_sentence:
+        if hint_sentence:
+            result_parts.append(hint_sentence)
+
+        if quote_sentence:
+            result_parts.append(quote_sentence)
+
+        if base_sentence and base_sentence not in result_parts:
             result_parts.append(base_sentence)
 
-        result_parts.append(action_sentence)
+        if action_sentence:
+            result_parts.append(action_sentence)
 
-        if supportive_sentence and supportive_sentence not in action_sentence:
+        if supportive_sentence and supportive_sentence not in result_parts:
             result_parts.append(supportive_sentence)
 
         final_message = ' '.join(part for part in result_parts if part).strip()
@@ -291,6 +325,12 @@ async def build_personalized_response(
         occurrences,
         quote,
     )
+
+    if hint_id:
+        try:
+            await user_profile_repo.consume_response_hint(user_id, hint_id)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.error("[%s] failed to consume response hint %s: %s", user_id, hint_id, exc)
 
     return final_message or base_response
 

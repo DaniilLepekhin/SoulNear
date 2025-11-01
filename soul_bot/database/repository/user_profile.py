@@ -9,6 +9,7 @@ Repository для работы с профилями пользователей 
 - update_preferences() - обновить предпочтения
 """
 from datetime import datetime
+from uuid import uuid4
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 
@@ -207,6 +208,132 @@ async def update_preferences(user_id: int, preferences: dict) -> None:
         preferences: Словарь с предпочтениями
     """
     async with db() as session:
+        await session.execute(
+            update(UserProfile)
+            .where(UserProfile.user_id == user_id)
+            .values(
+                preferences=preferences,
+                updated_at=datetime.utcnow()
+            )
+        )
+        await session.commit()
+
+
+async def add_response_hints(user_id: int, hints: list[dict]) -> None:
+    """Добавить активные response hints (очередь зеркал для ближайших ответов)."""
+
+    if not hints:
+        return
+
+    async with db() as session:
+        profile = await session.scalar(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+
+        if not profile:
+            profile = UserProfile(
+                user_id=user_id,
+                tone_style='friendly',
+                personality='friend',
+                message_length='medium',
+                patterns={'patterns': []},
+                insights={'insights': []},
+                preferences={}
+            )
+            session.add(profile)
+            await session.flush()
+
+        preferences = dict(profile.preferences or {})
+        existing_hints = [
+            hint for hint in preferences.get('active_response_hints', [])
+            if isinstance(hint, dict)
+        ]
+
+        existing_keys = { (hint.get('hint') or '').strip().lower(): hint for hint in existing_hints }
+
+        for hint in hints:
+            text = (hint.get('hint') or '').strip()
+            if not text:
+                continue
+
+            key = text.lower()
+            if key in existing_keys:
+                # Уже есть такой hint (ещё не использован) — пропускаем
+                continue
+
+            prepared_hint = {
+                'id': hint.get('id') or str(uuid4()),
+                'hint': text,
+                'source': hint.get('source') or {},
+                'status': hint.get('status') or 'pending',
+                'created_at': hint.get('created_at') or datetime.utcnow().isoformat()
+            }
+            existing_hints.append(prepared_hint)
+            existing_keys[key] = prepared_hint
+
+        if not existing_hints:
+            # Нечего сохранять
+            return
+
+        # Ограничиваем очередь чтобы не раздувалась бесконечно
+        preferences['active_response_hints'] = existing_hints[-8:]
+
+        await session.execute(
+            update(UserProfile)
+            .where(UserProfile.user_id == user_id)
+            .values(
+                preferences=preferences,
+                updated_at=datetime.utcnow()
+            )
+        )
+        await session.commit()
+
+
+async def consume_response_hint(user_id: int, hint_id: str, status: str = 'consumed') -> None:
+    """Пометить hint как использованный (по умолчанию удаляет его из очереди)."""
+
+    if not hint_id:
+        return
+
+    async with db() as session:
+        profile = await session.scalar(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+
+        if not profile:
+            return
+
+        preferences = dict(profile.preferences or {})
+        hints = [
+            hint for hint in preferences.get('active_response_hints', [])
+            if isinstance(hint, dict)
+        ]
+
+        if not hints:
+            return
+
+        updated_hints = []
+        changed = False
+
+        for hint in hints:
+            if hint.get('id') == hint_id:
+                changed = True
+                if status == 'consumed':
+                    # Удаляем из очереди
+                    continue
+
+                new_hint = dict(hint)
+                new_hint['status'] = status
+                new_hint['updated_at'] = datetime.utcnow().isoformat()
+                updated_hints.append(new_hint)
+            else:
+                updated_hints.append(hint)
+
+        if not changed:
+            return
+
+        preferences['active_response_hints'] = updated_hints
+
         await session.execute(
             update(UserProfile)
             .where(UserProfile.user_id == user_id)

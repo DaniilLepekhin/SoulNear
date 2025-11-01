@@ -43,6 +43,12 @@ YOUR TASK: 3-Step Framework
    • Procrastination → Caution (wisdom!) but blocks all action
    → How to REDIRECT this resource?
 
+🎯 RESPONSE HINT (MANDATORY)
+   • Synthesize contradiction + hidden dynamic + blocked resource
+   • Tone: Soul Near — тёплый, точный, честный
+   • Format: 1-2 sentences + мягкий вопрос ("Что ты замечаешь в себе, когда...?")
+   • Этот текст будет отправлен пользователю в следующем ответе
+
 ═══════════════════════════════════════════════════════════════════
 🚨 CRITICAL PATTERNS (detect first!)
 ═══════════════════════════════════════════════════════════════════
@@ -91,7 +97,8 @@ EXISTING PATTERNS (DON'T create variations):
       "evidence": ["exact quote 1", "exact quote 2"],
       "tags": ["clinical-term", "auto-detected"],
       "frequency": "high|medium|low",
-      "confidence": 0.7-1.0
+      "confidence": 0.7-1.0,
+      "response_hint": "Soul Near style mirror for immediate reply."
     }}
   ],
   "mood": {{
@@ -204,6 +211,11 @@ STYLE:
 - Use THEIR WORDS from conversation
 - Like honest friend who sees through bullshit
 
+🔥 RESPONSE HINT (REQUIRED)
+- Deliver 1-2 sentences the assistant can reuse immediately.
+- Mirror the contradiction + name the hidden need + invite reflection (question or pause).
+- Tone: Soul Near (тёплая точность без морали).
+
 ═══════════════════════════════════════════════════════════════════
 📤 RETURN FORMAT (JSON)
 ═══════════════════════════════════════════════════════════════════
@@ -225,7 +237,8 @@ STYLE:
       
       "derived_from_pattern_titles": ["Pattern 1", "Pattern 2"],
       "priority": "high|medium|low",
-      "requires_professional_help": true|false
+      "requires_professional_help": true|false,
+      "response_hint": "Short Soul Near style mirror for the next reply (2 sentences max)."
     }}
   ],
   "learning": {{
