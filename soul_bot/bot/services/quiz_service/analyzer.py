@@ -558,7 +558,7 @@ async def format_results_for_telegram(
             if evidence:
                 sample = _shorten(evidence[0], 120)
                 if sample:
-                    pattern_lines.append(f"<i>Твои слова: "{html.escape(sample)}"</i>")
+                    pattern_lines.append(f'<i>Твои слова: "{html.escape(sample)}"</i>')
             
             sections.append("\n".join(pattern_lines))
             sections.append("━━━━━━━━━━━━━━━━━━━")
