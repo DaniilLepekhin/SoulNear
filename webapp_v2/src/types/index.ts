@@ -30,6 +30,8 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  status?: 'sending' | 'sent' | 'error';
+  reaction?: 'like' | 'dislike';
 }
 
 export interface Practice {
@@ -59,11 +61,23 @@ export interface AnalysisConfig {
   color: string;
 }
 
+export type AssistantType = 'helper' | 'relationships' | 'money' | 'confidence' | 'fears' | 'dreams';
+
+export interface ChatThread {
+  id: string;
+  assistant_type: AssistantType;
+  thread_id: string; // OpenAI thread ID
+  created_at: Date;
+  updated_at: Date;
+  preview: string; // First user message or generated preview
+}
+
 export interface ChatHistory {
   id: string;
   date: string;
   preview: string;
   messages: Message[];
+  assistant_type: AssistantType;
 }
 
 export interface Track {

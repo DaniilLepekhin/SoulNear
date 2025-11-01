@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { api } from '../../services/api';
 import { telegram } from '../../services/telegram';
+import { MessageBubble } from '../chat/MessageBubble';
 import type { Message } from '../../types';
 
 interface ChatScreenProps {
@@ -12,6 +13,7 @@ export const ChatScreen = ({ isActive }: ChatScreenProps) => {
   const user = useAppStore((state) => state.user);
   const chatMessages = useAppStore((state) => state.chatMessages);
   const addChatMessage = useAppStore((state) => state.addChatMessage);
+  const updateChatMessage = useAppStore((state) => state.updateChatMessage);
   const setScreen = useAppStore((state) => state.setScreen);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -75,6 +77,23 @@ export const ChatScreen = ({ isActive }: ChatScreenProps) => {
     }
   };
 
+  const handleReaction = (messageId: string, reaction: 'like' | 'dislike') => {
+    if (updateChatMessage) {
+      updateChatMessage(messageId, { reaction });
+      // TODO: Send reaction to backend API for analytics
+      console.log('Reaction:', messageId, reaction);
+    }
+  };
+
+  const handleEdit = (messageId: string) => {
+    const message = chatMessages.find(m => m.id === messageId);
+    if (message && message.role === 'user') {
+      setInputValue(message.content);
+      telegram.haptic('light');
+      // TODO: Remove messages after the edited one and resend
+    }
+  };
+
   return (
     <div className={`screen chat-screen ${isActive ? 'active' : ''}`}>
       <div className="chat-header">
@@ -104,18 +123,17 @@ export const ChatScreen = ({ isActive }: ChatScreenProps) => {
           </div>
         )}
 
-        {chatMessages.map((message) => (
-          <div key={message.id} className={`message ${message.role}`}>
-            <div className="message-bubble">
-              <p>{message.content}</p>
-              <span className="message-time">
-                {new Date(message.timestamp).toLocaleTimeString('ru-RU', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-          </div>
+        {chatMessages.map((message, index) => (
+          <MessageBubble
+            key={message.id}
+            message={message}
+            onReaction={handleReaction}
+            onEdit={handleEdit}
+            isLastUserMessage={
+              message.role === 'user' &&
+              index === chatMessages.length - (isLoading ? 2 : 1)
+            }
+          />
         ))}
 
         {isLoading && (

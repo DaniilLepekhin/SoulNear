@@ -1,25 +1,37 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
+import { api } from '../../services/api';
 
 interface ProfileScreenProps {
   isActive: boolean;
 }
 
+interface UserSubscription {
+  is_subscribed: boolean;
+  subscription_end_date: string | null;
+}
+
 export const ProfileScreen = ({ isActive }: ProfileScreenProps) => {
   const setScreen = useAppStore((state) => state.setScreen);
+  const user = useAppStore((state) => state.user);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadTelegramAvatar();
-  }, []);
+    if (user) {
+      loadSubscriptionInfo();
+    }
+  }, [user]);
 
   const loadTelegramAvatar = () => {
     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-      const user = window.Telegram.WebApp.initDataUnsafe.user;
-      if (user.photo_url) {
+      const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
+      if (telegramUser.photo_url) {
         const img = document.getElementById('profile-avatar-img') as HTMLImageElement;
         const placeholder = document.getElementById('profile-avatar-placeholder');
         if (img && placeholder) {
-          img.src = user.photo_url;
+          img.src = telegramUser.photo_url;
           img.style.display = 'block';
           placeholder.style.display = 'none';
         }
@@ -27,14 +39,24 @@ export const ProfileScreen = ({ isActive }: ProfileScreenProps) => {
     }
   };
 
-  const showHelp = () => {
-    // TODO: Implement help screen
-    console.log('Show help');
+  const loadSubscriptionInfo = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    const result = await api.getUserInfo(user.id);
+    if (result.success && result.data) {
+      setSubscription({
+        is_subscribed: result.data.is_subscribed,
+        subscription_end_date: result.data.subscription_end_date
+      });
+    }
+    setLoading(false);
   };
 
-  const showSupport = () => {
-    // TODO: Implement support screen
-    console.log('Show support');
+  const showHelp = () => {
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.open('https://telegra.ph/FAQ-dlya-bota-SOULnear-10-22', '_blank');
+    }
   };
 
   return (
@@ -53,6 +75,28 @@ export const ProfileScreen = ({ isActive }: ProfileScreenProps) => {
               </svg>
             </div>
           </div>
+
+          {/* Subscription Status */}
+          {loading ? (
+            <div className="subscription-status loading">
+              <span>Загрузка...</span>
+            </div>
+          ) : subscription ? (
+            <div className={`subscription-status ${subscription.is_subscribed ? 'active' : 'inactive'}`}>
+              {subscription.is_subscribed ? (
+                <>
+                  <div className="subscription-badge">✓ Подписка активна</div>
+                  <div className="subscription-date">до {subscription.subscription_end_date}</div>
+                </>
+              ) : (
+                <>
+                  <div className="subscription-badge">✗ Подписка не активна</div>
+                  <div className="subscription-hint">Активируйте для полного доступа</div>
+                </>
+              )}
+            </div>
+          ) : null}
+
           <div className="achievement-grid">
             <div className="achievement-slot">
               <div className="achievement-placeholder"></div>
@@ -74,21 +118,6 @@ export const ProfileScreen = ({ isActive }: ProfileScreenProps) => {
                 </svg>
               </div>
               <span className="menu-item-text">Помощь</span>
-            </div>
-            <div className="menu-arrow">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M9 6L15 12L9 18" stroke="#CBD5E0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-          <div className="profile-menu-item" onClick={showSupport}>
-            <div className="menu-item-left">
-              <div className="menu-item-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" fill="#4A90E2"/>
-                </svg>
-              </div>
-              <span className="menu-item-text">Поддержка Soul Near</span>
             </div>
             <div className="menu-arrow">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">

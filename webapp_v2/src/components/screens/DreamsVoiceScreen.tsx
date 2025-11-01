@@ -1,18 +1,85 @@
+import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
+import { api } from '../../services/api';
+import { telegram } from '../../services/telegram';
+import { MessageBubble } from '../chat/MessageBubble';
+import type { Message } from '../../types';
 
 interface DreamsVoiceScreenProps {
   isActive: boolean;
 }
 
 export const DreamsVoiceScreen = ({ isActive }: DreamsVoiceScreenProps) => {
+  const user = useAppStore((state) => state.user);
+  const dreamMessages = useAppStore((state) => state.dreamMessages);
+  const addDreamMessage = useAppStore((state) => state.addDreamMessage);
+  const clearDreamMessages = useAppStore((state) => state.clearDreamMessages);
   const setScreen = useAppStore((state) => state.setScreen);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const createNewChat = () => {
-    console.log('Creating new chat');
+  useEffect(() => {
+    scrollToBottom();
+  }, [dreamMessages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const toggleDreamsVoiceRecording = () => {
-    console.log('Toggle dreams voice recording');
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading || !user) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: inputValue,
+      timestamp: new Date(),
+    };
+
+    addDreamMessage(userMessage);
+    setInputValue('');
+    setIsLoading(true);
+    telegram.haptic('light');
+
+    try {
+      const response = await api.sendDreamMessage(user.id, inputValue);
+
+      if (response.success && response.data) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: (response.data as any).message || 'Извините, произошла ошибка',
+          timestamp: new Date(),
+        };
+        addDreamMessage(assistantMessage);
+        telegram.hapticSuccess();
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Извините, не удалось получить ответ. Попробуйте позже.',
+        timestamp: new Date(),
+      };
+      addDreamMessage(errorMessage);
+      telegram.hapticError();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const createNewChat = () => {
+    clearDreamMessages();
+    telegram.haptic('light');
   };
 
   return (
@@ -34,30 +101,61 @@ export const DreamsVoiceScreen = ({ isActive }: DreamsVoiceScreenProps) => {
           <img src="/Robo.png" alt="SoulNear Assistant" />
         </div>
       </div>
-      <div className="voice-messages" id="dreamsVoiceMessages"></div>
-      <div className="voice-bottom-controls">
-        <button className="voice-add-btn" onClick={createNewChat}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M10 4V16M4 10H16" stroke="#4A90E2" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </button>
-        <button className="voice-mic-btn" onClick={toggleDreamsVoiceRecording}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+
+      <div className="voice-messages" id="dreamsVoiceMessages">
+        {dreamMessages.length === 0 && (
+          <div className="chat-empty">
+            <div className="empty-icon">🌙</div>
+            <h3>Расскажите о своём сне</h3>
+            <p>Опишите детали вашего сна для глубокого анализа</p>
+          </div>
+        )}
+
+        {dreamMessages.map((message, index) => (
+          <MessageBubble
+            key={message.id}
+            message={message}
+            isLastUserMessage={
+              message.role === 'user' &&
+              index === dreamMessages.length - (isLoading ? 2 : 1)
+            }
+          />
+        ))}
+
+        {isLoading && (
+          <div className="message assistant">
+            <div className="message-bubble typing">
+              <div className="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="chat-input-container">
+        <button className="chat-voice-btn" onClick={createNewChat} title="Новый чат">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M12 14C13.66 14 15 12.66 15 11V5C15 3.34 13.66 2 12 2C10.34 2 9 3.34 9 5V11C9 12.66 10.34 14 12 14Z" fill="white"/>
             <path d="M19 11C19 14.53 16.39 17.44 13 17.93V21H11V17.93C7.61 17.44 5 14.53 5 11H7C7 13.76 9.24 16 12 16C14.76 16 17 13.76 17 11H19Z" fill="white"/>
           </svg>
         </button>
-        <button className="voice-keyboard-btn" onClick={() => setScreen('dreamsChat')}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <rect x="2" y="6" width="16" height="10" rx="2" stroke="#4A90E2" strokeWidth="1.5" fill="none"/>
-            <rect x="4" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
-            <rect x="6.5" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
-            <rect x="9" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
-            <rect x="11.5" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
-            <rect x="14" y="8" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
-            <rect x="5" y="11" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
-            <rect x="7.5" y="11" width="5" height="1.5" rx="0.5" fill="#4A90E2"/>
-            <rect x="13.5" y="11" width="1.5" height="1.5" rx="0.5" fill="#4A90E2"/>
+        <input
+          type="text"
+          id="dreamsVoiceInput"
+          placeholder="Расскажите о своём сне..."
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={handleKeyPress}
+          disabled={isLoading}
+        />
+        <button className="chat-send-btn" onClick={handleSend} disabled={!inputValue.trim() || isLoading}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="white"/>
           </svg>
         </button>
       </div>

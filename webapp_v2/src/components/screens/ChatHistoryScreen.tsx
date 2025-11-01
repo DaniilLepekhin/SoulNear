@@ -1,31 +1,103 @@
+import { useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
+import { telegram } from '../../services/telegram';
+import { api } from '../../services/api';
 
 interface ChatHistoryScreenProps {
   isActive: boolean;
 }
 
+interface ChatThread {
+  thread_id: string;
+  title: string | null;
+  assistant_type: string;
+  created_at: string;
+  updated_at: string;
+  first_message: string | null;
+  last_message: string | null;
+}
+
+
 export const ChatHistoryScreen = ({ isActive }: ChatHistoryScreenProps) => {
+  const user = useAppStore((state) => state.user);
   const setScreen = useAppStore((state) => state.setScreen);
+  const previousScreen = useAppStore((state) => state.previousScreen);
+  const setCurrentThreadId = useAppStore((state) => state.setCurrentThreadId);
+
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load threads from database
+  useEffect(() => {
+    if (isActive && user) {
+      loadThreads();
+    }
+  }, [isActive, user]);
+
+  const loadThreads = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const response = await api.getChatThreads(user.id);
+      if (response.success && response.data) {
+        setThreads(response.data as ChatThread[]);
+      }
+    } catch (error) {
+      console.error('Failed to load threads:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const goBackFromHistory = () => {
-    // TODO: Implement navigation to previous screen
+    if (previousScreen && ['chat', 'generalVoice', 'analysisChat', 'dreamsChat'].includes(previousScreen)) {
+      setScreen(previousScreen);
+    } else {
+      setScreen('chat');
+    }
+    telegram.haptic('light');
+  };
+
+  const createNewChat = async () => {
+    if (!user) return;
+    telegram.haptic('light');
+
+    // Create new thread
+    const response = await api.createChatThread(user.id, 'helper');
+    if (response.success && response.threadId) {
+      setCurrentThreadId(response.threadId);
+      setScreen('generalVoice');
+    }
+  };
+
+  const openThread = (threadId: string) => {
+    telegram.haptic('light');
+    setCurrentThreadId(threadId);
     setScreen('generalVoice');
   };
 
-  const createNewChat = () => {
-    // TODO: Implement new chat creation
-    console.log('Creating new chat');
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return 'Сегодня';
+    } else if (diffDays === 1) {
+      return 'Вчера';
+    } else if (diffDays < 7) {
+      return `${diffDays} дн. назад`;
+    } else {
+      return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    }
   };
 
-  const openChat = (chatId: number) => {
-    // TODO: Load specific chat
-    console.log('Opening chat:', chatId);
-    setScreen('chat');
-  };
-
-  const startVoiceInput = () => {
-    // TODO: Implement voice input
-    console.log('Starting voice input');
+  const generateTitle = (firstMessage: string | null) => {
+    if (firstMessage && firstMessage.length > 0) {
+      return firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
+    }
+    return `Новый диалог`;
   };
 
   return (
@@ -49,28 +121,35 @@ export const ChatHistoryScreen = ({ isActive }: ChatHistoryScreenProps) => {
       </div>
 
       <div className="history-content">
-        <div className="history-group">
-          <h4 className="history-date">Сегодня</h4>
-          <div className="history-item" onClick={() => openChat(1)}>Как справляться со стрессом</div>
-          <div className="history-item" onClick={() => openChat(2)}>Проблемы на работе</div>
-        </div>
-
-        <div className="history-group">
-          <h4 className="history-date">Вчера</h4>
-          <div className="history-item" onClick={() => openChat(3)}>Поссорились с парнем</div>
-        </div>
-      </div>
-
-      <div className="chat-bottom-panel" style={{display: 'none'}}>
-        <button className="chat-new-btn" onClick={createNewChat}>+</button>
-        <input type="text" className="chat-quick-input" placeholder="Чем я могу помочь?" />
-        <button className="chat-mic-btn" onClick={startVoiceInput}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" fill="#E8F0FE"/>
-            <path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3z" fill="#4A90E2"/>
-            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="#4A90E2"/>
-          </svg>
-        </button>
+        {isLoading ? (
+          <div className="history-loading">
+            <div className="spinner"></div>
+            <p>Загрузка диалогов...</p>
+          </div>
+        ) : threads.length === 0 ? (
+          <div className="history-empty">
+            <div className="empty-icon">💬</div>
+            <h3>Нет диалогов</h3>
+            <p>Начните новый разговор с ассистентом</p>
+          </div>
+        ) : (
+          <div className="history-group">
+            <h4 className="history-date">Все диалоги</h4>
+            {threads.map((thread) => (
+              <div key={thread.thread_id} className="history-item" onClick={() => openThread(thread.thread_id)}>
+                <div className="history-item-title">
+                  {thread.title || generateTitle(thread.first_message)}
+                </div>
+                <div className="history-item-preview">
+                  {thread.last_message ? thread.last_message.substring(0, 100) + (thread.last_message.length > 100 ? '...' : '') : 'Нет сообщений'}
+                </div>
+                <div className="history-item-meta">
+                  {formatDate(thread.updated_at)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

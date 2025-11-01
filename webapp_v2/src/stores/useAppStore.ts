@@ -15,6 +15,7 @@ interface AppState {
 
   // Chat
   chatMessages: Message[];
+  currentThreadId: string;
 
   // Calendar
   calendarDays: CalendarDay[];
@@ -48,7 +49,9 @@ interface AppState {
   goBack: () => void;
   setUser: (user: User) => void;
   addChatMessage: (message: Message) => void;
+  updateChatMessage: (id: string, updates: Partial<Message>) => void;
   clearChatMessages: () => void;
+  setCurrentThreadId: (threadId: string) => void;
   setSelectedMood: (mood: Mood | null) => void;
   setIsRecording: (isRecording: boolean) => void;
   setCurrentAnalysisTopic: (topic: AnalysisTopic | null) => void;
@@ -71,6 +74,7 @@ export const useAppStore = create<AppState>((set) => ({
   previousScreen: null,
   user: null,
   chatMessages: [],
+  currentThreadId: 'main',
   calendarDays: [
     { day: 4, mood: 'happy', isCompleted: true, isActive: false },
     { day: 5, mood: 'neutral', isCompleted: true, isActive: false },
@@ -112,7 +116,16 @@ export const useAppStore = create<AppState>((set) => ({
       chatMessages: [...state.chatMessages, message],
     })),
 
+  updateChatMessage: (id, updates) =>
+    set((state) => ({
+      chatMessages: state.chatMessages.map((msg) =>
+        msg.id === id ? { ...msg, ...updates } : msg
+      ),
+    })),
+
   clearChatMessages: () => set({ chatMessages: [] }),
+
+  setCurrentThreadId: (threadId) => set({ currentThreadId: threadId }),
 
   setSelectedMood: (mood) => set({ selectedMood: mood }),
 

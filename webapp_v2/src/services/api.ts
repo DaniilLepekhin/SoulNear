@@ -39,8 +39,13 @@ class ApiService {
       formData.append('user_id', userId.toString());
       const response = await fetch(`${this.baseUrl}/api/voice`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      return { success: true, data };
+      const result = await response.json();
+      // API returns {status: "success", data: {transcription, message}}
+      if (result.status === 'success') {
+        return { success: true, data: result.data };
+      } else {
+        return { success: false, error: result.message || 'API returned error status' };
+      }
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
@@ -83,6 +88,99 @@ class ApiService {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async saveChatMessage(userId: number, messageId: string, role: string, content: string, assistantType: string = 'helper', threadId: string = 'main', reaction?: string, status?: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/chat/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, thread_id: threadId, message_id: messageId, role, content, assistant_type: assistantType, reaction, status })
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async loadChatHistory(userId: number, assistantType: string = 'helper', threadId: string = 'main', limit: number = 100, offset: number = 0) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/chat/history/${userId}?assistant_type=${assistantType}&thread_id=${threadId}&limit=${limit}&offset=${offset}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data: data.messages || [] };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async createChatThread(userId: number, assistantType: string = 'helper', title?: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/chat/thread/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, assistant_type: assistantType, title })
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, threadId: data.thread_id };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getChatThreads(userId: number) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/chat/threads/${userId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data: data.threads || [] };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getUserInfo(userId: number) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/user/${userId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      if (result.status === 'success') {
+        return { success: true, data: result.data };
+      } else {
+        return { success: false, error: result.message || 'Unknown error' };
+      }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async saveMood(userId: number, date: string, moodValue: number, emoji: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/mood/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, date, mood_value: moodValue, emoji })
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getMoodHistory(userId: number, days: number = 30) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/mood/history/${userId}?days=${days}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data: data.moods || [] };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }

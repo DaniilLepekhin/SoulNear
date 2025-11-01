@@ -23,7 +23,7 @@ export const BottomNavigation = () => {
   };
 
   // Only show navigation on main screens
-  const showNav = ['main', 'practices', 'analysis', 'profile'].includes(currentScreen);
+  const showNav = ['practices', 'analysis', 'profile', 'voiceChat'].includes(currentScreen);
 
   if (!showNav) return null;
 
