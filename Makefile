@@ -57,6 +57,16 @@ stats: ## Показать использование ресурсов
 rebuild: ## Пересобрать и запустить
 	docker-compose --env-file .env.$(ENV) up -d --build
 
+redeploy: ## Полный перезапуск: git pull + clean + rebuild + logs
+	@echo "🔄 Pulling latest changes..."
+	git pull
+	@echo "🧹 Cleaning up..."
+	$(MAKE) clean-force ENV=$(ENV)
+	@echo "🔨 Rebuilding..."
+	$(MAKE) rebuild ENV=$(ENV)
+	@echo "📋 Showing logs..."
+	$(MAKE) logs-bot
+
 clean: ## Остановить и удалить контейнеры (без volumes)
 	docker-compose down
 
