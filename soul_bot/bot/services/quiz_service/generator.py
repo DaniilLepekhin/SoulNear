@@ -743,28 +743,14 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     
     category_info = QUIZ_CATEGORIES.get(question.get('category', 'relationships'), {})
     emoji = category_info.get('emoji', '🧠')
-    remaining = max(total - current, 0)
-
-    if remaining <= 0:
-        progress_line = "Мы почти на финише — этот ответ может сложить пазл."
-    elif remaining == 1:
-        progress_line = "Остался один шаг — давай добьём картину."
-    elif remaining <= 3:
-        progress_line = f"Осталось примерно {remaining} шага — держим честность." 
-    else:
-        progress_line = f"Это шаг {current}, впереди ещё около {remaining} вопросов — идём глубже без спешки."
-
     safe_question_text = html.escape(question.get('text', ''))
     preface = question.get('preface')
-    preface_line = f"<i>{html.escape(preface)}</i>" if preface else None
 
-    body_parts = [
-        f"{emoji} <b>Давай копнём глубже</b>",
-        progress_line,
-    ]
-    if preface_line:
-        body_parts.append(preface_line)
-    body_parts.append(safe_question_text)
+    body_parts: list[str] = []
+    if preface:
+        body_parts.append(f"<i>{html.escape(preface)}</i>")
+
+    body_parts.append(f"{emoji} <b>{safe_question_text}</b>")
 
     question_type = question.get('type')
     if question_type == 'scale':
@@ -772,8 +758,7 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     elif question_type == 'multiple_choice':
         body_parts.append("☑️ <i>Выберите вариант</i>")
     else:
-        body_parts.append("✍️ <i>Напишите свой ответ</i>")
-        body_parts.append("🎙️ Можно ответить голосом — просто отправьте аудио.")
+        body_parts.append("✍️ <i>Напишите свой ответ, можно войсом</i> 🎙️")
 
-    return "\n\n".join(body_parts)
+    return "\n".join(body_parts)
 

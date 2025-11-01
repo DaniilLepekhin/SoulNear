@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 import speech_recognition as sr
 
@@ -23,6 +24,27 @@ def recognize(filename):
 
 
 def convert_voice(input_path, output_path):
-    os.system(f"ffmpeg -i {input_path} -acodec pcm_s16le -ac 1 -ar 16000 -map_channel 0.0.0 {output_path}")
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        input_path,
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-sample_fmt",
+        "s16",
+        output_path,
+    ]
+
+    process = subprocess.run(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    if process.returncode != 0 or not os.path.exists(output_path):
+        raise RuntimeError("Failed to convert voice message to WAV")
 
 
