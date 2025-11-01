@@ -7,14 +7,14 @@ from dotenv import load_dotenv
 # Определяем окружение (prod/test/dev)
 ENV = os.getenv('ENV', 'prod')
 
-# Загружаем соответствующий .env файл (override=True для перезагрузки)
+# Загружаем соответствующий .env файл (override=False чтобы docker env vars имели приоритет)
 env_file = f'.env.{ENV}'
 if os.path.exists(env_file):
-    load_dotenv(env_file, override=True)
+    load_dotenv(env_file, override=False)
     print(f"🚀 Загружен конфиг: {env_file}")
 else:
     # Fallback на обычный .env
-    load_dotenv(override=True)
+    load_dotenv(override=False)
     print(f"⚠️  Файл {env_file} не найден, загружен .env")
 
 # Telegram Bot

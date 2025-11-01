@@ -100,8 +100,7 @@ class TestPromptBuilder:
             'pattern_analysis',
             'quiz_relationships',
             'quiz_money',
-            'quiz_confidence',
-            'quiz_fears'
+            'quiz_purpose'
         ]
         
         for prompt_name in required_prompts:

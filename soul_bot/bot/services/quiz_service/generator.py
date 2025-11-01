@@ -10,6 +10,7 @@
 """
 import logging
 import json
+import uuid
 from typing import Optional
 from openai import AsyncOpenAI
 
@@ -21,36 +22,82 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 
 # ==========================================
-# 📋 КАТЕГОРИИ КВИЗОВ
+# 📋 КАТЕГОРИИ КВИЗОВ (v2)
 # ==========================================
 
 QUIZ_CATEGORIES = {
     "relationships": {
         "name": "Отношения",
-        "description": "Паттерны в отношениях с людьми",
-        "emoji": "❤️"
+        "description": "Глубинные сценарии близости, привязанности и границ",
+        "emoji": "❤️",
+        "tone_hint": "Разговаривай как близкий друг, который не боится назвать вещи своими именами.",
     },
-    "work": {
-        "name": "Работа и карьера",
-        "description": "Профессиональные паттерны",
-        "emoji": "💼"
+    "money": {
+        "name": "Деньги",
+        "description": "Денежные убеждения, ценность себя и сценарии из детства",
+        "emoji": "💰",
+        "tone_hint": "Звучит как честный коуч: бережно, но без самообмана.",
     },
-    "emotions": {
-        "name": "Эмоции",
-        "description": "Эмоциональные реакции и триггеры",
-        "emoji": "😊"
+    "purpose": {
+        "name": "Предназначение",
+        "description": "Внутренние противоречия между желаниями, страхами и траекторией жизни",
+        "emoji": "🧭",
+        "tone_hint": "Диалог как с наставником, который видит твой потенциал глубже, чем ты сам.",
     },
-    "habits": {
-        "name": "Привычки",
-        "description": "Поведенческие паттерны",
-        "emoji": "🔄"
-    },
-    "personality": {
-        "name": "Личность",
-        "description": "Черты характера и ценности",
-        "emoji": "🧠"
-    }
 }
+
+
+# Стартовые "крючки" для пользователей без истории (2 вопроса на категорию)
+SEED_QUESTIONS: dict[str, list[dict]] = {
+    "relationships": [
+        {
+            "id": "seed_rel_1",
+            "text": "Если честно, что в ваших отношениях (или их отсутствии) сейчас ощущается самым напряжённым?",
+            "type": "text",
+            "category": "relationships",
+            "preface": "Сейчас без шума и формальностей."
+        },
+        {
+            "id": "seed_rel_2",
+            "text": "Когда в последний раз вы позволяли себе быть по-настоящему уязвимыми рядом с близким человеком? Что случилось потом?",
+            "type": "text",
+            "category": "relationships"
+        },
+    ],
+    "money": [
+        {
+            "id": "seed_money_1",
+            "text": "Представьте, что вам сегодня перечислили сумму, которая закрывает все базовые нужды. Что первое приходит в голову — радость, тревога или что-то ещё?",
+            "type": "text",
+            "category": "money",
+            "preface": "Говорим про деньги так, как говорили бы на кухне ночью."
+        },
+        {
+            "id": "seed_money_2",
+            "text": "Вспомните самый сильный детский эпизод, связанный с деньгами. Как он влияет на ваши решения сейчас?",
+            "type": "text",
+            "category": "money"
+        },
+    ],
+    "purpose": [
+        {
+            "id": "seed_purpose_1",
+            "text": "Когда вы в последний раз ловили ощущение: "
+                    "\"я точно не там, где должен быть\"? Что стало триггером?",
+            "type": "text",
+            "category": "purpose",
+            "preface": "Копаем туда, куда обычно не доходят руки."
+        },
+        {
+            "id": "seed_purpose_2",
+            "text": "Какое ваше решение за последние пару лет больше всего похоже на компромисс с собой?",
+            "type": "text",
+            "category": "purpose"
+        },
+    ],
+}
+
+TARGET_QUESTION_COUNT = 10
 
 
 # ==========================================
@@ -84,6 +131,15 @@ async def generate_adaptive_question(
         # Анализируем предыдущие ответы
         contradictions = _detect_answer_contradictions(previous_answers)
         
+        category_info = QUIZ_CATEGORIES.get(
+            category,
+            {
+                "name": category,
+                "description": "",
+                "tone_hint": "Разговаривай честно и по-человечески.",
+            },
+        )
+
         # Формируем context для GPT
         answers_text = "\n".join([
             f"Q{i+1}: {a['question_text']}\nA: {a['answer_value']}"
@@ -113,7 +169,9 @@ async def generate_adaptive_question(
         prompt = f"""
 Generate NEXT adaptive quiz question (#{question_number}) based on user's PREVIOUS answers.
 
-CATEGORY: {category}
+CATEGORY: {category_info['name']}
+CATEGORY CONTEXT: {category_info['description']}
+VOICE INSTRUCTIONS: {category_info.get('tone_hint', 'Будь честным, тёплым и точным.')}
 QUESTION NUMBER: {question_number}/11
 
 PREVIOUS ANSWERS:
@@ -133,9 +191,10 @@ QUESTION MUST:
 RETURN JSON (single question):
 {{
   "id": "q{question_number}",
-  "text": "Question text (can reference 'You mentioned X...' if digging into contradiction)",
+  "text": "Question text (reference user's answers when useful)",
   "type": "scale|choice|open",
-  "options": ["option1", "option2", ...] if type != "open"
+  "options": ["option1", "option2", ...] if type != "open",
+  "preface": "Optional short hook before the question"
 }}
 
 EXAMPLES:
@@ -243,7 +302,38 @@ def _detect_answer_contradictions(answers: list[dict]) -> list[str]:
             "User claims confidence but highly self-critical. "
             "Possible impostor syndrome or perfectionism masking insecurity."
         )
-    
+
+    # CONTRADICTION 4: Loves spending yet feels guilty about money
+    enjoys_spending = any(
+        ('spend' in q or 'тратить' in q or 'трачу' in a) and any(word in a for word in ['love', 'люблю', 'нравится'])
+        for q, a in answers_text
+    )
+    feels_guilty_spending = any(
+        ('guilt' in a or 'вину' in a or 'стыд' in a)
+        for _, a in answers_text
+    )
+
+    if enjoys_spending and feels_guilty_spending:
+        contradictions.append(
+            "Enjoys spending money but immediately feels guilt → unresolved scarcity beliefs."
+        )
+
+    # CONTRADICTION 5: States clear vision yet claims lacking direction (purpose)
+    says_no_direction = any(
+        ('direction' in q or 'куда' in q or 'purpose' in q or 'предназначение' in q)
+        and any(word in a for word in ['не знаю', 'stuck', 'застрял'])
+        for q, a in answers_text
+    )
+    articulates_goal = any(
+        ('goal' in q or 'мечта' in q or 'хочу' in q) and any(word in a for word in ['точно знаю', 'clearly', 'совершенно ясно'])
+        for q, a in answers_text
+    )
+
+    if says_no_direction and articulates_goal:
+        contradictions.append(
+            "Claims to lack direction yet articulates a clear goal → action paralysis masking fear of change."
+        )
+     
     # Limit to top 2 contradictions для фокуса
     return contradictions[:2]
 
@@ -310,158 +400,261 @@ def _pick_branch_question(
 
 async def generate_questions(
     category: str,
-    count: int = 8,  # 🔥 UPGRADE: Снижаем до 8 базовых вопросов (+ 2-3 адаптивных = 10-11 total)
-    user_profile: Optional[dict] = None,  # ← V2: параметр готов!
-    previous_answers: Optional[list[dict]] = None  # ← V3: параметр готов!
+    count: int = 3,
+    user_profile: Optional[dict] = None,
+    previous_answers: Optional[list[dict]] = None
 ) -> list[dict]:
-    """
-    Сгенерировать вопросы для квиза
-    
-    Args:
-        category: Категория квиза (relationships, work, etc.)
-        count: Количество вопросов
-        user_profile: Профиль пользователя (опционально, для V2)
-        previous_answers: Предыдущие ответы (опционально, для V3 adaptive)
-        
-    Returns:
-        Список вопросов в формате:
-        [
-            {
-                "id": "q1",
-                "text": "Как часто вы чувствуете одиночество?",
-                "type": "scale",
-                "options": ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"],
-                "category": "emotions"
-            }
-        ]
-    """
+    """Сформировать первые вопросы живого квиз-диалога."""
     try:
-        # Получаем информацию о категории
-        category_info = QUIZ_CATEGORIES.get(category, {"name": category, "description": ""})
-        
-        # ==========================================
-        # 🔧 MVP: Базовый промпт
-        # ==========================================
-        prompt = f"""
-You are a professional psychologist creating a psychological quiz.
+        category_info = QUIZ_CATEGORIES.get(
+            category,
+            {
+                "name": category,
+                "description": "",
+                "emoji": "🧠",
+                "tone_hint": "Говори по-человечески."
+            },
+        )
 
-CATEGORY: {category_info['name']}
-DESCRIPTION: {category_info['description']}
-QUESTIONS COUNT: {count}
+        target_count = min(max(count, 3), TARGET_QUESTION_COUNT)
+        questions: list[dict] = []
 
-Generate {count} insightful psychological questions for this category.
+        # 1. Крючки на прогрев — для новых людей берём два, для тёплой базы достаточно одного.
+        seed_pack = _clone_seed_questions(category)
+        if not user_profile or not user_profile.get("patterns"):
+            questions.extend(seed_pack[:2])
+        else:
+            questions.extend(seed_pack[:1])
 
-REQUIREMENTS:
-1. Questions should be deep and meaningful (not superficial)
-2. Mix of question types: scale (1-5), multiple_choice, text
-3. Questions should help identify behavioral patterns
-4. Use clear, professional language
-5. Each question should reveal something important
+        # 2. Быстро сверяем, жив ли прежний анализ.
+        questions.extend(_build_profile_probe_questions(user_profile, category))
 
-QUESTION TYPES:
-- scale: 5-point scale (Никогда/Редко/Иногда/Часто/Постоянно)
-- multiple_choice: 3-5 options
-- text: Open-ended question
+        questions = _normalize_question_list(questions, category)
 
-Return JSON:
+        # 3. Остаток докидываем через GPT, чтобы не упасть в унылый тест.
+        if len(questions) < target_count:
+            remaining = target_count - len(questions)
+            dynamic_questions = await _generate_dynamic_batch(
+                category=category,
+                category_info=category_info,
+                needed=remaining,
+                existing_questions=questions,
+                user_profile=user_profile,
+                previous_answers=previous_answers or [],
+            )
+            questions.extend(dynamic_questions)
+
+        return questions[:target_count]
+
+    except Exception as exc:
+        logger.error("Failed to generate questions: %s", exc)
+        return _get_fallback_questions(category, count)
+
+
+# ===== Helper utilities for conversational quiz v2 =====
+
+def _clone_seed_questions(category: str) -> list[dict]:
+    seeds = SEED_QUESTIONS.get(category, [])
+    try:
+        # Быстрый deep copy без импортов copy.deepcopy
+        return json.loads(json.dumps(seeds))
+    except Exception:
+        return [dict(seed) for seed in seeds]
+
+
+def _build_profile_probe_questions(
+    user_profile: Optional[dict],
+    category: str,
+) -> list[dict]:
+    if not user_profile:
+        return []
+
+    patterns = user_profile.get("patterns") or []
+    if not patterns:
+        return []
+
+    sorted_patterns = sorted(
+        patterns,
+        key=lambda item: (
+            item.get("occurrences", 0),
+            item.get("confidence", 0.0),
+        ),
+        reverse=True,
+    )[:2]
+
+    probes: list[dict] = []
+    for pattern in sorted_patterns:
+        title = (pattern.get("title") or "").strip()
+        if not title:
+            continue
+
+        hidden_dynamic = (pattern.get("hidden_dynamic") or "").strip()
+        description = (pattern.get("description") or "").strip()
+
+        question_text = (
+            f"Про паттерн «{title}»: {hidden_dynamic or description} "
+            "Что из последней недели подтверждает или ломает этот сценарий?"
+        ).strip()
+
+        # Если описания нет — задаём более общий крючок.
+        if not hidden_dynamic and not description:
+            question_text = (
+                f"Ты упоминал паттерн «{title}». Приведи свежую ситуацию, "
+                "где он проявился сильнее всего?"
+            )
+
+        probes.append(
+            {
+                "id": f"profile_{uuid.uuid4().hex[:8]}",
+                "text": question_text,
+                "type": "text",
+                "preface": "Хочу сверить прошлый вывод — скажи честно.",
+                "category": category,
+            }
+        )
+
+    return probes
+
+
+def _normalize_question_list(questions: list[dict], category: str) -> list[dict]:
+    normalized: list[dict] = []
+    seen_ids: set[str] = set()
+
+    for raw in questions:
+        if not isinstance(raw, dict):
+            continue
+
+        question = dict(raw)
+        question.setdefault("category", category)
+        question_type = (question.get("type") or "text").lower()
+        if question_type in {"open", "free_text"}:
+            question_type = "text"
+        elif question_type in {"choice"}:
+            question_type = "multiple_choice"
+        question["type"] = question_type
+
+        if question_type in {"scale"} and not question.get("options"):
+            question["options"] = [
+                "Никогда",
+                "Редко",
+                "Иногда",
+                "Часто",
+                "Постоянно",
+            ]
+        elif question_type in {"multiple_choice"} and not question.get("options"):
+            question["options"] = [
+                "Скорее да",
+                "Скорее нет",
+                "Это зависит",
+                "Не понимаю",
+            ]
+        elif question_type == "text":
+            question.setdefault("options", [])
+
+        question_id = question.get("id") or f"q_{uuid.uuid4().hex[:8]}"
+        if question_id in seen_ids:
+            question_id = f"q_{uuid.uuid4().hex[:8]}"
+        question["id"] = question_id
+        seen_ids.add(question_id)
+
+        normalized.append(question)
+
+    return normalized
+
+
+async def _generate_dynamic_batch(
+    *,
+    category: str,
+    category_info: dict,
+    needed: int,
+    existing_questions: list[dict],
+    user_profile: Optional[dict],
+    previous_answers: list[dict],
+) -> list[dict]:
+    if needed <= 0:
+        return []
+
+    asked_questions_text = "\n".join(
+        [
+            f"{idx + 1}. {question.get('text', '').strip()}"
+            for idx, question in enumerate(existing_questions)
+            if question.get("text")
+        ]
+    ) or "— ещё ничего не спрашивали."
+
+    answers_text = "\n".join(
+        [
+            f"{idx + 1}. Q: {answer.get('question_text', answer.get('question_id', '??'))}\n   A: {answer.get('answer_value', answer.get('value', ''))}"
+            for idx, answer in enumerate(previous_answers)
+        ]
+    ) or "— пользователь пока не отвечал."
+
+    patterns = (user_profile or {}).get("patterns") or []
+    patterns_summary = "\n".join(
+        [
+            f"- {item.get('title', 'Паттерн')} (confidence {item.get('confidence', 0):.0%})"
+            for item in patterns[:3]
+        ]
+    ) or "— данных нет, считай пользователя белым листом."
+
+    prompt = f"""
+Ты — психолог, который ведёт глубинный квиз в формате живого диалога. Категория: {category_info['name']}.
+Описание: {category_info['description']}
+Тон: {category_info.get('tone_hint', 'Будь честным, тёплым и точным.')} 
+
+Уже прозвучало:
+{asked_questions_text}
+
+Ответы пользователя:
+{answers_text}
+
+Известные паттерны:
+{patterns_summary}
+
+Тебе нужно придумать {needed} следующих вопросов.
+Правила:
+1. Пиши по-русски, разговорно, без канцелярита.
+2. Если есть за что зацепиться — ссылайся на ответы пользователя: «Ты сказал…», «Ты отметил…».
+3. Копай противоречия, скрытые мотивы, заблокированные ресурсы. Избегай банальных «Как часто…».
+4. Авторизованные типы: text (открытый ответ), multiple_choice (3-4 варианта), scale (5 вариантов «Никогда» → «Постоянно»).
+5. Можно добавить поле "preface" — короткий крючок перед вопросом (не более 100 символов).
+6. Не повторяй темы уже заданных вопросов.
+
+Верни JSON такого вида:
 {{
   "questions": [
     {{
-      "id": "q1",
-      "text": "Как часто вы чувствуете одиночество в присутствии других людей?",
-      "type": "scale",
-      "options": ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
-    }},
-    {{
-      "id": "q2",
-      "text": "Что помогает вам справляться со стрессом?",
-      "type": "multiple_choice",
-      "options": ["Общение", "Одиночество", "Физическая активность", "Творчество", "Другое"]
-    }},
-    {{
-      "id": "q3",
-      "text": "Опишите ситуацию, когда вы чувствовали себя наиболее комфортно в последнее время",
-      "type": "text",
-      "options": []
+      "id": "dyn_1",
+      "text": "…",
+      "type": "text|multiple_choice|scale",
+      "options": [],
+      "preface": "…"  # опционально
     }}
   ]
 }}
 """
-        
-        # ==========================================
-        # 🔧 V2: Добавляем контекст профиля (UPGRADE!)
-        # ==========================================
-        if user_profile and user_profile.get('patterns'):
-            # Сортируем по частоте (occurrences) - самые "горячие" паттерны
-            patterns = sorted(
-                user_profile['patterns'],
-                key=lambda p: p.get('occurrences', 0),
-                reverse=True
-            )[:3]  # Топ-3
-            
-            patterns_summary = "\n".join([
-                f"- {p.get('title', 'Паттерн')} (confidence: {p.get('confidence', 0):.0%}, occurrences: {p.get('occurrences', 0)})\n"
-                f"  Description: {p.get('description', 'N/A')[:100]}"
-                for p in patterns
-            ])
-            
-            prompt += f"""
 
-🎯 EXISTING USER PATTERNS FROM CHAT HISTORY:
-{patterns_summary}
-
-INSTRUCTIONS FOR ADAPTATION:
-1. Generate questions that EXPLORE these patterns deeper
-2. Add questions to VALIDATE if these patterns are accurate
-3. Look for RELATED or COMPLEMENTARY patterns
-4. Prioritize patterns with high occurrences (more frequent = more important)
-5. DON'T just repeat what we already know - dig deeper!
-"""
-        
-        # ==========================================
-        # 🔧 V3: Adaptive logic (если есть предыдущие ответы)
-        # ==========================================
-        if previous_answers:
-            last_answers = "\n".join([
-                f"Q: {a.get('question_id')} → A: {a.get('value')}"
-                for a in previous_answers[-2:]  # Последние 2 ответа
-            ])
-            
-            prompt += f"""
-
-PREVIOUS ANSWERS (адаптируй следующие вопросы на основе этих ответов):
-{last_answers}
-
-Make next questions more specific based on these answers.
-"""
-        
-        # Генерируем через GPT-4
+    try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",  # Дешевле для генерации вопросов
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert psychologist creating insightful quizzes."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": "You craft psychologically sharp, empathetic questions in Russian.",
+                },
+                {"role": "user", "content": prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.7
+            temperature=0.6,
         )
-        
-        result = json.loads(response.choices[0].message.content)
-        questions = result.get('questions', [])
-        
-        # Добавляем category к каждому вопросу
-        for q in questions:
-            q['category'] = category
-        
-        logger.info(f"Generated {len(questions)} questions for category '{category}'")
-        
-        return questions
-        
-    except Exception as e:
-        logger.error(f"Failed to generate questions: {e}")
-        
-        # Fallback: возвращаем базовые вопросы
-        return _get_fallback_questions(category, count)
+        data = json.loads(response.choices[0].message.content)
+        generated = data.get("questions", [])
+    except Exception as err:
+        logger.error("Dynamic quiz batch failed: %s", err)
+        return []
+
+    normalized = _normalize_question_list(generated, category)
+    return normalized[:needed]
 
 
 def _get_fallback_questions(category: str, count: int) -> list[dict]:
@@ -478,33 +671,56 @@ def _get_fallback_questions(category: str, count: int) -> list[dict]:
     fallback = {
         "relationships": [
             {
-                "id": "q1",
-                "text": "Как часто вы чувствуете поддержку от близких людей?",
-                "type": "scale",
-                "options": ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"],
-                "category": "relationships"
+                "id": "fallback_rel_1",
+                "text": "Что в текущих отношениях (или их отсутствии) сейчас больше всего царапает?",
+                "type": "text",
+                "category": "relationships",
             },
             {
-                "id": "q2",
-                "text": "Как вы обычно реагируете на конфликты?",
-                "type": "multiple_choice",
-                "options": ["Избегаю", "Агрессивно защищаюсь", "Ищу компромисс", "Молчу", "Ухожу"],
-                "category": "relationships"
-            }
+                "id": "fallback_rel_2",
+                "text": "Когда вы в последний раз показали партнёру или другу свою уязвимость? Чем всё закончилось?",
+                "type": "text",
+                "category": "relationships",
+            },
         ],
-        "emotions": [
+        "money": [
             {
-                "id": "q1",
-                "text": "Как часто вы чувствуете тревогу без явной причины?",
-                "type": "scale",
-                "options": ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"],
-                "category": "emotions"
-            }
-        ]
+                "id": "fallback_money_1",
+                "text": "Какая денежная ситуация из детства вспоминается первой, когда речь заходит о риске?",
+                "type": "text",
+                "category": "money",
+            },
+            {
+                "id": "fallback_money_2",
+                "text": "Как вы обычно реагируете на неожиданный крупный расход: зажимаетесь, игнорируете или ищете возможности?",
+                "type": "multiple_choice",
+                "options": [
+                    "Зажимаюсь и экономлю на всём",
+                    "Продолжаю жить как есть",
+                    "Начинаю искать дополнительные доходы",
+                    "Прошу помощи у близких",
+                ],
+                "category": "money",
+            },
+        ],
+        "purpose": [
+            {
+                "id": "fallback_purpose_1",
+                "text": "В какой момент последнего месяца вы почувствовали: «Я занимаюсь не тем»?",
+                "type": "text",
+                "category": "purpose",
+            },
+            {
+                "id": "fallback_purpose_2",
+                "text": "Если представить, что провал невозможен, какой шаг вы бы сделали в сторону своего интереса?",
+                "type": "text",
+                "category": "purpose",
+            },
+        ],
     }
     
-    # Возвращаем fallback или дефолтные вопросы
-    return fallback.get(category, fallback["emotions"])[:count]
+    bucket = fallback.get(category, fallback["relationships"])
+    return bucket[:count]
 
 
 # ==========================================
@@ -517,7 +733,7 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     
     Args:
         question: Объект вопроса
-        current: Текущий номер
+        current: Текущий номер (1-based)
         total: Всего вопросов
         
     Returns:
@@ -525,29 +741,38 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     """
     import html
     
-    category_info = QUIZ_CATEGORIES.get(question.get('category', 'personality'))
+    category_info = QUIZ_CATEGORIES.get(question.get('category', 'relationships'), {})
     emoji = category_info.get('emoji', '🧠')
-    
-    # 🔥 НОВОЕ: Визуальный прогресс-бар
-    progress = current / total
-    filled = int(progress * 10)  # 10 сегментов
-    bar = "█" * filled + "░" * (10 - filled)
-    percentage = int(progress * 100)
-    
-    # Экранируем HTML в тексте вопроса (GPT может вернуть HTML теги)
-    safe_question_text = html.escape(question['text'])
-    
-    text = f"{emoji} <b>Вопрос {current}/{total}</b>\n"
-    text += f"{bar} {percentage}%\n\n"
-    text += f"{safe_question_text}\n\n"
-    
-    # Добавляем hint в зависимости от типа
-    if question['type'] == 'scale':
-        text += "📊 <i>Выберите значение по шкале</i>"
-    elif question['type'] == 'multiple_choice':
-        text += "☑️ <i>Выберите один вариант</i>"
-    elif question['type'] == 'text':
-        text += "✍️ <i>Напишите свой ответ</i>"
-    
-    return text
+    remaining = max(total - current, 0)
+
+    if remaining <= 0:
+        progress_line = "Мы почти на финише — этот ответ может сложить пазл."
+    elif remaining == 1:
+        progress_line = "Остался один шаг — давай добьём картину."
+    elif remaining <= 3:
+        progress_line = f"Осталось примерно {remaining} шага — держим честность." 
+    else:
+        progress_line = f"Это шаг {current}, впереди ещё около {remaining} вопросов — идём глубже без спешки."
+
+    safe_question_text = html.escape(question.get('text', ''))
+    preface = question.get('preface')
+    preface_line = f"<i>{html.escape(preface)}</i>" if preface else None
+
+    body_parts = [
+        f"{emoji} <b>Давай копнём глубже</b>",
+        progress_line,
+    ]
+    if preface_line:
+        body_parts.append(preface_line)
+    body_parts.append(safe_question_text)
+
+    question_type = question.get('type')
+    if question_type == 'scale':
+        body_parts.append("📊 <i>Выберите точку на шкале</i>")
+    elif question_type == 'multiple_choice':
+        body_parts.append("☑️ <i>Выберите один вариант, который ближе всего</i>")
+    else:
+        body_parts.append("✍️ <i>Напишите свой ответ</i>")
+
+    return "\n\n".join(body_parts)
 

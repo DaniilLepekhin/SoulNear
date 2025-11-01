@@ -8,6 +8,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import sys
 import os
+import json
 
 # Добавляем корневую директорию в path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -34,6 +35,44 @@ class TestQuizGenerator:
         assert callable(getattr(generator, 'generate_questions', None)) or \
                callable(getattr(generator, 'create_question', None)), \
                "Generator должен иметь функцию генерации вопросов"
+
+
+    @pytest.mark.asyncio
+    async def test_generate_questions_includes_seeds_and_preface(self):
+        from bot.services.quiz_service import generator
+
+        fake_payload = {
+            "questions": [
+                {
+                    "id": "dyn_1",
+                    "text": "Расскажи, где ты заметил этот паттерн буквально вчера?",
+                    "type": "open",
+                }
+            ]
+        }
+
+        fake_response = MagicMock()
+        fake_choice = MagicMock()
+        fake_choice.message.content = json.dumps(fake_payload, ensure_ascii=False)
+        fake_response.choices = [fake_choice]
+
+        with patch.object(
+            generator.client.chat.completions,
+            'create',
+            AsyncMock(return_value=fake_response),
+        ):
+            questions = await generator.generate_questions(
+                category='relationships',
+                count=3,
+                user_profile=None,
+            )
+
+        assert len(questions) == 3
+        assert questions[0]['type'] == 'text'
+        assert 'preface' in questions[0]
+        assert questions[0]['preface'] == "Сейчас без шума и формальностей."
+        assert all(q['category'] == 'relationships' for q in questions)
+        assert questions[-1]['type'] == 'text'
 
 
 class TestQuizAnalyzer:

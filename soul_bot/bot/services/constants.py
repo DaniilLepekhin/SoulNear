@@ -144,7 +144,7 @@ SYSTEM_PROMPT_TOKEN_LIMIT = 8000  # Лимит на system prompt
 # 🎯 QUIZ SETTINGS
 # ==========================================
 
-QUIZ_CATEGORIES = ['relationships', 'money', 'confidence', 'fears', 'work', 'health']
+QUIZ_CATEGORIES = ['relationships', 'money', 'purpose']
 QUIZ_DEFAULT_QUESTIONS_COUNT = 10
 QUIZ_MIN_QUESTIONS = 5
 QUIZ_MAX_QUESTIONS = 20

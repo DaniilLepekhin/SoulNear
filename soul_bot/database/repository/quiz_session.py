@@ -20,16 +20,18 @@ async def create(
     user_id: int,
     category: str,
     assistant_type: str = 'helper',
-    questions: list = None
+    questions: list = None,
+    total_questions: Optional[int] = None,
 ) -> QuizSession:
     """
     Создать новую quiz session
     
     Args:
         user_id: ID пользователя
-        category: Категория квиза (relationships, money, confidence, fears)
+        category: Категория квиза (relationships, money, purpose)
         assistant_type: Тип ассистента
         questions: Pre-generated questions (optional)
+        total_questions: Плановое количество вопросов (optional)
         
     Returns:
         Created QuizSession
@@ -41,7 +43,7 @@ async def create(
             assistant_type=assistant_type,
             questions=questions or [],
             answers=[],
-            total_questions=len(questions) if questions else None
+            total_questions=total_questions or (len(questions) if questions else None)
         )
         
         session.add(quiz)

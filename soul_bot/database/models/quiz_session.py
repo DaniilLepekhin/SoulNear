@@ -28,7 +28,7 @@ class QuizSession(Base):
     assistant_type = Column(String(64), default='helper')
     
     # Quiz metadata
-    category = Column(String(64), nullable=False)  # relationships, money, confidence, fears
+    category = Column(String(64), nullable=False)  # relationships, money, purpose
     status = Column(String(32), nullable=False, default='in_progress')  # in_progress, completed, cancelled
     
     # Progress tracking

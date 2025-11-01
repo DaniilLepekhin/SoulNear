@@ -473,86 +473,64 @@ async def format_results_for_telegram(
     results: dict,
     user_id: int
 ) -> str:
-    """
-    Форматировать результаты квиза для отображения в Telegram
-    
-    Args:
-        results: Результаты анализа
-        user_id: ID пользователя
-        
-    Returns:
-        Красиво отформатированный текст
-    """
-    # Используем GPT для форматирования (как в /my_profile)
-    prompt = f"""
-Format quiz results in a friendly, encouraging way for the user.
+    """Форматировать результаты квиза для отображения в Telegram."""
+    import html
 
-RESULTS:
-{json.dumps(results, ensure_ascii=False, indent=2)}
+    category = results.get('category') or 'Квиз'
+    patterns = results.get('new_patterns') or []
+    recommendations = results.get('recommendations') or []
 
-Requirements:
-1. Use emojis (🎯, 💡, ⭐, etc.)
-2. Be supportive and encouraging
-3. Highlight key patterns WITH confidence visualization:
-   - Show confidence as stars: ⭐⭐⭐⭐⭐ (95%+), ⭐⭐⭐⭐ (80-94%), ⭐⭐⭐ (60-79%), ⭐⭐ (40-59%)
-   - Add confidence percentage in parentheses
-   - Example: "✅ Perfectionism (confidence: 95%) ⭐⭐⭐⭐⭐"
-   - Use ⚠️ for patterns with confidence < 70%
-4. Present recommendations clearly
-5. In Russian
-6. Max 2000 characters
-7. Format like:
-   🧠 Выявленные паттерны:
-   
-   ✅ Pattern Name (confidence: 85%) ⭐⭐⭐⭐
-      "Description here..."
-   
-   💡 Рекомендации:
-   - Recommendation 1
-   - Recommendation 2
+    header = f"🧠 <b>Разбор завершён</b> · {html.escape(category.title())}"
+    sections: list[str] = [header]
 
-Return formatted text (not JSON, just text).
-"""
-    
-    try:
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a supportive psychologist."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=1000
+    if patterns:
+        pattern_blocks = ["🔥 <b>Главные паттерны</b>"]
+        for pattern in patterns[:3]:
+            pattern_blocks.append(_render_pattern_block(pattern))
+        sections.append("\n".join(pattern_blocks))
+    else:
+        sections.append(
+            "😶 Пока без ярко выраженных паттернов — это уже сигнал прислушаться к своим ощущениям."
         )
-        
-        return response.choices[0].message.content
-        
-    except Exception as e:
-        logger.error(f"Results formatting failed: {e}")
-        
-        # Fallback форматирование с confidence
-        text = "🎉 <b>Квиз завершён!</b>\n\n"
-        
-        # Паттерны с confidence
-        patterns = results.get('new_patterns', [])
-        if patterns:
-            text += "🧠 <b>Выявленные паттерны:</b>\n\n"
-            for p in patterns[:3]:
-                confidence = p.get('confidence', 0.7)
-                confidence_viz = _confidence_to_stars(confidence)
-                emoji = "✅" if confidence >= 0.7 else "⚠️"
-                title = p.get('title', 'Паттерн')
-                description = p.get('description', '')[:150]
-                
-                text += f"{emoji} <b>{title}</b> {confidence_viz}\n"
-                text += f"   {description}...\n\n"
-        
-        # Рекомендации
-        recommendations = results.get('recommendations', [])
-        if recommendations:
-            text += "💡 <b>Рекомендации:</b>\n"
-            for i, rec in enumerate(recommendations[:5], 1):
-                text += f"{i}. {rec}\n"
-        
-        return text
+
+    if recommendations:
+        rec_lines = ["📌 <b>Что попробовать</b>"]
+        for rec in recommendations[:5]:
+            rec_lines.append(f"• {html.escape(rec)}")
+        sections.append("\n".join(rec_lines))
+
+    sections.append("🪄 Если хочется копнуть глубже — напиши, продолжим раскатывать сюжет.")
+
+    return "\n\n".join(sections)
+
+
+def _render_pattern_block(pattern: dict) -> str:
+    import html
+
+    title = html.escape(pattern.get('title', 'Паттерн'))
+    confidence = pattern.get('confidence', 0.0)
+    stars = _confidence_to_stars(confidence)
+    emoji = "✅" if confidence >= 0.7 else "⚠️"
+
+    lines = [f"{emoji} <b>{title}</b> {stars}"]
+
+    contradiction = pattern.get('contradiction')
+    if contradiction:
+        lines.append(f"⚡ <b>Противоречие:</b> {html.escape(contradiction)}")
+
+    hidden_dynamic = pattern.get('hidden_dynamic')
+    if hidden_dynamic:
+        lines.append(f"🔍 <b>Скрытая динамика:</b> {html.escape(hidden_dynamic)}")
+
+    blocked_resource = pattern.get('blocked_resource')
+    if blocked_resource:
+        lines.append(f"🔓 <b>Ресурс внутри:</b> {html.escape(blocked_resource)}")
+
+    evidence = pattern.get('evidence') or []
+    if evidence:
+        lines.append("📝 Примеры:")
+        for sample in evidence[:2]:
+            lines.append(f"   • {html.escape(sample)}")
+
+    return "\n".join(lines)
 

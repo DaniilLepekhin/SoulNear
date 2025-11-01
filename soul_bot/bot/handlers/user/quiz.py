@@ -5,10 +5,11 @@ Handlers для динамических квизов
 
 Flow:
 1. Пользователь → /quiz или кнопка "Пройти квиз"
-2. Выбирает категорию (relationships/work/emotions/etc.)
-3. Проходит 10 вопросов (FSM state: waiting_for_answer)
+2. Выбирает категорию (relationships/money/purpose)
+3. Проходит 8–12 вопросов диалогового квиза (FSM state: waiting_for_answer)
 4. Получает результаты + обновление профиля
 """
+import logging
 from aiogram import F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -119,7 +120,7 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
         # Генерируем вопросы (MVP: без адаптации)
         questions = await generator.generate_questions(
             category=category,
-            count=8,  # 🔥 UPGRADE: 8 базовых вопросов (+ 2-3 адаптивных = 10-11)
+            count=3,
             user_profile=profile_data  # ← параметр готов для V2!
         )
         
@@ -127,7 +128,8 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
         quiz_session = await db_quiz_session.create(
             user_id=user_id,
             category=category,
-            questions=questions
+            questions=questions,
+            total_questions=generator.TARGET_QUESTION_COUNT,
         )
         
         # Сохраняем session_id в FSM
@@ -186,31 +188,35 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     )
     
     await call.answer("✅ Ответ сохранён")
+
+    # Поддерживаем непрерывный диалог: готовим следующий вопрос заранее
+    quiz_session = await _queue_next_question_if_needed(quiz_session)
+    await _maybe_send_mid_insight(call.message, quiz_session, state)
     
     # 🔥 ADAPTIVE BRANCHING: проверяем нужно ли добавить follow-up вопросы
     if is_feature_enabled('ENABLE_ADAPTIVE_QUIZ') and await adaptive_quiz.should_branch(quiz_session):
         try:
-            # Генерируем адаптивные вопросы
             followup_questions = await adaptive_quiz.get_adaptive_questions(quiz_session)
             
             if followup_questions:
-                # Добавляем вопросы в сессию
-                quiz_session.questions.extend(followup_questions)
-                quiz_session.total_questions = len(quiz_session.questions)
+                normalized = generator._normalize_question_list(followup_questions, quiz_session.category)
+                quiz_session.questions.extend(normalized)
+                quiz_session.total_questions += len(normalized)
                 
                 # Сохраняем обновленную сессию
-                await db_quiz_session.update(quiz_session)
+                quiz_session = await db_quiz_session.update(quiz_session)
                 
                 # Уведомляем пользователя
                 await call.message.answer(
-                    "💡 Обнаружены интересные паттерны!\n"
-                    f"Добавляю {len(followup_questions)} уточняющих вопроса...",
+                    "💡 Поймал интересный паттерн — докину пару уточняющих вопросов.",
                     parse_mode='HTML'
                 )
         except Exception as e:
-            # Не блокируем квиз при ошибке адаптации
             import logging
             logging.error(f"Adaptive branching failed: {e}")
+    
+    # На всякий случай ещё раз проверяем, что следующий вопрос существует
+    quiz_session = await _queue_next_question_if_needed(quiz_session)
     
     # Проверяем завершён ли квиз
     if quiz_session.current_question_index >= quiz_session.total_questions:
@@ -261,10 +267,15 @@ async def handle_text_answer(message: Message, state: FSMContext):
         answer_value=answer_value
     )
     
+    # Поддерживаем диалоговую генерацию
+    quiz_session = await _queue_next_question_if_needed(quiz_session)
+    await _maybe_send_mid_insight(message, quiz_session, state)
+    
     # Проверяем завершён ли квиз
     if quiz_session.current_question_index >= quiz_session.total_questions:
         await _finish_quiz(message, quiz_session, state)
     else:
+        quiz_session = await _queue_next_question_if_needed(quiz_session)
         await _show_current_question(message, quiz_session, state)
 
 
@@ -439,6 +450,120 @@ async def new_quiz_callback(call: CallbackQuery):
         reply_markup=_categories_keyboard(),
         parse_mode='HTML'
     )
+
+
+async def _compose_answer_history(quiz_session) -> list[dict]:
+    """Собрать историю вопросов/ответов для генерации следующих шагов."""
+    question_map = {item.get('id'): item for item in (quiz_session.questions or [])}
+    history: list[dict] = []
+    for answer in quiz_session.answers or []:
+        question = question_map.get(answer.get('question_id'))
+        if not question:
+            continue
+        history.append(
+            {
+                "question_text": question.get('text', ''),
+                "answer_value": answer.get('value') or answer.get('answer_value', ''),
+            }
+        )
+    return history
+
+
+async def _queue_next_question_if_needed(quiz_session):
+    """Гарантировать, что следующий вопрос уже готов перед показом."""
+    if not quiz_session:
+        return quiz_session
+
+    if quiz_session.current_question_index >= quiz_session.total_questions:
+        return quiz_session
+
+    if len(quiz_session.questions or []) > quiz_session.current_question_index:
+        return quiz_session
+
+    if len(quiz_session.questions or []) >= quiz_session.total_questions:
+        return quiz_session
+
+    answer_history = await _compose_answer_history(quiz_session)
+    user_profile = await db_user_profile.get_or_create(quiz_session.user_id)
+    profile_data = {
+        "patterns": user_profile.patterns.get('patterns', []),
+    }
+
+    next_number = len(quiz_session.questions or []) + 1
+    new_question = await generator.generate_adaptive_question(
+        category=quiz_session.category,
+        question_number=next_number,
+        previous_answers=answer_history,
+        user_profile=profile_data,
+    )
+
+    if not new_question:
+        logging.debug("[quiz] No adaptive question generated (session=%s)", quiz_session.id)
+        return quiz_session
+
+    normalized = generator._normalize_question_list([new_question], quiz_session.category)
+    if not normalized:
+        return quiz_session
+
+    quiz_session.questions.extend(normalized)
+    logging.info(
+        "[quiz] Enqueued conversational follow-up (session=%s, total=%s)",
+        quiz_session.id,
+        len(quiz_session.questions),
+    )
+    return await db_quiz_session.update(quiz_session)
+
+
+async def _maybe_send_mid_insight(message: Message, quiz_session, state: FSMContext):
+    """Отправить короткий инсайт, если дошли до контрольной точки."""
+    if not quiz_session:
+        return
+
+    trigger_points = {3, 6}
+    index = quiz_session.current_question_index
+    if index not in trigger_points:
+        return
+
+    data = await state.get_data()
+    already_sent = set(data.get('mid_insight_sent', []))
+    if index in already_sent:
+        return
+
+    patterns = await adaptive_quiz.analyze_patterns(quiz_session)
+    if not patterns:
+        return
+
+    strong_pattern = next((p for p in patterns if p.get('confidence', 0) >= 0.7), None)
+    if not strong_pattern:
+        return
+
+    insight_text = _format_mid_insight(strong_pattern)
+    if not insight_text:
+        return
+
+    await message.answer(insight_text, parse_mode='HTML')
+    already_sent.add(index)
+    await state.update_data(mid_insight_sent=list(already_sent))
+
+
+def _format_mid_insight(pattern: dict) -> str:
+    import html
+
+    title = html.escape(pattern.get('title', 'Паттерн'))
+    contradiction = pattern.get('contradiction')
+    hidden_dynamic = pattern.get('hidden_dynamic')
+    blocked_resource = pattern.get('blocked_resource')
+
+    parts = [f"💡 <b>Кажется, всплывает паттерн: {title}</b>"]
+    if contradiction:
+        parts.append(f"⚡ Противоречие: {html.escape(contradiction)}")
+    if hidden_dynamic:
+        parts.append(f"🔍 Скрытая динамика: {html.escape(hidden_dynamic)}")
+    if blocked_resource:
+        parts.append(f"🔓 Ресурс внутри: {html.escape(blocked_resource)}")
+    parts.append("Продолжим и проверим, откликается ли тебе это?")
+
+    return "\n".join(parts)
 
 
 # ==========================================
