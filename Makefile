@@ -1,5 +1,8 @@
 .PHONY: help build up down restart logs clean backup
 
+# Используем bash вместо /bin/sh
+SHELL := /bin/bash
+
 # Определяем окружение (по умолчанию prod)
 ENV ?= prod
 

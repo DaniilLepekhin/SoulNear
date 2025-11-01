@@ -10,6 +10,9 @@ Flow:
 4. Получает результаты + обновление профиля
 """
 import logging
+import os
+import uuid
+from pathlib import Path
 from aiogram import F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -20,8 +23,10 @@ from bot.states.states import QuizStates
 from bot.services.quiz_service import generator, analyzer
 from bot.services.quiz.adaptive_quiz_service import AdaptiveQuizService
 from bot.services.ai.gpt_service import GPTService
+from bot.functions.speech import convert_voice, recognize
 import database.repository.quiz_session as db_quiz_session
 import database.repository.user_profile as db_user_profile
+from bot.keyboards.start import menu as main_menu_keyboard
 from config import is_feature_enabled
 
 # Initialize adaptive quiz service
@@ -227,7 +232,7 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
         await _show_current_question(call.message, quiz_session, state)
 
 
-@dp.message(QuizStates.waiting_for_answer)
+@dp.message(QuizStates.waiting_for_answer, F.text)
 async def handle_text_answer(message: Message, state: FSMContext):
     """
     Обработка текстового ответа (для type=text вопросов)
@@ -272,6 +277,79 @@ async def handle_text_answer(message: Message, state: FSMContext):
     await _maybe_send_mid_insight(message, quiz_session, state)
     
     # Проверяем завершён ли квиз
+    if quiz_session.current_question_index >= quiz_session.total_questions:
+        await _finish_quiz(message, quiz_session, state)
+    else:
+        quiz_session = await _queue_next_question_if_needed(quiz_session)
+        await _show_current_question(message, quiz_session, state)
+
+
+@dp.message(QuizStates.waiting_for_answer, F.voice)
+async def handle_voice_answer(message: Message, state: FSMContext):
+    """Обработать голосовой ответ для текстовых вопросов."""
+    data = await state.get_data()
+    session_id = data.get('quiz_session_id')
+
+    if not session_id:
+        await message.answer("⚠️ Сессия потеряна")
+        await state.clear()
+        return
+
+    quiz_session = await db_quiz_session.get(session_id)
+    if not quiz_session:
+        await message.answer("⚠️ Квиз не найден")
+        await state.clear()
+        return
+
+    current_idx = quiz_session.current_question_index
+    question = quiz_session.questions[current_idx]
+
+    if question.get('type') != 'text':
+        await message.answer("Сейчас нужно выбрать вариант на кнопке — голос сюда не зайдёт.")
+        return
+
+    voice_dir = Path("voice")
+    ready_dir = Path("ready")
+    voice_dir.mkdir(parents=True, exist_ok=True)
+    ready_dir.mkdir(parents=True, exist_ok=True)
+
+    token = uuid.uuid4().hex
+    raw_path = voice_dir / f"quiz_{token}.ogg"
+    wav_path = ready_dir / f"quiz_{token}.wav"
+
+    try:
+        file_info = await message.bot.get_file(message.voice.file_id)
+        await message.bot.download_file(file_info.file_path, raw_path)
+        convert_voice(str(raw_path), str(wav_path))
+        transcript = recognize(str(wav_path))
+    except Exception as exc:
+        logging.exception("Quiz voice processing failed", exc_info=exc)
+        await message.answer("⚠️ Не смог разобрать голос — попробуй ещё раз или напиши текстом.")
+        return
+    finally:
+        for path in (raw_path, wav_path):
+            if path.exists():
+                try:
+                    path.unlink()
+                except OSError:
+                    pass
+
+    transcript = (transcript or "").strip()
+    if not transcript or transcript.startswith("Ошибка сервиса") or transcript == "Не удалось распознать аудио.":
+        await message.answer("⚠️ Не получилось распознать. Скажи ещё раз или напиши текстом.")
+        return
+
+    quiz_session = await db_quiz_session.update_answer(
+        session_id=session_id,
+        question_id=question['id'],
+        answer_value=transcript
+    )
+
+    await message.answer(f"🎙️ Принял голосовой ответ: {transcript}")
+
+    quiz_session = await _queue_next_question_if_needed(quiz_session)
+    await _maybe_send_mid_insight(message, quiz_session, state)
+
     if quiz_session.current_question_index >= quiz_session.total_questions:
         await _finish_quiz(message, quiz_session, state)
     else:
@@ -403,6 +481,11 @@ async def cancel_quiz_callback(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         "❌ Квиз отменён.\n\n"
         "Вы можете начать новый в любое время: /quiz"
+    )
+
+    await call.message.answer(
+        "🏠 Главное меню",
+        reply_markup=main_menu_keyboard
     )
 
 

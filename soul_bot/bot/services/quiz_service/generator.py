@@ -768,11 +768,12 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
 
     question_type = question.get('type')
     if question_type == 'scale':
-        body_parts.append("📊 <i>Выберите точку на шкале</i>")
+        body_parts.append("📊 <i>Отметьте точку на шкале</i>")
     elif question_type == 'multiple_choice':
-        body_parts.append("☑️ <i>Выберите один вариант, который ближе всего</i>")
+        body_parts.append("☑️ <i>Выберите вариант</i>")
     else:
         body_parts.append("✍️ <i>Напишите свой ответ</i>")
+        body_parts.append("🎙️ Можно ответить голосом — просто отправьте аудио.")
 
     return "\n\n".join(body_parts)
 
