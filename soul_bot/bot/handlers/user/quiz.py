@@ -23,7 +23,7 @@ from bot.states.states import QuizStates
 from bot.services.quiz_service import generator, analyzer
 from bot.services.quiz.adaptive_quiz_service import AdaptiveQuizService
 from bot.services.ai.gpt_service import GPTService
-from bot.functions.speech import convert_voice, recognize
+from bot.functions.speech import convert_voice, transcribe_audio
 import database.repository.quiz_session as db_quiz_session
 import database.repository.user_profile as db_user_profile
 from bot.keyboards.start import menu as main_menu_keyboard
@@ -321,7 +321,7 @@ async def handle_voice_answer(message: Message, state: FSMContext):
         file_info = await message.bot.get_file(message.voice.file_id)
         await message.bot.download_file(file_info.file_path, raw_path)
         convert_voice(str(raw_path), str(wav_path))
-        transcript = recognize(str(wav_path))
+        transcript = await transcribe_audio(str(wav_path))
     except Exception as exc:
         logging.exception("Quiz voice processing failed", exc_info=exc)
         await message.answer("⚠️ Не смог разобрать голос — попробуй ещё раз или напиши текстом.")
@@ -335,7 +335,7 @@ async def handle_voice_answer(message: Message, state: FSMContext):
                     pass
 
     transcript = (transcript or "").strip()
-    if not transcript or transcript.startswith("Ошибка сервиса") or transcript == "Не удалось распознать аудио.":
+    if not transcript:
         await message.answer("⚠️ Не получилось распознать. Скажи ещё раз или напиши текстом.")
         return
 

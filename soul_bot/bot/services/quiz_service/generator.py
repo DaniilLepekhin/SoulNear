@@ -748,7 +748,7 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
 
     body_parts: list[str] = []
     if preface:
-        body_parts.append(f"<i>{html.escape(preface)}</i>")
+        body_parts.append(f"<i>{html.escape(preface)}</i>\n")
 
     body_parts.append(f"{emoji} <b>{safe_question_text}</b>")
 
@@ -758,7 +758,7 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     elif question_type == 'multiple_choice':
         body_parts.append("☑️ <i>Выберите вариант</i>")
     else:
-        body_parts.append("✍️ <i>Напишите свой ответ, можно войсом</i> 🎙️")
+        body_parts.append("\n✍️ <i>Напишите свой ответ, можно войсом</i> 🎙️")
 
     return "\n".join(body_parts)
 

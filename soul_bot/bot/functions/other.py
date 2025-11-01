@@ -8,7 +8,7 @@ from datetime import datetime
 from aiogram.fsm.context import FSMContext
 
 import database.repository.user as db_user
-from bot.functions.speech import convert_voice, recognize
+from bot.functions.speech import convert_voice, transcribe_audio
 from bot.keyboards.premium import sub_menu
 from bot.loader import bot
 import uuid
@@ -186,15 +186,7 @@ async def voice_answer(message: Message, assistant: str):
             return
 
         convert_voice(file_name_full, file_name_full_converted)
-
-        if os.path.exists(file_name_full_converted):
-            text = recognize(file_name_full_converted)
-        else:
-            remove_user(user_id)
-            print("Файл не создан:", file_name_full_converted)
-            await message.answer("Ошибка создания файла. Пожалуйста, попробуйте ещё раз.")
-            await gen_message.delete()
-            return
+        text = await transcribe_audio(file_name_full_converted)
 
         res_text = await get_assistant_response(user_id, text, assistant)
         if not res_text:
@@ -225,6 +217,13 @@ async def voice_answer(message: Message, assistant: str):
     except Exception as e:
         print(e)
         remove_user(user_id)
+    finally:
+        for path in (file_name_full, file_name_full_converted):
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
 
 
 async def text_answer(message: Message, assistant: str):
