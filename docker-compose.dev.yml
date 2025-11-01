@@ -1,0 +1,32 @@
+# Docker Compose для разработки
+# Использование: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # Бот с volume mounts для hot reload
+  bot:
+    volumes:
+      - ./soul_bot:/app
+      # Исключаем venv и __pycache__
+      - /app/venv
+      - /app/__pycache__
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Для разработки можем использовать command с watchdog
+    # command: python -u bot.py
+
+  # API с volume mounts
+  api:
+    volumes:
+      - ./webapp_api:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Quart может автоматически перезагружаться с debug=True
+    command: python app.py
+
+  # PostgreSQL с exposed портом для локального доступа
+  postgres:
+    ports:
+      - "5432:5432"
+

@@ -5,6 +5,26 @@
 
 ## 🎯 Quick Start
 
+### 🐳 Вариант 1: Docker (рекомендуется)
+
+```bash
+# 1. Setup конфигурации
+make setup
+
+# 2. Заполните .env.prod
+nano .env.prod
+
+# 3. Запустите все сервисы (бот + API + PostgreSQL)
+make up
+
+# 4. Проверьте логи
+make logs
+```
+
+**📖 Подробнее:** [DOCKER_QUICKSTART.md](./DOCKER_QUICKSTART.md)
+
+### 🐍 Вариант 2: Локальный запуск
+
 1. **Setup:**
    ```bash
    cd soul_bot
@@ -154,6 +174,12 @@ ENABLE_TUNE_STYLE=false          # ⏳ Stage 6
 **Схема:** см. [HANDOFF.md - Database Schema](./HANDOFF.md#-database-schema)
 
 ## 📚 Документация
+
+### 🐳 Docker:
+- **[DOCKER_QUICKSTART.md](./DOCKER_QUICKSTART.md)** - быстрый старт с Docker
+- [DOCKER_SETUP_SUMMARY.md](./DOCKER_SETUP_SUMMARY.md) - полная документация
+- [DOCKER_CHECKLIST.md](./DOCKER_CHECKLIST.md) - чек-лист запуска
+- [README_DOCKER.md](./README_DOCKER.md) - подробное руководство
 
 ### 🚀 Начни здесь:
 - **[HANDOFF.md](./HANDOFF.md)** - главный документ для разработчиков

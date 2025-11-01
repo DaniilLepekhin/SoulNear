@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: soulnear_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-soul_bot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soulnear_network
+
+  # Telegram Bot
+  bot:
+    build:
+      context: ./soul_bot
+      dockerfile: Dockerfile
+    container_name: soulnear_bot
+    restart: unless-stopped
+    env_file:
+      - .env.${ENV:-prod}
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      ENV: ${ENV:-prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./soul_bot/logs:/app/logs
+    networks:
+      - soulnear_network
+
+  # WebApp API
+  api:
+    build:
+      context: ./webapp_api
+      dockerfile: Dockerfile
+    container_name: soulnear_api
+    restart: unless-stopped
+    env_file:
+      - .env.${ENV:-prod}
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "${API_PORT:-8888}:8888"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - soulnear_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  soulnear_network:
+    driver: bridge
+
