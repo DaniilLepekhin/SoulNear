@@ -209,6 +209,11 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
                 
                 # Сохраняем обновленную сессию
                 quiz_session = await db_quiz_session.update(quiz_session)
+                logging.info(
+                    f"[quiz] Adaptive branching added {len(normalized)} questions: "
+                    f"total_questions={quiz_session.total_questions}, "
+                    f"questions_len={len(quiz_session.questions or [])}"
+                )
                 
                 # Уведомляем пользователя
                 await call.message.answer(
@@ -220,6 +225,10 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
             logging.error(f"Adaptive branching failed: {e}")
     
     # Проверяем завершён ли квиз
+    logging.info(
+        f"[quiz] After adaptive branch: index={quiz_session.current_question_index}, "
+        f"total={quiz_session.total_questions}, questions_len={len(quiz_session.questions or [])}"
+    )
     if quiz_session.current_question_index >= quiz_session.total_questions:
         # Квиз завершён!
         await _finish_quiz(call.message, quiz_session, state)
@@ -362,6 +371,20 @@ async def _show_current_question(message: Message, quiz_session, state: FSMConte
     """
     current_idx = quiz_session.current_question_index
     total = quiz_session.total_questions
+    
+    logging.info(
+        f"[quiz] Showing question: index={current_idx}, total={total}, "
+        f"questions_len={len(quiz_session.questions or [])}"
+    )
+    
+    if current_idx >= len(quiz_session.questions or []):
+        logging.error(
+            f"[quiz] Question index out of range! index={current_idx}, "
+            f"questions_len={len(quiz_session.questions or [])}"
+        )
+        await message.answer("⚠️ Ошибка: вопрос не найден. Попробуйте /quiz заново")
+        return
+    
     question = quiz_session.questions[current_idx]
     
     # Форматируем вопрос
@@ -385,13 +408,18 @@ async def _show_current_question(message: Message, quiz_session, state: FSMConte
             reply_markup=keyboard,
             parse_mode='HTML'
         )
-    except:
+    except Exception as e:
         # Если не получилось edit - отправляем новое
-        await message.answer(
-            text=text,
-            reply_markup=keyboard,
-            parse_mode='HTML'
-        )
+        logging.debug(f"[quiz] Cannot edit message (expected for voice/text answers): {e}")
+        try:
+            await message.answer(
+                text=text,
+                reply_markup=keyboard,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logging.error(f"[quiz] Failed to send question: {e}", exc_info=True)
+            raise
 
 
 # ==========================================
