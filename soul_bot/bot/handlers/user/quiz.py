@@ -141,6 +141,12 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
         await state.update_data(quiz_session_id=quiz_session.id)
         await state.set_state(QuizStates.waiting_for_answer)
         
+        # Скрываем клавиатуру категорий
+        try:
+            await call.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+
         # Показываем первый вопрос
         await _show_current_question(call.message, quiz_session, state)
         
@@ -194,7 +200,13 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     
     await call.answer("✅ Ответ сохранён")
 
-    quiz_session, _ = await _ensure_next_question(call.message, quiz_session)
+    # Отключаем старую клавиатуру, чтобы нельзя было повторно жать варианты
+    try:
+        await call.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
+    quiz_session, status_msg = await _ensure_next_question(call.message, quiz_session)
     await _maybe_send_mid_insight(call.message, quiz_session, state)
     
     # 🔥 ADAPTIVE BRANCHING: проверяем нужно ли добавить follow-up вопросы
@@ -230,10 +242,14 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     )
     if quiz_session.current_question_index >= quiz_session.total_questions:
         # Квиз завершён!
+        if status_msg:
+            try:
+                await status_msg.delete()
+            except Exception:
+                pass
         await _finish_quiz(call.message, quiz_session, state)
     else:
         # Генерируем и показываем следующий вопрос
-        quiz_session, status_msg = await _ensure_next_question(call.message, quiz_session)
         await _show_current_question(call.message, quiz_session, state, status_msg)
 
 
@@ -277,14 +293,18 @@ async def handle_text_answer(message: Message, state: FSMContext):
         answer_value=answer_value
     )
     
-    quiz_session, _ = await _ensure_next_question(message, quiz_session)
+    quiz_session, status_msg = await _ensure_next_question(message, quiz_session)
     await _maybe_send_mid_insight(message, quiz_session, state)
     
     # Проверяем завершён ли квиз
     if quiz_session.current_question_index >= quiz_session.total_questions:
+        if status_msg:
+            try:
+                await status_msg.delete()
+            except Exception:
+                pass
         await _finish_quiz(message, quiz_session, state)
     else:
-        quiz_session, status_msg = await _ensure_next_question(message, quiz_session)
         await _show_current_question(message, quiz_session, state, status_msg)
 
 
@@ -351,13 +371,17 @@ async def handle_voice_answer(message: Message, state: FSMContext):
 
     await message.answer(f"🎙️ Принял голосовой ответ: {transcript}")
 
-    quiz_session, _ = await _ensure_next_question(message, quiz_session)
+    quiz_session, status_msg = await _ensure_next_question(message, quiz_session)
     await _maybe_send_mid_insight(message, quiz_session, state)
 
     if quiz_session.current_question_index >= quiz_session.total_questions:
+        if status_msg:
+            try:
+                await status_msg.delete()
+            except Exception:
+                pass
         await _finish_quiz(message, quiz_session, state)
     else:
-        quiz_session, status_msg = await _ensure_next_question(message, quiz_session)
         await _show_current_question(message, quiz_session, state, status_msg)
 
 
@@ -366,9 +390,9 @@ async def handle_voice_answer(message: Message, state: FSMContext):
 # ==========================================
 
 async def _show_current_question(
-    message: Message, 
-    quiz_session, 
-    state: FSMContext, 
+    message: Message,
+    quiz_session,
+    state: FSMContext,
     status_msg_to_delete=None
 ):
     """
@@ -418,23 +442,14 @@ async def _show_current_question(
             pass
     
     try:
-        await message.edit_text(
+        await message.answer(
             text=text,
             reply_markup=keyboard,
             parse_mode='HTML'
         )
     except Exception as e:
-        # Если не получилось edit - отправляем новое
-        logging.debug(f"[quiz] Cannot edit message (expected for voice/text answers): {e}")
-        try:
-            await message.answer(
-                text=text,
-                reply_markup=keyboard,
-                parse_mode='HTML'
-            )
-        except Exception as e:
-            logging.error(f"[quiz] Failed to send question: {e}", exc_info=True)
-            raise
+        logging.error(f"[quiz] Failed to send question: {e}", exc_info=True)
+        raise
 
 
 # ==========================================
@@ -549,6 +564,12 @@ async def resume_quiz_callback(call: CallbackQuery, state: FSMContext):
     await state.update_data(quiz_session_id=quiz_session.id)
     await state.set_state(QuizStates.waiting_for_answer)
     
+    # Скрываем клавиатуру Resume/New
+    try:
+        await call.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
     # Показываем текущий вопрос
     await _show_current_question(call.message, quiz_session, state)
 
