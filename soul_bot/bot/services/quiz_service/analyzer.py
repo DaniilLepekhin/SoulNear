@@ -10,6 +10,7 @@
 """
 import logging
 import json
+import textwrap
 from typing import Optional
 from openai import AsyncOpenAI
 
@@ -431,6 +432,15 @@ def _confidence_to_stars(confidence: float) -> str:
     return f"{stars} ({percentage}%)"
 
 
+def _shorten(text: str | None, limit: int = 160) -> str:
+    text = (text or "").strip()
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    return textwrap.shorten(text, width=limit, placeholder="…")
+
+
 def _calculate_confidence(answers: list[dict]) -> float:
     """
     Рассчитать уверенность в результатах
@@ -476,61 +486,53 @@ async def format_results_for_telegram(
     """Форматировать результаты квиза для отображения в Telegram."""
     import html
 
-    category = results.get('category') or 'Квиз'
+    category = (results.get('category') or 'Квиз').title()
     patterns = results.get('new_patterns') or []
     recommendations = results.get('recommendations') or []
 
-    header = f"🧠 <b>Разбор завершён</b> · {html.escape(category.title())}"
-    sections: list[str] = [header]
+    sections: list[str] = [f"🧠 <b>Разбор завершён · {html.escape(category)}</b>"]
 
     if patterns:
-        pattern_blocks = ["🔥 <b>Главные паттерны</b>"]
+        blocks: list[str] = []
         for pattern in patterns[:3]:
-            pattern_blocks.append(_render_pattern_block(pattern))
-        sections.append("\n".join(pattern_blocks))
+            title = html.escape(pattern.get('title', 'Паттерн'))
+            confidence = pattern.get('confidence', 0.0)
+            emoji = "✅" if confidence >= 0.7 else "⚠️"
+            stars = _confidence_to_stars(confidence)
+
+            lines = [f"{emoji} <b>{title}</b> · {stars}"]
+
+            highlight = _shorten(pattern.get('contradiction'))
+            if highlight:
+                lines.append(f"• Что заметили: {html.escape(highlight)}")
+
+            dynamic = _shorten(pattern.get('hidden_dynamic'))
+            if dynamic:
+                lines.append(f"• Что это значит: {html.escape(dynamic)}")
+
+            resource = _shorten(pattern.get('blocked_resource'), limit=140)
+            if resource:
+                lines.append(f"• Ресурс: {html.escape(resource)}")
+
+            evidence = pattern.get('evidence') or []
+            if evidence:
+                sample = _shorten(evidence[0], limit=120)
+                if sample:
+                    lines.append(f"• Пример: {html.escape(sample)}")
+
+            blocks.append("\n".join(lines))
+
+        sections.append("\n\n".join(blocks))
     else:
-        sections.append(
-            "😶 Пока без ярко выраженных паттернов — это уже сигнал прислушаться к своим ощущениям."
-        )
+        sections.append("😶 Пока без ярких паттернов — значит, данных мало или противоречия слабые.")
 
     if recommendations:
+        trimmed = [_shorten(rec, limit=140) for rec in recommendations[:3]]
         rec_lines = ["📌 <b>Что попробовать</b>"]
-        for rec in recommendations[:5]:
-            rec_lines.append(f"• {html.escape(rec)}")
+        rec_lines.extend(f"• {html.escape(item)}" for item in trimmed if item)
         sections.append("\n".join(rec_lines))
 
-    sections.append("🪄 Если хочется копнуть глубже — напиши, продолжим раскатывать сюжет.")
+    sections.append("🪄 Если хочется копнуть глубже — напиши, продолжим разбирать сюжет.")
 
-    return "\n\n".join(sections)
-
-
-def _render_pattern_block(pattern: dict) -> str:
-    import html
-
-    title = html.escape(pattern.get('title', 'Паттерн'))
-    confidence = pattern.get('confidence', 0.0)
-    stars = _confidence_to_stars(confidence)
-    emoji = "✅" if confidence >= 0.7 else "⚠️"
-
-    lines = [f"{emoji} <b>{title}</b> {stars}"]
-
-    contradiction = pattern.get('contradiction')
-    if contradiction:
-        lines.append(f"⚡ <b>Противоречие:</b> {html.escape(contradiction)}")
-
-    hidden_dynamic = pattern.get('hidden_dynamic')
-    if hidden_dynamic:
-        lines.append(f"🔍 <b>Скрытая динамика:</b> {html.escape(hidden_dynamic)}")
-
-    blocked_resource = pattern.get('blocked_resource')
-    if blocked_resource:
-        lines.append(f"🔓 <b>Ресурс внутри:</b> {html.escape(blocked_resource)}")
-
-    evidence = pattern.get('evidence') or []
-    if evidence:
-        lines.append("📝 Примеры:")
-        for sample in evidence[:2]:
-            lines.append(f"   • {html.escape(sample)}")
-
-    return "\n".join(lines)
+    return "\n\n".join([block for block in sections if block])
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 import html
-import json
+import textwrap
 
 from aiogram import F
 from aiogram.filters import Command
@@ -19,10 +19,7 @@ import database.repository.user as db_user
 import database.repository.user_profile as db_user_profile
 from bot.states.states import Update_user_info
 from config import is_feature_enabled
-from openai import AsyncOpenAI
-from config import OPENAI_API_KEY
 
-client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # Telegram message length limit
 MAX_MESSAGE_LENGTH = 4096
@@ -74,191 +71,210 @@ async def _send_long_message(message: Message, text: str, parse_mode: str = 'HTM
         header = f"📄 <b>Часть {part_number}/{total_parts}</b>\n\n" if part_number > 1 or total_parts > 1 else ""
         await message.answer(header + current_part, parse_mode=parse_mode)
 
-def _clean_profile_for_display(profile_data: dict) -> dict:
-    """
-    Удалить embeddings и сократить данные для GPT форматирования
-    
-    Embeddings нужны только для similarity checks, не для форматирования!
-    Каждый embedding = 1536 чисел = ~7.6KB → после 10 паттернов = 76KB!
-    
-    Args:
-        profile_data: Сырые данные профиля
-        
-    Returns:
-        Очищенные данные (БЕЗ embeddings, сокращённые evidence)
-    """
-    cleaned = profile_data.copy()
-    
-    # Очищаем patterns
-    if 'patterns' in cleaned and cleaned['patterns']:
-        cleaned_patterns = []
-        allowed_keys = {
-            'type',
-            'title',
-            'description',
-            'tags',
-            'confidence',
-            'occurrences',
-            'first_detected',
-            'last_detected',
-            'contradiction',
-            'hidden_dynamic',
-            'blocked_resource',
-            'auto_detected',
-            'detection_score'
-        }
-        for pattern in cleaned['patterns']:
-            seen_evidence = set()
-            unique_evidence = []
-            for raw_quote in pattern.get('evidence', []):
-                if not raw_quote:
-                    continue
-                normalized = " ".join(raw_quote.strip().split())
-                key = normalized.lower()
-                if key in seen_evidence:
-                    continue
-                seen_evidence.add(key)
-                unique_evidence.append(normalized)
-            clean_pattern = {key: pattern.get(key) for key in allowed_keys if pattern.get(key) is not None}
-            clean_pattern['evidence'] = unique_evidence[:2]  # Только 2 уникальных примера
-            clean_pattern['tags'] = pattern.get('tags', [])[:3]  # Топ-3 тега
-            cleaned_patterns.append(clean_pattern)
-        cleaned['patterns'] = cleaned_patterns
-    
-    # Очищаем insights (обычно уже без embeddings, но на всякий случай)
-    if 'insights' in cleaned and cleaned['insights']:
-        cleaned_insights = []
-        for insight in cleaned['insights']:
-            clean_insight = {
-                'category': insight.get('category'),
-                'title': insight.get('title'),
-                'description': insight.get('description'),
-                'impact': insight.get('impact'),
-                'recommendations': insight.get('recommendations', [])[:3],  # Топ-3
-                'priority': insight.get('priority')
-                # ❌ НЕ включаем: derived_from (ID паттернов - не нужны юзеру)
-            }
-            cleaned_insights.append(clean_insight)
-        cleaned['insights'] = cleaned_insights
-    
-    return cleaned
+STYLE_TONE_LABELS = {
+    'friendly': 'дружелюбный',
+    'formal': 'формальный',
+    'sarcastic': 'ироничный',
+    'motivating': 'мотивирующий',
+}
+
+STYLE_PERSONALITY_LABELS = {
+    'mentor': 'наставник',
+    'friend': 'друг',
+    'coach': 'коуч',
+    'therapist': 'терапевт',
+}
+
+STYLE_LENGTH_LABELS = {
+    'ultra_brief': 'очень короткие',
+    'brief': 'краткие',
+    'medium': 'средние',
+    'detailed': 'подробные',
+}
+
+MOOD_LABELS = {
+    'positive': 'поднятое',
+    'slightly_positive': 'ровное',
+    'neutral': 'нейтральное',
+    'slightly_down': 'уставшее',
+    'negative': 'подавленное',
+}
+
+STRESS_LABELS = {
+    'low': 'низкий',
+    'medium': 'средний',
+    'high': 'высокий',
+    'critical': 'критический',
+}
+
+ENERGY_LABELS = {
+    'low': 'мало',
+    'medium': 'сбалансировано',
+    'high': 'много',
+}
 
 
-def _build_pattern_highlights(patterns: list[dict]) -> list[dict]:
-    """Сформировать список паттернов с глубинными полями для отображения"""
-    highlights: list[dict] = []
-    for pattern in patterns or []:
-        contradiction = pattern.get('contradiction')
-        hidden_dynamic = pattern.get('hidden_dynamic')
-        blocked_resource = pattern.get('blocked_resource')
-
-        if not any([contradiction, hidden_dynamic, blocked_resource]):
-            continue
-
-        highlights.append(
-            {
-                'title': pattern.get('title', 'Pattern'),
-                'frequency': pattern.get('occurrences'),
-                'contradiction': contradiction,
-                'hidden_dynamic': hidden_dynamic,
-                'blocked_resource': blocked_resource,
-            }
-        )
-
-    return highlights
+def _shorten(text: str | None, limit: int = 160) -> str:
+    text = (text or "").strip()
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    return textwrap.shorten(text, width=limit, placeholder="…")
 
 
-async def _format_profile_with_gpt(profile_data: dict) -> str:
-    """
-    Форматировать профиль через GPT-4 для красивого вывода
-    
-    Args:
-        profile_data: Данные профиля (patterns, insights, mood, etc.)
-        
-    Returns:
-        Красиво отформатированный текст на русском
-    """
-    prompt = f"""
-Ты — дружелюбный ассистент, который помогает пользователю увидеть свой психологический профиль.
+def _format_patterns_section(patterns: list[dict]) -> str:
+    if not patterns:
+        return ""
 
-Перед тобой данные профиля пользователя в JSON формате. Твоя задача — представить эту информацию 
-красиво, понятно и на русском языке.
+    lines: list[str] = ["🧠 <b>Главные паттерны</b>"]
+    for pattern in patterns[:3]:
+        title = html.escape(pattern.get('title', 'Паттерн'))
+        confidence = int((pattern.get('confidence') or 0) * 100)
+        lines.append(f"• <b>{title}</b> · уверенность {confidence}%")
 
-ДАННЫЕ ПРОФИЛЯ:
-{json.dumps(profile_data, ensure_ascii=False, indent=2)}
+        description = _shorten(pattern.get('description'), 150)
+        if description:
+            lines.append(f"  <i>{html.escape(description)}</i>")
 
-ИНСТРУКЦИИ:
-1. Используй HTML-форматирование: заголовки через <b>, пояснения через <i>, списки с символом •.
-2. Структурируй информацию по блокам и добавляй эмодзи (🎨 🧠 💡 😊 🎓) в заголовки.
-3. Если данных нет — честно напиши, что профиль ещё формируется.
-4. **ВАЖНО**: Тон живой, простой, как будто друг рассказывает. Без академических терминов (избегай слов типа "интроспекция", "экзистенциальный", "предусмотрительность"). Вместо них используй обычные слова: "смотришь внутрь себя", "вопрос смысла жизни", "умение планировать".
-5. Для каждого паттерна обязательно показывай поля:
-   • <b>Описание</b> — кратко, простыми словами, с фокусом на ощущениях пользователя.
-   • <b>🔀 Противоречие</b> — из поля contradiction (перефразируй простым языком).
-   • <b>🎭 Скрытая динамика</b> — из поля hidden_dynamic (объясни как будто другу).
-   • <b>💎 Заблокированный ресурс</b> — из поля blocked_resource (покажи потенциал человека).
-   • 📝 <i>Примеры из ваших слов:</i> + маркированный список цитат (макс 2 штуки).
-6. Используй массив "pattern_highlights" (если есть) как список ключевых противоречий — упомяни каждый.
-7. Подчеркивай важные мысли жирным, выделяй ключевые слова курсивом, делай текст легко сканируемым.
-8. Для эмоционального состояния используй образные описания и списки.
-9. Общая длина — до 2500 символов (чтобы точно влезло в Telegram).
+        contradiction = _shorten(pattern.get('contradiction'), 140)
+        if contradiction:
+            lines.append(f"  🔀 {html.escape(contradiction)}")
 
-ФОРМАТ ВЫВОДА:
-```
-🧠 <b>Ваш психологический профиль</b>
+        hidden_dynamic = _shorten(pattern.get('hidden_dynamic'), 140)
+        if hidden_dynamic:
+            lines.append(f"  🎭 {html.escape(hidden_dynamic)}")
 
-🎨 <b>Стиль общения</b>
-• <b>Тон:</b> ...
-• <b>Личность:</b> ...
-• <b>Длина ответов:</b> ...
+        resource = _shorten(pattern.get('blocked_resource'), 140)
+        if resource:
+            lines.append(f"  💎 {html.escape(resource)}")
 
-🧠 <b>Выявленные паттерны</b>
-- <b>Название паттерна</b> (частота: X)
-  <i>Короткое описание...</i>
-  <b>🔀 Противоречие:</b> ...
-  <b>🎭 Скрытая динамика:</b> ...
-  <b>💎 Заблокированный ресурс:</b> ...
-  📝 <i>Примеры из ваших слов:</i>
-    • "цитата 1"
-    • "цитата 2"
+        evidence = pattern.get('evidence') or []
+        quotes = []
+        for quote in evidence[:1]:
+            snippet = _shorten(quote, 120)
+            if snippet:
+                quotes.append(f"    – «{html.escape(snippet)}»")
+        if quotes:
+            lines.append("  📝 Примеры:")
+            lines.extend(quotes)
 
-💡 <b>Инсайты</b>
-- <b>Заголовок</b>
-  <i>Ключевая мысль, почему это важно.</i>
+        lines.append("")
 
-😊 <b>Текущее состояние</b>
-• <b>Настроение:</b> ...
-• <b>Стресс:</b> ...
-• <b>Энергия:</b> ...
+    while lines and lines[-1] == "":
+        lines.pop()
 
-🎓 <b>Что помогает</b>
-- Работает: ...
-- Не работает: ...
+    return "\n".join(lines)
 
-📊 <b>Статистика</b>
-• Анализов: ...
-• Последний анализ: ...
-```
 
-Верни ТОЛЬКО отформатированный текст, без дополнительных комментариев.
-"""
-    
-    try:
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",  # Дешевле для форматирования
-            messages=[
-                {"role": "system", "content": "Ты помогаешь форматировать психологические профили."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=1500
-        )
-        
-        formatted_text = response.choices[0].message.content
-        return formatted_text
-        
-    except Exception as e:
-        return f"⚠️ Ошибка форматирования профиля: {e}"
+def _format_insights_section(insights: list[dict]) -> str:
+    if not insights:
+        return ""
+
+    lines: list[str] = ["💡 <b>Инсайты</b>"]
+    for insight in insights[:3]:
+        title = html.escape(insight.get('title', 'Инсайт'))
+        lines.append(f"• <b>{title}</b>")
+
+        description = _shorten(insight.get('description'), 180)
+        if description:
+            lines.append(f"  {html.escape(description)}")
+
+        recs = insight.get('recommendations') or []
+        if recs:
+            lines.append(f"  👉 Что попробовать:")
+            for rec in recs[:2]:
+                snippet = _shorten(rec, 140)
+                if snippet:
+                    lines.append(f"    – {html.escape(snippet)}")
+
+        lines.append("")
+
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    return "\n".join(lines)
+
+
+def _format_emotional_state_section(emotional_state: dict) -> str:
+    if not emotional_state:
+        return ""
+
+    mood = MOOD_LABELS.get((emotional_state.get('current_mood') or '').lower())
+    stress = STRESS_LABELS.get((emotional_state.get('stress_level') or '').lower())
+    energy = ENERGY_LABELS.get((emotional_state.get('energy_level') or '').lower())
+
+    lines = ["😊 <b>Текущее состояние</b>"]
+    if mood:
+        lines.append(f"• Настроение: {mood}")
+    if stress:
+        lines.append(f"• Стресс: {stress}")
+    if energy:
+        lines.append(f"• Энергия: {energy}")
+
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
+def _format_learning_section(preferences: dict) -> str:
+    if not preferences:
+        return ""
+
+    works = preferences.get('works_well') or []
+    doesnt = preferences.get('doesnt_work') or []
+    if not works and not doesnt:
+        return ""
+
+    lines = ["🎓 <b>Что помогает</b>"]
+    if works:
+        lines.append("• Работает:")
+        for item in works[:3]:
+            snippet = _shorten(item, 140)
+            if snippet:
+                lines.append(f"  – {html.escape(snippet)}")
+    if doesnt:
+        lines.append("• Не работает:")
+        for item in doesnt[:3]:
+            snippet = _shorten(item, 140)
+            if snippet:
+                lines.append(f"  – {html.escape(snippet)}")
+
+    return "\n".join(lines)
+
+
+def _format_profile_compact(profile, user) -> str:
+    sections: list[str] = []
+
+    header_lines = ["🧠 <b>Психологический профиль</b>"]
+    user_meta = []
+    if user.real_name:
+        user_meta.append(f"Имя: {html.escape(user.real_name)}")
+    if user.age:
+        user_meta.append(f"Возраст: {user.age}")
+    if user_meta:
+        header_lines.append("\n".join(user_meta))
+    sections.append("\n".join(header_lines))
+
+    patterns = (profile.patterns or {}).get('patterns', []) if getattr(profile, 'patterns', None) else []
+    patterns_block = _format_patterns_section(patterns)
+    if patterns_block:
+        sections.append(patterns_block)
+    else:
+        sections.append("🧠 Пока нет выявленных паттернов — продолжайте диалог, чтобы бот понял вас глубже.")
+
+    insights = (profile.insights or {}).get('insights', []) if getattr(profile, 'insights', None) else []
+    insights_block = _format_insights_section(insights)
+    if insights_block:
+        sections.append(insights_block)
+
+    state_block = _format_emotional_state_section(getattr(profile, 'emotional_state', {}) or {})
+    if state_block:
+        sections.append(state_block)
+
+    learning_block = _format_learning_section(getattr(profile, 'learning_preferences', {}) or {})
+    if learning_block:
+        sections.append(learning_block)
+
+    return "\n\n".join([block for block in sections if block])
 
 
 @dp.message(Command('my_profile'))
@@ -274,41 +290,9 @@ async def my_profile_command(message: Message):
     status_msg = await message.answer("🔄 Формирую ваш профиль...")
     
     try:
-        # Получаем профиль
         profile = await db_user_profile.get_or_create(user_id)
         user = await db_user.get(user_id)
-        
-        # Собираем данные для GPT
-        profile_data = {
-            "style": {
-                "tone": profile.tone_style,
-                "personality": profile.personality,
-                "message_length": profile.message_length
-            },
-            "patterns": profile.patterns.get('patterns', [])[-5:],  # Последние 5 (было 10)
-            "insights": profile.insights.get('insights', [])[-3:],  # Последние 3 (было 5)
-            "emotional_state": profile.emotional_state,
-            "learning_preferences": profile.learning_preferences,
-            "stats": {
-                "analysis_count": profile.pattern_analysis_count,
-                "last_analysis": profile.last_analysis_at.isoformat() if profile.last_analysis_at else None,
-                "created_at": profile.created_at.isoformat()
-            },
-            "user_info": {
-                "name": user.real_name,
-                "age": user.age
-            }
-        }
-
-        pattern_highlights = _build_pattern_highlights(profile_data["patterns"])
-        profile_data["pattern_highlights"] = pattern_highlights
-        
-        # ⚠️ FIX: Удаляем embeddings перед отправкой в GPT (экономим ~76KB!)
-        cleaned_data = _clean_profile_for_display(profile_data)
-        cleaned_data["pattern_highlights"] = pattern_highlights
-        
-        # Форматируем через GPT (V2 поля уже включены, дублировать не нужно)
-        formatted_profile = await _format_profile_with_gpt(cleaned_data)
+        formatted_profile = _format_profile_compact(profile, user)
         
         # Удаляем "печатаю..." (с защитой от ошибки если уже удалено)
         try:
@@ -335,51 +319,17 @@ async def view_psychological_profile_callback(call: CallbackQuery):
     """
     Callback для кнопки "Мой психологический профиль"
     
-    Показывает детальный анализ через GPT-4
+    Показывает детальный анализ без GPT, на основе текущих данных
     """
     user_id = call.from_user.id
     
-    # Отправляем "печатаю..." пока GPT обрабатывает
     await call.answer("🔄 Формирую профиль...", show_alert=False)
     
     try:
-        # Получаем профиль
         profile = await db_user_profile.get_or_create(user_id)
         user = await db_user.get(user_id)
+        formatted_profile = _format_profile_compact(profile, user)
         
-        # Собираем данные для GPT
-        profile_data = {
-            "style": {
-                "tone": profile.tone_style,
-                "personality": profile.personality,
-                "message_length": profile.message_length
-            },
-            "patterns": profile.patterns.get('patterns', [])[-5:],  # Последние 5 (было 10)
-            "insights": profile.insights.get('insights', [])[-3:],  # Последние 3 (было 5)
-            "emotional_state": profile.emotional_state,
-            "learning_preferences": profile.learning_preferences,
-            "stats": {
-                "analysis_count": profile.pattern_analysis_count,
-                "last_analysis": profile.last_analysis_at.isoformat() if profile.last_analysis_at else None,
-                "created_at": profile.created_at.isoformat()
-            },
-            "user_info": {
-                "name": user.real_name,
-                "age": user.age
-            }
-        }
-
-        pattern_highlights = _build_pattern_highlights(profile_data["patterns"])
-        profile_data["pattern_highlights"] = pattern_highlights
-        
-        # ⚠️ FIX: Удаляем embeddings перед отправкой в GPT (экономим ~76KB!)
-        cleaned_data = _clean_profile_for_display(profile_data)
-        cleaned_data["pattern_highlights"] = pattern_highlights
-        
-        # Форматируем через GPT (V2 поля уже включены, дублировать не нужно)
-        formatted_profile = await _format_profile_with_gpt(cleaned_data)
-        
-        # Удаляем старое сообщение и отправляем профиль (с разбивкой если длинный)
         try:
             await call.message.delete()
         except Exception:
@@ -395,28 +345,65 @@ async def view_psychological_profile_callback(call: CallbackQuery):
 async def profile_callback(call: CallbackQuery, state: FSMContext):
     user_id = call.from_user.id
     user = await db_user.get(user_id=user_id)
+    profile_data = await db_user_profile.get_or_create(user_id)
 
     sub_date = '❌' if user.sub_date < datetime.now() else f'{user.sub_date}'[:-10]
+    gender_label = "Не указан"
+    if user.gender is True:
+        gender_label = "Мужской"
+    elif user.gender is False:
+        gender_label = "Женский"
 
-    text = f'👤 Ваш профиль, <code>{call.from_user.first_name}</code>\n' \
-           f'├ Ваш ID: <code>{user_id}</code>\n' \
-           f'├ Имя: <code>{user.real_name}</code>\n' \
-           f'├ Возраст: <code>{user.age}</code>\n' \
-           f'├ Пол: <code>{"Мужской" if user.gender else "Женский"}</code>\n'
+    info_lines = [
+        "👤 <b>Ваш профиль</b>",
+        "",
+        f"ID: <code>{user_id}</code>",
+        f"Имя: <code>{user.real_name or '—'}</code>",
+        f"Возраст: <code>{user.age or '—'}</code>",
+        f"Пол: <code>{gender_label}</code>",
+    ]
 
     if user.sub_date > datetime.now():
-        text += f'└ Подписка до: <code>{sub_date}</code>\n\n'
+        info_lines.append(f"Подписка активна до: <code>{sub_date}</code>")
     else:
-        text += (f'├ Ассистент: <code>{user.helper_requests}</code>\n'
-                 f'├ Сонник: <code>{user.sleeper_requests}</code>\n'
-                 f'├ Анализ личности: <code>{user.assistant_requests}</code>\n'
-                 f'└ Подписка до: <code>{sub_date}</code>\n\n')
+        info_lines.append("Подписка: <code>не активна</code>")
 
-    text += f'+3 дня подписки за приведенного друга: <code>https://t.me/SoulnearBot?start={user_id}</code>'
+    tone_label = STYLE_TONE_LABELS.get(profile_data.tone_style, 'по умолчанию')
+    personality_label = STYLE_PERSONALITY_LABELS.get(profile_data.personality, 'универсальный')
+    length_label = STYLE_LENGTH_LABELS.get(profile_data.message_length, 'средние')
+
+    style_lines = [
+        "🎨 <b>Стиль бота</b>",
+        f"• Тон: {tone_label}",
+        f"• Роль: {personality_label}",
+        f"• Длина ответов: {length_label}",
+    ]
+
+    usage_lines = []
+    if user.sub_date <= datetime.now():
+        usage_lines = [
+            "📈 <b>Статистика использования</b>",
+            f"• Помощник: {user.helper_requests}",
+            f"• Сонник: {user.sleeper_requests}",
+            f"• Анализ личности: {user.assistant_requests}",
+        ]
+
+    referral = (
+        "🔗 <b>Пригласите друга и получите +3 дня подписки</b>\n"
+        f"https://t.me/SoulnearBot?start={user_id}"
+    )
+
+    sections = ["\n".join(info_lines), "\n".join(style_lines)]
+    if usage_lines:
+        sections.append("\n".join(usage_lines))
+    sections.append(referral)
+
+    text = "\n\n".join(sections)
     try:
         await call.message.delete()
         await call.message.answer(text=text,
-                                  reply_markup=profile_menu)
+                                  reply_markup=profile_menu,
+                                  parse_mode='HTML')
 
     except:
         await call.answer()

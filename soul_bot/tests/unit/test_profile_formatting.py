@@ -1,6 +1,7 @@
 """Unit tests for profile formatting helpers."""
 
 import os
+from types import SimpleNamespace
 
 for key, value in (
     ("BOT_TOKEN", "123456:TESTTOKEN"),
@@ -11,54 +12,86 @@ for key, value in (
 ):
     os.environ.setdefault(key, value)
 
-from bot.handlers.user.profile import _clean_profile_for_display
+from bot.handlers.user.profile import (
+    _format_profile_compact,
+    _format_patterns_section,
+    _shorten,
+)
 
 
-def test_clean_profile_preserves_v2_fields():
-    pattern = {
-        "type": "behavioral",
-        "title": "Imposter Syndrome",
-        "description": "Страх разоблачения несмотря на успехи",
-        "contradiction": "Говорит, что коллеги ценят, но внутри ждёт провала",
-        "hidden_dynamic": "Сомнения защищают от риска разочаровать себя",
-        "blocked_resource": "Способность к саморефлексии можно направить в поддержку",
-        "evidence": [
-            "Запустил фичу, но думаю, что это случайность",
-            "Меня скоро разоблачат",
-            "Запустил фичу, но думаю, что это случайность",  # дубликат
-        ],
-        "tags": ["critical", "auto", "pattern", "extra"],
-        "confidence": 0.85,
-        "occurrences": 3,
-        "first_detected": "2025-10-30T10:00:00",
-        "last_detected": "2025-10-31T19:00:00",
-        "auto_detected": False,
-        "detection_score": 12,
-    }
+class DummyProfile:
+    def __init__(self):
+        self.patterns = {
+            "patterns": [
+                {
+                    "title": "Страх уязвимости",
+                    "description": "Боитесь показаться настоящим",
+                    "contradiction": "Говорите, что готовы быть открытым, но избегаете откровенных разговоров",
+                    "hidden_dynamic": "Страх отвержения заставляет держать дистанцию",
+                    "blocked_resource": "Умение чувствовать эмоции можно направить на сближение",
+                    "evidence": [
+                        "Когда партнёр задаёт прямые вопросы, я меняю тему",
+                    ],
+                    "confidence": 0.82,
+                    "occurrences": 3,
+                }
+            ]
+        }
+        self.insights = {
+            "insights": [
+                {
+                    "title": "Опора на чужое мнение",
+                    "description": "Оценка себя идёт через реакцию других",
+                    "recommendations": [
+                        "Каждый вечер записывайте 1-2 сильные стороны, которые никто не озвучивал",
+                    ],
+                }
+            ]
+        }
+        self.emotional_state = {
+            "current_mood": "neutral",
+            "stress_level": "medium",
+            "energy_level": "low",
+        }
+        self.learning_preferences = {
+            "works_well": ["Короткие практики дыхания"],
+            "doesnt_work": ["Долгие лекции"],
+        }
 
-    profile_data = {
-        "patterns": [pattern],
-        "insights": [],
-    }
 
-    cleaned = _clean_profile_for_display(profile_data)
+def test_shorten_truncates_long_text():
+    long_text = "слово " * 80
+    shortened = _shorten(long_text, limit=60)
+    assert len(shortened) <= 60
+    assert shortened.endswith("…")
 
-    assert "patterns" in cleaned
-    assert len(cleaned["patterns"]) == 1
-    cleaned_pattern = cleaned["patterns"][0]
 
-    # V2 поля должны сохраниться
-    assert cleaned_pattern["contradiction"] == pattern["contradiction"]
-    assert cleaned_pattern["hidden_dynamic"] == pattern["hidden_dynamic"]
-    assert cleaned_pattern["blocked_resource"] == pattern["blocked_resource"]
+def test_format_patterns_section_includes_evidence_marker():
+    patterns = [
+        {
+            "title": "Страх уязвимости",
+            "description": "Боится показать настоящие чувства",
+            "contradiction": "Хочет близости, но избегает разговоров",
+            "hidden_dynamic": "Страх отвергнутым",
+            "blocked_resource": "Умение сочувствовать",
+            "evidence": ["Прячу настоящие мысли, чтобы не осуждали"],
+            "confidence": 0.9,
+        }
+    ]
 
-    # Evidence сокращается до двух уникальных цитат
-    assert cleaned_pattern["evidence"] == pattern["evidence"][:2]
+    block = _format_patterns_section(patterns)
+    assert "📝" in block
+    assert "«Прячу настоящие мысли" in block
 
-    # Теги ограничиваются тремя значениями
-    assert cleaned_pattern["tags"] == ["critical", "auto", "pattern"]
 
-    # Дополнительные технические поля остаются
-    assert cleaned_pattern["detection_score"] == pattern["detection_score"]
-    assert cleaned_pattern["auto_detected"] is False
+def test_compact_profile_contains_main_sections():
+    profile = DummyProfile()
+    user = SimpleNamespace(real_name="Анна", age=29)
+
+    text = _format_profile_compact(profile, user)
+
+    assert "🧠 <b>Психологический профиль</b>" in text
+    assert "Страх уязвимости" in text
+    assert "💡 <b>Инсайты</b>" in text
+    assert "😊 <b>Текущее состояние</b>" in text
 

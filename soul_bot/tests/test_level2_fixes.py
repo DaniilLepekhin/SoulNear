@@ -76,15 +76,22 @@ class TestLevel2FixesSmoke:
             f"RELATED threshold должен быть 0.65, получилось {SIMILARITY_THRESHOLD_RELATED}"
     
     def test_evidence_mentioned_in_profile_formatting(self):
-        """Проверить что промпт для /my_profile упоминает evidence"""
-        from bot.handlers.user.profile import _format_profile_with_gpt
-        import inspect
-        
-        source = inspect.getsource(_format_profile_with_gpt)
-        
-        assert 'evidence' in source.lower(), "Промпт должен упоминать evidence"
-        assert 'примеры' in source.lower() or 'example' in source.lower(), \
-            "Промпт должен требовать показывать примеры"
+        """Проверить что форматирование профиля показывает evidence"""
+        from bot.handlers.user.profile import _format_patterns_section
+        block = _format_patterns_section([
+            {
+                'title': 'Тестовый паттерн',
+                'description': 'Описание',
+                'contradiction': 'Противоречие',
+                'hidden_dynamic': 'Динамика',
+                'blocked_resource': 'Ресурс',
+                'evidence': ['Цитата пользователя'],
+                'confidence': 0.8,
+            }
+        ])
+
+        assert '📝' in block, "Форматирование должно выделять блок с примерами"
+        assert 'Цитата пользователя' in block, "Пример из слов пользователя должен попадать в текст"
     
     def test_citation_requirement_in_system_prompt(self):
         """Проверить что build_system_prompt включает требование цитирования"""

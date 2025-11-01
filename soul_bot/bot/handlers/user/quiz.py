@@ -194,8 +194,7 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
     
     await call.answer("✅ Ответ сохранён")
 
-    # Поддерживаем непрерывный диалог: готовим следующий вопрос заранее
-    quiz_session = await _queue_next_question_if_needed(quiz_session)
+    quiz_session = await _ensure_next_question(call.message, quiz_session)
     await _maybe_send_mid_insight(call.message, quiz_session, state)
     
     # 🔥 ADAPTIVE BRANCHING: проверяем нужно ли добавить follow-up вопросы
@@ -219,9 +218,6 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
         except Exception as e:
             import logging
             logging.error(f"Adaptive branching failed: {e}")
-    
-    # На всякий случай ещё раз проверяем, что следующий вопрос существует
-    quiz_session = await _queue_next_question_if_needed(quiz_session)
     
     # Проверяем завершён ли квиз
     if quiz_session.current_question_index >= quiz_session.total_questions:
@@ -272,15 +268,14 @@ async def handle_text_answer(message: Message, state: FSMContext):
         answer_value=answer_value
     )
     
-    # Поддерживаем диалоговую генерацию
-    quiz_session = await _queue_next_question_if_needed(quiz_session)
+    quiz_session = await _ensure_next_question(message, quiz_session)
     await _maybe_send_mid_insight(message, quiz_session, state)
     
     # Проверяем завершён ли квиз
     if quiz_session.current_question_index >= quiz_session.total_questions:
         await _finish_quiz(message, quiz_session, state)
     else:
-        quiz_session = await _queue_next_question_if_needed(quiz_session)
+        quiz_session = await _ensure_next_question(message, quiz_session)
         await _show_current_question(message, quiz_session, state)
 
 
@@ -347,13 +342,13 @@ async def handle_voice_answer(message: Message, state: FSMContext):
 
     await message.answer(f"🎙️ Принял голосовой ответ: {transcript}")
 
-    quiz_session = await _queue_next_question_if_needed(quiz_session)
+    quiz_session = await _ensure_next_question(message, quiz_session)
     await _maybe_send_mid_insight(message, quiz_session, state)
 
     if quiz_session.current_question_index >= quiz_session.total_questions:
         await _finish_quiz(message, quiz_session, state)
     else:
-        quiz_session = await _queue_next_question_if_needed(quiz_session)
+        quiz_session = await _ensure_next_question(message, quiz_session)
         await _show_current_question(message, quiz_session, state)
 
 
@@ -443,10 +438,10 @@ async def _finish_quiz(message: Message, quiz_session, state: FSMContext):
             parse_mode='HTML'
         )
         
-        # Предлагаем пройти ещё
+        # Возвращаем главное меню
         await message.answer(
-            "Хотите пройти ещё один квиз?",
-            reply_markup=_categories_keyboard()
+            "🏠 Главная",
+            reply_markup=main_menu_keyboard
         )
         
     except Exception as e:
@@ -595,6 +590,30 @@ async def _queue_next_question_if_needed(quiz_session):
         len(quiz_session.questions),
     )
     return await db_quiz_session.update(quiz_session)
+
+
+async def _ensure_next_question(message: Message, quiz_session) -> object:
+    """Показать статус генерации и убедиться, что следующий вопрос готов."""
+    needs_generation = (
+        quiz_session
+        and quiz_session.current_question_index < quiz_session.total_questions
+        and len(quiz_session.questions or []) <= quiz_session.current_question_index
+    )
+
+    status_msg = None
+    if needs_generation:
+        status_msg = await message.answer("⏳ Генерирую следующий вопрос...")
+
+    try:
+        updated_session = await _queue_next_question_if_needed(quiz_session)
+    finally:
+        if status_msg:
+            try:
+                await status_msg.delete()
+            except Exception:
+                pass
+
+    return updated_session
 
 
 async def _maybe_send_mid_insight(message: Message, quiz_session, state: FSMContext):

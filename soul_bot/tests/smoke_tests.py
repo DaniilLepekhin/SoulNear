@@ -289,7 +289,7 @@ class TestPatternAnalysisFeature:
         with open(profile_handler_path, 'r', encoding='utf-8') as f:
             content = f.read()
             assert 'my_profile_command' in content
-            assert '_format_profile_with_gpt' in content
+            assert '_format_profile_compact' in content
             assert '@dp.message(Command(\'my_profile\'))' in content
             assert 'view_psychological_profile' in content
 

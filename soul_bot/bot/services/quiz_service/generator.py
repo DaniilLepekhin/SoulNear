@@ -746,11 +746,17 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     safe_question_text = html.escape(question.get('text', ''))
     preface = question.get('preface')
 
-    body_parts: list[str] = []
-    if preface:
-        body_parts.append(f"<i>{html.escape(preface)}</i>\n")
+    label = f"({current}/{total})" if total else ""
+    title_line = f"{label} {emoji}".strip()
 
-    body_parts.append(f"{emoji} <b>{safe_question_text}</b>")
+    body_parts: list[str] = [title_line]
+
+    if preface and safe_question_text and " " in safe_question_text:
+        body_parts.append(f"<i>{html.escape(preface)}</i>")
+        body_parts.append(f"<b>{safe_question_text}</b>")
+    else:
+        merged = " ".join(filter(None, (preface, safe_question_text))).strip()
+        body_parts.append(f"<b>{html.escape(merged)}</b>")
 
     question_type = question.get('type')
     if question_type == 'scale':
@@ -758,7 +764,8 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     elif question_type == 'multiple_choice':
         body_parts.append("☑️ <i>Выберите вариант</i>")
     else:
-        body_parts.append("\n✍️ <i>Напишите свой ответ, можно войсом</i> 🎙️")
+        body_parts.append("✍️ <i>Напишите свой ответ</i>")
+        body_parts.append("🎙️ Можно ответить голосом — просто отправьте аудио.")
 
     return "\n".join(body_parts)
 
