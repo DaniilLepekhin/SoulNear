@@ -679,11 +679,16 @@ async def _queue_next_question_if_needed(quiz_session):
 
 async def _ensure_next_question(message: Message, quiz_session) -> tuple:
     """
+    ✨ TIER 1: Улучшенная генерация с timeout и анимированным таймером
+    
     Показать статус генерации и убедиться, что следующий вопрос готов.
     
     Returns:
         (updated_session, status_msg) - session и опциональное статус-сообщение для удаления позже
     """
+    import asyncio
+    import time
+    
     needs_generation = (
         quiz_session
         and quiz_session.current_question_index < quiz_session.total_questions
@@ -693,8 +698,67 @@ async def _ensure_next_question(message: Message, quiz_session) -> tuple:
     status_msg = None
     if needs_generation:
         status_msg = await message.answer("⏳ Генерирую следующий вопрос...")
-
-    updated_session = await _queue_next_question_if_needed(quiz_session)
+        
+        # ✨ TIER 1: Генерация с timeout (30 сек) и анимированным таймером
+        start_time = time.time()
+        TIMEOUT_SECONDS = 30
+        UPDATE_INTERVAL = 3  # Обновляем каждые 3 секунды
+        
+        async def generate_with_animation():
+            """Генерировать вопрос с анимацией таймера"""
+            generation_task = asyncio.create_task(_queue_next_question_if_needed(quiz_session))
+            
+            while not generation_task.done():
+                elapsed = int(time.time() - start_time)
+                remaining = max(0, TIMEOUT_SECONDS - elapsed)
+                
+                # Анимированный таймер: ⏳ → ⌛ → ⏳
+                animation = "⌛" if (elapsed // 2) % 2 == 0 else "⏳"
+                
+                if remaining > 15:
+                    timer_text = f"{animation} Генерирую вопрос..."
+                elif remaining > 5:
+                    timer_text = f"{animation} Генерирую вопрос... (~{remaining} сек)"
+                else:
+                    timer_text = f"⏱ Почти готово... ({remaining} сек)"
+                
+                try:
+                    await status_msg.edit_text(timer_text)
+                except Exception:
+                    pass  # Игнорируем ошибки редактирования
+                
+                # Ждём либо завершения, либо интервал обновления
+                try:
+                    await asyncio.wait_for(
+                        asyncio.shield(generation_task),
+                        timeout=UPDATE_INTERVAL
+                    )
+                    break
+                except asyncio.TimeoutError:
+                    continue  # Продолжаем цикл анимации
+            
+            return await generation_task
+        
+        try:
+            # ✨ TIER 1: Основной timeout на всю генерацию
+            updated_session = await asyncio.wait_for(
+                generate_with_animation(),
+                timeout=TIMEOUT_SECONDS
+            )
+        except asyncio.TimeoutError:
+            # ✨ TIER 1: Fallback при timeout
+            logging.error(f"[quiz] Generation timeout after {TIMEOUT_SECONDS}s for session {quiz_session.id}")
+            try:
+                await status_msg.edit_text(
+                    "⚠️ Генерация затянулась. Использую запасной вопрос..."
+                )
+            except Exception:
+                pass
+            
+            # Пробуем ещё раз без анимации
+            updated_session = await _queue_next_question_if_needed(quiz_session)
+    else:
+        updated_session = quiz_session
     
     # НЕ удаляем status_msg здесь — вернём его наружу для удаления перед показом вопроса
     return updated_session, status_msg
@@ -773,6 +837,61 @@ def _categories_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def _add_emoji_to_option(text: str) -> str:
+    """
+    ✨ TIER 2: Добавить эмодзи к варианту ответа
+    
+    Mapping популярных вариантов ответов на эмодзи для улучшения UX
+    """
+    # Эмоциональные реакции
+    emoji_map = {
+        # Негативные эмоции
+        'паника': '😰',
+        'стыд': '😰',
+        'тревога': '😰',
+        'страх': '😨',
+        'злость': '😤',
+        'злюсь': '😤',
+        'грусть': '😔',
+        'растерянность': '😕',
+        'смущ': '😅',
+        
+        # Позитивные/нейтральные
+        'спокойно': '😌',
+        'радость': '😊',
+        'счастье': '😊',
+        'уверенность': '💪',
+        'интерес': '🤔',
+        
+        # Частота (для scale вопросов)
+        'никогда': '⭕',
+        'редко': '🟡',
+        'иногда': '🟠',
+        'часто': '🔴',
+        'постоянно': '🔥',
+        
+        # Действия
+        'избегаю': '🚫',
+        'игнорирую': '🙈',
+        'обсуждаю': '💬',
+        'решаю': '✅',
+        'жду': '⏳',
+    }
+    
+    text_lower = text.lower()
+    
+    # Ищем совпадение по ключевым словам
+    for keyword, emoji in emoji_map.items():
+        if keyword in text_lower:
+            # Добавляем эмодзи только если его ещё нет
+            if not any(char in text for char in emoji_map.values()):
+                return f"{emoji} {text}"
+            return text
+    
+    # Если не нашли подходящий эмодзи - возвращаем как есть
+    return text
+
+
 def _create_answer_keyboard(question: dict) -> InlineKeyboardMarkup:
     """Создать клавиатуру для ответа на вопрос"""
     if question['type'] == 'scale':
@@ -780,7 +899,7 @@ def _create_answer_keyboard(question: dict) -> InlineKeyboardMarkup:
         buttons = [
             [
                 InlineKeyboardButton(
-                    text=option,
+                    text=_add_emoji_to_option(option),  # ✨ TIER 2: добавляем эмодзи
                     callback_data=f"quiz_answer_{idx}"
                 )
             ]
@@ -791,7 +910,7 @@ def _create_answer_keyboard(question: dict) -> InlineKeyboardMarkup:
         buttons = [
             [
                 InlineKeyboardButton(
-                    text=option,
+                    text=_add_emoji_to_option(option),  # ✨ TIER 2: добавляем эмодзи
                     callback_data=f"quiz_answer_{idx}"
                 )
             ]

@@ -364,14 +364,20 @@ Q3: "Что вас беспокоит?" (text)
 REMEMBER: Generate question in RUSSIAN. Mix types. Reference previous answers when possible.
 """
         
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are an expert at designing adaptive psychological assessments."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.5
+        # ✅ TIER 1: Add timeout to GPT call (20 seconds)
+        import asyncio
+        
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are an expert at designing adaptive psychological assessments."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.5
+            ),
+            timeout=20.0  # ✅ TIER 1: 20 second timeout for GPT
         )
         
         question = json.loads(response.choices[0].message.content)
@@ -383,13 +389,22 @@ REMEMBER: Generate question in RUSSIAN. Mix types. Reference previous answers wh
         logger.info(f"✅ Generated adaptive question #{question_number} (type: {question['type']})")
         return question
         
+    except asyncio.TimeoutError:
+        logger.warning(f"⏱ Adaptive question generation timed out after 20s - using fallback")
+        # ✅ TIER 1: Fallback при timeout - генерируем базовый вопрос
+        return {
+            "id": f"q{question_number}",
+            "text": "Расскажи больше об этой теме.",
+            "type": "text",
+            "category": category
+        }
     except Exception as e:
         logger.error(f"Adaptive question generation failed: {e}")
         # Fallback: generate basic question
         return {
             "id": f"q{question_number}",
-            "text": "Tell me more about this topic.",
-            "type": "open",
+            "text": "Расскажи больше об этой теме.",
+            "type": "text",
             "category": category
         }
 
@@ -464,14 +479,20 @@ QUALITY over QUANTITY: Better 1 good insight than 3 obvious ones.
 """
     
     try:
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",  # Fast & cheap для mid-quiz analysis
-            messages=[
-                {"role": "system", "content": "You find hidden psychological patterns that users don't see."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3  # Low temperature для более deterministic
+        # ✅ TIER 1: Add timeout to GPT call (20 seconds)
+        import asyncio
+        
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",  # Fast & cheap для mid-quiz analysis
+                messages=[
+                    {"role": "system", "content": "You find hidden psychological patterns that users don't see."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.3  # Low temperature для более deterministic
+            ),
+            timeout=20.0  # ✅ TIER 1: 20 second timeout for GPT
         )
         
         result = json.loads(response.choices[0].message.content)
@@ -483,6 +504,10 @@ QUALITY over QUANTITY: Better 1 good insight than 3 obvious ones.
         logger.info(f"🔍 GPT found {len(contradictions)} subtle contradictions")
         return contradictions[:2]  # Limit to top 2
         
+    except asyncio.TimeoutError:
+        logger.warning(f"⏱ GPT contradiction detection timed out after 20s - using fallback")
+        # ✅ TIER 1: Fallback при timeout
+        return _detect_answer_contradictions_keyword_fallback(answers)
     except Exception as e:
         logger.error(f"GPT contradiction detection failed: {e}")
         # Fallback на keyword-based
@@ -972,20 +997,29 @@ async def _generate_dynamic_batch(
 """
 
     try:
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You craft psychologically sharp, empathetic questions in Russian.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.6,
+        # ✅ TIER 1: Add timeout to GPT call (20 seconds)
+        import asyncio
+        
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You craft psychologically sharp, empathetic questions in Russian.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.6,
+            ),
+            timeout=20.0  # ✅ TIER 1: 20 second timeout for GPT
         )
         data = json.loads(response.choices[0].message.content)
         generated = data.get("questions", [])
+    except asyncio.TimeoutError:
+        logger.warning(f"⏱ Dynamic quiz batch generation timed out after 20s")
+        return []  # ✅ TIER 1: Fallback - пустой массив
     except Exception as err:
         logger.error("Dynamic quiz batch failed: %s", err)
         return []
@@ -1084,9 +1118,10 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     preface = question.get('preface')
     question_type = question.get('type', 'text')
 
+    # ✨ TIER 2: Улучшенное форматирование - больше воздуха
     # Показываем прогресс, чтобы человек понимал, сколько осталось
     if total:
-        header = f"{emoji} <b>Вопрос {current}/{total}</b>"
+        header = f"{emoji} <b>Вопрос {current} из {total}</b>"  # ✨ "из" вместо "/" для читаемости
     else:
         header = f"{emoji} <b>Вопрос {current}</b>"
 
@@ -1095,7 +1130,7 @@ def format_question_for_telegram(question: dict, current: int, total: int) -> st
     # Preface (если есть) — курсивом, отдельной строкой
     if preface:
         body_parts.append(f"<i>{html.escape(preface)}</i>")
-        body_parts.append("")
+        body_parts.append("")  # ✨ TIER 2: Дополнительный отступ после preface
 
     # Сам вопрос — жирным
     body_parts.append(f"<b>{safe_question_text}</b>")

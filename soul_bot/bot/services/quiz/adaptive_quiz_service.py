@@ -92,13 +92,13 @@ class AdaptiveQuizService:
 
 Формат ответа (JSON массив):
 [
-  {
+  {{
     "title": "Короткое русское название",
     "title_ru": "То же название (на русском)",
     "confidence": 0.85,
     "evidence": ["Цитата 1", "Цитата 2"],
     "description": "Пара предложений, что это значит (по-русски)"
-  }
+  }}
 ]
 
 Упор на паттерны, у которых есть чёткие противоречия или повторяющиеся реакции."""
@@ -139,6 +139,7 @@ class AdaptiveQuizService:
         pattern_title = pattern.get('title_ru', pattern.get('title'))
         evidence = pattern.get('evidence', [])
         
+        # ✅ FIX: Escape JSON braces in f-string to avoid ValueError
         prompt = f"""Generate follow-up questions for a detected psychological pattern.
 
 Pattern: {pattern_title}
@@ -159,26 +160,26 @@ Requirements:
 - RANK questions by quality/relevance (most insightful first)
 
 Return JSON:
-{{
+{{{{
   "questions": [
-    {{
+    {{{{
       "type": "scale",
       "text": "Как часто это проявляется?",
       "options": ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"],
       "related_pattern": "{pattern_title}",
       "quality_score": 0.95,
       "reasoning": "Direct pattern confirmation"
-    }},
-    {{
+    }}}},
+    {{{{
       "type": "multiple_choice",
       "text": "В каких ситуациях это усиливается?",
       "options": ["На работе", "В отношениях", "В одиночестве", "Другое"],
       "related_pattern": "{pattern_title}",
       "quality_score": 0.85,
       "reasoning": "Context exploration"
-    }}
+    }}}}
   ]
-}}
+}}}}
 
 IMPORTANT:
 - For 'scale' type: MUST use options: ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
