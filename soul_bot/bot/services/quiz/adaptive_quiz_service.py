@@ -140,51 +140,45 @@ class AdaptiveQuizService:
         evidence = pattern.get('evidence', [])
         
         # ✅ FIX: Escape JSON braces in f-string to avoid ValueError
-        prompt = f"""Generate follow-up questions for a detected psychological pattern.
+        prompt = f"""Ты — Soul Near. Придумай вопросы, которые раскроют глубину паттерна и подтолкнут пользователя увидеть то, что он упускает.
 
-Pattern: {pattern_title}
-Evidence from user: {', '.join(evidence[:2])}
-Quiz category: {category}
+Контекст:
+- Паттерн: {pattern_title}
+- Цитаты пользователя: {', '.join(evidence[:2])}
+- Категория квиза: {category}
 
-Task:
-Generate {self.GENERATE_CANDIDATE_QUESTIONS} candidate questions to:
-1. Confirm this pattern exists
-2. Understand its severity/frequency
-3. Explore triggers or contexts
+Задача: сгенерируй {self.GENERATE_CANDIDATE_QUESTIONS} кандидатных вопросов, чтобы:
+1. Проверить, как проявляется противоречие между словами и действиями.
+2. Показать скрытую динамику/страх, который держит паттерн живым.
+3. Найти ресурс, который можно развернуть в действие.
 
-Requirements:
-- Questions in Russian, casual tone
-- Mix of scales (1-5) and choice questions
-- Relevant to pattern and category
-- Not repetitive
-- RANK questions by quality/relevance (most insightful first)
+Требования:
+• Русский язык, живой тон Soul Near (честно, точно, без клише).
+• Используй разные форматы: шкала 1–5, выбор, открытый вопрос (не больше двух открытых).
+• Для шкалы обязательно опции ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"].
+• Можешь добавить короткий префейс (до 80 символов) в поле "preface", если нужно задать состояние.
+• Минимум один вопрос должен вскрывать противоречие, один — скрытую динамику, один — заблокированный ресурс. Помечай это в поле insight_focus.
+• У каждого вопроса должны быть поля:
+  - "insight_focus": "contradiction" | "hidden_dynamic" | "resource_shift"
+  - "why_it_matters": до 120 символов, зачем именно этот вопрос.
+• Не повторяйся, избегай общих фраз "что ты чувствуешь?" — конкретика и точность.
+• Отсортируй вопросы по силе инсайта, добавь поле "quality_score" (0.0–1.0).
 
-Return JSON:
+Возвращай JSON:
 {{{{
   "questions": [
     {{{{
       "type": "scale",
-      "text": "Как часто это проявляется?",
+      "text": "Насколько часто ты …?",
       "options": ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"],
       "related_pattern": "{pattern_title}",
-      "quality_score": 0.95,
-      "reasoning": "Direct pattern confirmation"
-    }}}},
-    {{{{
-      "type": "multiple_choice",
-      "text": "В каких ситуациях это усиливается?",
-      "options": ["На работе", "В отношениях", "В одиночестве", "Другое"],
-      "related_pattern": "{pattern_title}",
-      "quality_score": 0.85,
-      "reasoning": "Context exploration"
+      "insight_focus": "contradiction",
+      "why_it_matters": "Показывает, как часто человек выбирает броню вместо шага.",
+      "quality_score": 0.95
     }}}}
   ]
 }}}}
-
-IMPORTANT:
-- For 'scale' type: MUST use options: ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
-- For 'multiple_choice' type: provide 3-5 meaningful options
-- Include quality_score (0.0-1.0) for ranking"""
+"""
 
         try:
             response = await self.gpt.generate_completion(

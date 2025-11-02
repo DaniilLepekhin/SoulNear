@@ -51,6 +51,59 @@ client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 logger = logging.getLogger(__name__)
 
+
+DIALOGUE_CONFIG: Dict[str, Dict[str, object]] = {
+    'relationships': {
+        'question_target': 10,
+        'phases': [
+            {'max': 4, 'title': 'Фаза 1 — Искра и направление'},
+            {'max': 8, 'title': 'Фаза 2 — Паттерны и глубина'},
+            {'max': 10, 'title': 'Фаза 3 — Выбор и потенциал'},
+        ],
+        'question_guideline': 'Каждый новый вопрос опирай на последний ответ. Максимум 10 вопросов, затем финальный разбор в 11-м сообщении.',
+        'summary_instruction': 'Сделай финальный развёрнутый анализ (≤900 символов) по структуре из базовых правил: сильные стороны, паттерны, ритм, точки роста, векторы, финальный резонанс и вопрос-завершение.',
+        'post_summary_instruction': 'Финальный разбор уже выдан. Не запускай новый цикл вопросов; мягко направь человека в основной чат SOUL.near.'
+    },
+    'money': {
+        'question_target': 8,
+        'phases': [
+            {'max': 3, 'title': 'Блок убеждений'},
+            {'max': 6, 'title': 'Блок поведения'},
+            {'max': 8, 'title': 'Блок эмоций и стопов'},
+        ],
+        'question_guideline': 'Задай 8 вопросов: сначала убеждения, затем типичные действия, затем эмоциональные стопы.',
+        'summary_instruction': 'На следующем ответе сделай денежный разбор: сценарий, установка, как сужает выбор, куда смотреть дальше + вопрос «Что страшного в том, чтобы просто взять?».',
+        'post_summary_instruction': 'Разбор сделан — поддержи человека и предложи перейти в основной чат для продолжения работы.'
+    },
+    'purpose': {
+        'question_target': 10,
+        'phases': [
+            {'max': 4, 'title': 'Фаза 1 — Искра и направление'},
+            {'max': 8, 'title': 'Фаза 2 — Паттерны и сопротивление'},
+            {'max': 10, 'title': 'Фаза 3 — Выбор и потенциал'},
+        ],
+        'question_guideline': 'Всего 10 вопросов: 3–4 про искру, 3–4 про паттерны, 2–3 про выбор и форму проявления.',
+        'summary_instruction': 'Выдай финальный анализ (≤1800 символов) по шаблону: сильные стороны, паттерны, ритм, точки роста, ресурсы, векторы, резонанс, вопрос «Что из этого ты уже знал — но боялся признать?», приглашение в основной чат.',
+        'post_summary_instruction': 'Финальный разбор уже прозвучал. Не начинай новый цикл; поддержи и направь к дальнейшему шагу или в основной чат.'
+    },
+    'fears': {
+        'question_target': 12,
+        'min_questions': 10,
+        'max_questions': 15,
+        'phases': [
+            {'max': 5, 'title': 'Разведка источников тревоги'},
+            {'max': 9, 'title': 'Циклы избегания и установки'},
+            {'max': 12, 'title': 'Глубинные страхи и скрытые ресурсы'},
+            {'max': 15, 'title': 'Финальная точка (если требуется)'}
+        ],
+        'question_guideline': 'Минимум 10 вопросов, максимум 15. Следи за противоречиями, самообманом и заблокированными ресурсами.',
+        'summary_instruction': 'Собери финальный разбор: скрытые страхи, установки, модели поведения, вопрос «Как тебе кажется, что стоит за этим страхом?» и приглашение в основной чат.',
+        'post_summary_instruction': 'Анализ завершён. Не возвращайся к длинным опросам; помоги человеку двинуться дальше или перейти в основной чат.',
+        'range_note': 'Минимум 10 вопросов, максимум 15. После 12 вопросов оцени, раскрыта ли динамика — можно переходить к финальному разбору.'
+    }
+}
+
+
 def _get_display_name(user) -> Optional[str]:
     if not user:
         return None
@@ -60,13 +113,133 @@ def _get_display_name(user) -> Optional[str]:
 
 
 # ==========================================
+# 🧭 ДИАЛОГОВЫЕ СЦЕНАРИИ (questions → final analysis)
+# ==========================================
+
+def _select_phase(phases: List[Dict[str, str]], question_number: int) -> Optional[Dict[str, str]]:
+    if not phases or question_number <= 0:
+        return None
+    for phase in phases:
+        if question_number <= phase.get('max', 0):
+            return phase
+    return phases[-1]
+
+
+def _calculate_dialogue_state(raw_history, config: Dict[str, object]) -> Dict[str, object]:
+    questions = 0
+    summary_count = 0
+
+    for message in raw_history or []:
+        if getattr(message, 'role', None) != 'assistant':
+            continue
+
+        metadata = getattr(message, 'extra_metadata', None) or {}
+        dialogue_role = metadata.get('dialogue_role')
+
+        if dialogue_role == 'summary':
+            summary_count += 1
+        elif dialogue_role == 'post_summary':
+            summary_count += 1
+        elif dialogue_role == 'question':
+            questions += 1
+        else:
+            if summary_count == 0:
+                questions += 1
+            else:
+                summary_count += 1
+
+    return {
+        'questions': questions,
+        'summary_count': summary_count,
+        'final_delivered': summary_count > 0,
+        'config': config,
+    }
+
+
+def _determine_expected_role(state: Dict[str, object]) -> str:
+    config = state['config']
+    questions = state['questions']
+
+    if state['final_delivered']:
+        return 'post_summary'
+
+    min_questions = config.get('min_questions')
+    question_target = config.get('question_target')
+
+    if min_questions and questions < min_questions:
+        return 'question'
+
+    if question_target and questions >= question_target:
+        return 'summary'
+
+    max_questions = config.get('max_questions')
+    if max_questions and questions >= max_questions:
+        return 'summary'
+
+    return 'question'
+
+
+def _render_dialogue_state_section(
+    assistant_type: str,
+    state: Dict[str, object],
+    expected_role: str
+) -> Optional[str]:
+    config = state['config']
+    question_count = state['questions']
+    question_target = config.get('question_target')
+    min_questions = config.get('min_questions')
+    max_questions = config.get('max_questions')
+    phases = config.get('phases') or []
+
+    lines: List[str] = ["## 🧭 ПРОГРЕСС СЕССИИ:"]
+
+    if question_target:
+        lines.append(f"• Уже задано вопросов: {question_count} из {question_target}")
+    else:
+        lines.append(f"• Уже задано вопросов: {question_count}")
+
+    if min_questions or max_questions:
+        min_part = f"минимум {min_questions}" if min_questions else None
+        max_part = f"максимум {max_questions}" if max_questions else None
+        bounds = ", ".join(filter(None, [min_part, max_part]))
+        if bounds:
+            lines.append(f"• Диапазон для этой сессии: {bounds}")
+
+    if expected_role == 'question':
+        next_question_number = question_count + 1
+        phase = _select_phase(phases, next_question_number)
+        if phase:
+            lines.append(f"• Текущая фаза: {phase['title']}")
+        lines.append(f"• Следующий шаг: задай вопрос №{next_question_number}, опираясь на свежий ответ и сохраняя заявленный стиль.")
+        if config.get('question_guideline'):
+            lines.append(f"• Напоминание: {config['question_guideline']}")
+    elif expected_role == 'summary':
+        lines.append("• Лимит вопросов достигнут — пора финальный разбор.")
+        summary_instruction = config.get('summary_instruction')
+        if summary_instruction:
+            lines.append(f"• Финальный шаг: {summary_instruction}")
+    else:  # post_summary
+        lines.append("• Финальный разбор уже прозвучал.")
+        post_instruction = config.get('post_summary_instruction')
+        if post_instruction:
+            lines.append(f"• Дальше: {post_instruction}")
+
+    range_note = config.get('range_note')
+    if range_note:
+        lines.append(range_note)
+
+    return "\n".join(line for line in lines if line)
+
+
+# ==========================================
 # 🎨 ДИНАМИЧЕСКИЙ SYSTEM PROMPT
 # ==========================================
 
 async def build_system_prompt(
     user_id: int,
     assistant_type: str,
-    base_instructions: str = None
+    base_instructions: str = None,
+    extra_sections: Optional[List[str]] = None
 ) -> str:
     """
     Построить динамический system prompt на основе профиля пользователя
@@ -214,6 +387,10 @@ async def build_system_prompt(
     sections.append(render_meta_instructions(has_patterns, has_insights))
 
     filtered_sections = [section for section in sections if section]
+
+    if extra_sections:
+        filtered_sections.extend([section for section in extra_sections if section])
+
     return "\n".join(filtered_sections)
 
 
@@ -513,9 +690,32 @@ async def get_chat_completion(
     try:
         # 🚨 STEP 0: Проверяем экстренные эмоциональные сигналы (< 1ms)
         urgent_signal = detect_urgent_emotional_signals(message)
-        
+        emergency_override = should_override_system_prompt(urgent_signal)
+
+        dialogue_config = DIALOGUE_CONFIG.get(assistant_type)
+        dialogue_state = None
+        expected_dialogue_role = None
+        extra_sections: List[str] = []
+
+        if dialogue_config:
+            raw_history_for_dialogue = await conversation_history.get_history(
+                user_id=user_id,
+                assistant_type=assistant_type,
+                limit=100
+            )
+            dialogue_state = _calculate_dialogue_state(raw_history_for_dialogue, dialogue_config)
+            if not emergency_override:
+                expected_dialogue_role = _determine_expected_role(dialogue_state)
+                dialogue_section = _render_dialogue_state_section(
+                    assistant_type,
+                    dialogue_state,
+                    expected_dialogue_role
+                )
+                if dialogue_section:
+                    extra_sections.append(dialogue_section)
+
         # 1. Строим system prompt (emergency или normal mode)
-        if should_override_system_prompt(urgent_signal):
+        if emergency_override:
             # EMERGENCY MODE: используем экстренный prompt
             base_instructions = _get_base_instructions(assistant_type)
             system_prompt = build_emergency_prompt(
@@ -530,7 +730,11 @@ async def get_chat_completion(
             )
         else:
             # NORMAL MODE: стандартный персонализированный prompt
-            system_prompt = await build_system_prompt(user_id, assistant_type)
+            system_prompt = await build_system_prompt(
+                user_id,
+                assistant_type,
+                extra_sections=extra_sections if extra_sections else None
+            )
         
         # 2. Загружаем историю сообщений
         history = await conversation_history.get_context(
@@ -583,13 +787,26 @@ async def get_chat_completion(
             )
         
         # 6. Сохраняем сообщения в историю
+        assistant_metadata: Dict[str, object] = {}
+        if dialogue_state and expected_dialogue_role:
+            if expected_dialogue_role == 'question':
+                assistant_metadata['dialogue_role'] = 'question'
+                assistant_metadata['dialogue_question_index'] = dialogue_state['questions'] + 1
+            elif expected_dialogue_role == 'summary':
+                assistant_metadata['dialogue_role'] = 'summary'
+                assistant_metadata['dialogue_question_index'] = dialogue_state['questions']
+            else:
+                assistant_metadata['dialogue_role'] = 'post_summary'
+                assistant_metadata['dialogue_question_index'] = dialogue_state['questions']
+
         await save_conversation(
             user_id=user_id,
             assistant_type=assistant_type,
             user_message=message,
             assistant_message=assistant_message,
             model=model,
-            tokens_used=response.usage.total_tokens if response.usage else None
+            tokens_used=response.usage.total_tokens if response.usage else None,
+            assistant_metadata=assistant_metadata if assistant_metadata else None
         )
         
         # 7. 🚨 Логируем emergency events (если были)
@@ -640,7 +857,8 @@ async def save_conversation(
     user_message: str,
     assistant_message: str,
     model: str = None,
-    tokens_used: int = None
+    tokens_used: int = None,
+    assistant_metadata: Optional[dict] = None
 ) -> None:
     """
     Сохранить диалог в историю
@@ -666,16 +884,19 @@ async def save_conversation(
         )
         
         # Сохраняем ответ ассистента
+        assistant_extra = dict(assistant_metadata or {})
+        if model is not None:
+            assistant_extra['model'] = model
+        if tokens_used is not None:
+            assistant_extra['tokens'] = tokens_used
+        assistant_extra['timestamp'] = datetime.utcnow().isoformat()
+
         await conversation_history.add_message(
             user_id=user_id,
             assistant_type=assistant_type,
             role='assistant',
             content=assistant_message,
-            extra_metadata={
-                'model': model,
-                'tokens': tokens_used,
-                'timestamp': datetime.utcnow().isoformat()
-            }
+            extra_metadata=assistant_extra
         )
         
     except Exception as e:

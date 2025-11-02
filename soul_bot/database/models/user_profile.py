@@ -29,10 +29,10 @@ class UserProfile(Base):
     tone_style: Mapped[str] = mapped_column(VARCHAR(length=32), default='friendly')
     
     # Личность бота: mentor, friend, coach
-    personality: Mapped[str] = mapped_column(VARCHAR(length=32), default='friend')
+    personality: Mapped[str] = mapped_column(VARCHAR(length=32), default='therapist')
     
     # Длина сообщений: brief, medium, detailed
-    message_length: Mapped[str] = mapped_column(VARCHAR(length=32), default='medium')
+    message_length: Mapped[str] = mapped_column(VARCHAR(length=32), default='brief')
 
     # ==========================================
     # 🧠 ПАТТЕРНЫ (MODERATE STRUCTURE)

@@ -1,118 +1,76 @@
-"""
-Unit тесты для OpenAI service
-"""
+"""Unit-тесты для свежей версии OpenAI сервиса."""
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 
-class TestOpenAIService:
-    """Тесты для ChatCompletion API"""
-    
-    @pytest.mark.asyncio
-    async def test_build_system_prompt_basic(self, mock_user):
-        """Тест базового system prompt"""
-        from bot.services.openai_service import build_system_prompt
-        
-        profile = {
-            'tone_style': 'дружеский',
-            'personality': 'наставник',
-            'message_length': 'средний',
-            'patterns': [],
-            'insights': []
-        }
-        
-        prompt = await build_system_prompt(
-            user_profile=profile,
-            user_data=mock_user,
-            assistant_type='helper'
-        )
-        
-        assert 'наставник' in prompt
-        assert 'дружеский' in prompt
-        assert mock_user['real_name'] in prompt
-    
-    
-    @pytest.mark.asyncio
-    async def test_build_system_prompt_with_patterns(self, mock_user):
-        """Тест промпта с паттернами"""
-        from bot.services.openai_service import build_system_prompt
-        
-        profile = {
-            'tone_style': 'дружеский',
-            'personality': 'наставник',
-            'message_length': 'средний',
-            'patterns': ['Часто говорит о работе', 'Испытывает стресс'],
-            'insights': ['Нужна поддержка в карьере']
-        }
-        
-        prompt = await build_system_prompt(
-            user_profile=profile,
-            user_data=mock_user,
-            assistant_type='helper'
-        )
-        
-        assert 'работе' in prompt.lower()
-        assert 'стресс' in prompt.lower()
-    
-    
-    @pytest.mark.asyncio
-    @patch('bot.services.openai_service.client')
-    async def test_get_chat_completion_success(self, mock_client, mock_user, mock_openai_response):
-        """Тест успешного запроса к ChatCompletion"""
-        from bot.services.openai_service import get_chat_completion
-        
-        # Мокаем OpenAI ответ
-        mock_client.chat.completions.create = AsyncMock(
-            return_value=MagicMock(**mock_openai_response)
-        )
-        
-        response = await get_chat_completion(
-            user_id=mock_user['user_id'],
-            prompt='Привет, как дела?',
-            assistant_type='helper',
-            include_history=False
-        )
-        
-        assert response is not None
-        assert isinstance(response, str)
-        assert len(response) > 0
-    
-    
-    @pytest.mark.asyncio
-    async def test_conversation_history_limit(self):
-        """Тест лимита истории (не загружаем всё)"""
-        from bot.services.openai_service import get_conversation_history
-        
-        # TODO: реализовать после создания conversation_history таблицы
-        pass
+@pytest.mark.asyncio
+async def test_build_system_prompt_helper_includes_persona(monkeypatch):
+    """Проверяем, что system prompt для helper содержит новую персону Soul Near."""
+    from bot.services import openai_service
+
+    fake_profile = SimpleNamespace(
+        tone_style='friendly',
+        personality='therapist',
+        message_length='brief',
+        patterns={'patterns': []},
+        insights={'insights': []},
+        preferences={'active_response_hints': []},
+        emotional_state={},
+        learning_preferences={'works_well': [], 'doesnt_work': []},
+        custom_instructions=''
+    )
+
+    fake_user = SimpleNamespace(real_name='Аня', age=28, gender='female')
+
+    monkeypatch.setattr(openai_service.user_profile, 'get_or_create', AsyncMock(return_value=fake_profile))
+    monkeypatch.setattr(openai_service.db_user, 'get', AsyncMock(return_value=fake_user))
+    monkeypatch.setattr(openai_service.conversation_history, 'get_context', AsyncMock(return_value=[]))
+
+    prompt = await openai_service.build_system_prompt(user_id=42, assistant_type='helper')
+
+    assert "Ты — SOUL.near" in prompt
+    assert "## 🎨 СТИЛЬ ОБЩЕНИЯ" in prompt
+    assert "⚠️ ЭТИ НАСТРОЙКИ СТИЛЯ" in prompt
 
 
-class TestPromptBuilder:
-    """Тесты для генерации промптов"""
-    
-    def test_prompt_templates_exist(self):
-        """Проверяем, что все шаблоны промптов существуют"""
-        from bot.prompts import PROMPTS
-        
-        required_prompts = [
-            'helper_base',
-            'sleeper_base',
-            'pattern_analysis',
-            'quiz_relationships',
-            'quiz_money',
-            'quiz_purpose'
-        ]
-        
-        for prompt_name in required_prompts:
-            assert prompt_name in PROMPTS, f"Промпт {prompt_name} не найден"
-    
-    
-    def test_prompt_variable_substitution(self):
-        """Тест подстановки переменных в промпты"""
-        from bot.prompts import format_prompt
-        
-        template = "Привет, {name}! Тебе {age} лет."
-        result = format_prompt(template, name="Тест", age=25)
-        
-        assert result == "Привет, Тест! Тебе 25 лет."
+def test_render_dialogue_state_section_question_phase():
+    """Проверяем текст прогресса сессии для блока отношений."""
+    from bot.services.openai_service import (
+        DIALOGUE_CONFIG,
+        _render_dialogue_state_section
+    )
+
+    config = DIALOGUE_CONFIG['relationships']
+    state = {'questions': 3, 'summary_count': 0, 'final_delivered': False, 'config': config}
+    section = _render_dialogue_state_section('relationships', state, expected_role='question')
+
+    assert "уже задано вопросов" in section.lower()
+    assert "Фаза 1" in section
+    assert "Следующий шаг" in section
+
+
+def test_formatting_skips_helper_style():
+    """format_bot_message не должен трогать свободный стиль helper."""
+    from bot.services.formatting import format_bot_message
+
+    original_text = "Ты сам сказал об этом вчера. Давай сейчас честно: что тебя держит?"
+    formatted = format_bot_message(
+        text=original_text,
+        message_length_preference='brief',
+        learning_preferences=None,
+        assistant_type='helper'
+    )
+
+    assert formatted == original_text
+
+
+def test_format_response_with_headers_keeps_html():
+    """format_response_with_headers не должен экранировать готовый HTML."""
+    from bot.functions.other import format_response_with_headers
+
+    html_text = "<b>1. Заголовок:</b> это уже оформлено"
+    assert format_response_with_headers(html_text) == html_text
 
