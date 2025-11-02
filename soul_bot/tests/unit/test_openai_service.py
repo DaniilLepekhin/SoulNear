@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-
-@pytest.mark.asyncio
+    
+    @pytest.mark.asyncio
 async def test_build_system_prompt_helper_includes_persona(monkeypatch):
     """Проверяем, что system prompt для helper содержит новую персону Soul Near."""
     from bot.services import openai_service
@@ -21,8 +21,8 @@ async def test_build_system_prompt_helper_includes_persona(monkeypatch):
         emotional_state={},
         learning_preferences={'works_well': [], 'doesnt_work': []},
         custom_instructions=''
-    )
-
+        )
+        
     fake_user = SimpleNamespace(real_name='Аня', age=28, gender='female')
 
     monkeypatch.setattr(openai_service.user_profile, 'get_or_create', AsyncMock(return_value=fake_profile))
@@ -30,7 +30,7 @@ async def test_build_system_prompt_helper_includes_persona(monkeypatch):
     monkeypatch.setattr(openai_service.conversation_history, 'get_context', AsyncMock(return_value=[]))
 
     prompt = await openai_service.build_system_prompt(user_id=42, assistant_type='helper')
-
+        
     assert "Ты — SOUL.near" in prompt
     assert "## 🎨 СТИЛЬ ОБЩЕНИЯ" in prompt
     assert "⚠️ ЭТИ НАСТРОЙКИ СТИЛЯ" in prompt
@@ -46,7 +46,7 @@ def test_render_dialogue_state_section_question_phase():
     config = DIALOGUE_CONFIG['relationships']
     state = {'questions': 3, 'summary_count': 0, 'final_delivered': False, 'config': config}
     section = _render_dialogue_state_section('relationships', state, expected_role='question')
-
+        
     assert "уже задано вопросов" in section.lower()
     assert "Фаза 1" in section
     assert "Следующий шаг" in section

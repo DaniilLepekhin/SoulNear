@@ -713,7 +713,7 @@ async def get_chat_completion(
                 )
                 if dialogue_section:
                     extra_sections.append(dialogue_section)
-
+        
         # 1. Строим system prompt (emergency или normal mode)
         if emergency_override:
             # EMERGENCY MODE: используем экстренный prompt

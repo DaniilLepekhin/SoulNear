@@ -59,7 +59,7 @@ def format_bot_message(
     if assistant_type == 'helper':
         logger.debug("Formatting skipped for helper assistant to preserve free-form tone")
         return text
-
+    
     # Проверяем learning preferences
     if learning_preferences:
         doesnt_work = learning_preferences.get('doesnt_work', [])

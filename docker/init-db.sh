@@ -4,13 +4,24 @@ set -e
 # ✅ FIX: Auto-create database if it doesn't exist
 # This script runs when PostgreSQL container starts for the first time
 
-echo "🔧 Checking if database '$POSTGRES_DB' exists..."
+DB_NAME="${POSTGRES_DB:-soul_bot}"
+DB_USER="${POSTGRES_USER:-postgres}"
 
-# Check if database exists
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "postgres" <<-EOSQL
-    SELECT 'CREATE DATABASE $POSTGRES_DB'
-    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$POSTGRES_DB')\gexec
+echo "🔧 Initializing database '${DB_NAME}'..."
+
+# Create database if it doesn't exist
+psql -v ON_ERROR_STOP=1 --username "${DB_USER}" --dbname "postgres" <<-EOSQL
+    DO \$\$
+    BEGIN
+        IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}') THEN
+            CREATE DATABASE ${DB_NAME};
+            RAISE NOTICE 'Database ${DB_NAME} created';
+        ELSE
+            RAISE NOTICE 'Database ${DB_NAME} already exists';
+        END IF;
+    END
+    \$\$;
 EOSQL
 
-echo "✅ Database '$POSTGRES_DB' is ready!"
+echo "✅ Database '${DB_NAME}' is ready!"
 
