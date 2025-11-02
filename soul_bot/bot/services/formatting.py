@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 def format_bot_message(
     text: str,
     message_length_preference: str,
-    learning_preferences: Optional[dict] = None
+    learning_preferences: Optional[dict] = None,
+    assistant_type: Optional[str] = None
 ) -> str:
     """
     Адаптивное форматирование ответа бота в зависимости от длины и предпочтений
@@ -54,6 +55,11 @@ def format_bot_message(
     
     word_count = len(text.split())
     
+    # Для основного чата Soul Near сохраняем свободную форму (без автосписков)
+    if assistant_type == 'helper':
+        logger.debug("Formatting skipped for helper assistant to preserve free-form tone")
+        return text
+
     # Проверяем learning preferences
     if learning_preferences:
         doesnt_work = learning_preferences.get('doesnt_work', [])

@@ -42,6 +42,13 @@ def escape_html(text):
 
 # Форматирование для MarkdownV2
 def format_response_with_headers(res):
+    if not res:
+        return res
+
+    # Если ответ уже содержит HTML-разметку, не экранируем её повторно
+    if any(tag in res for tag in ("<b", "<i", "<u", "<a", "<code", "<pre")):
+        return res
+
     lines = res.split("\n")
     formatted_lines = []
 
