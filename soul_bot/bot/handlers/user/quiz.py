@@ -698,7 +698,7 @@ async def _ensure_next_question(message: Message, quiz_session) -> tuple:
     status_msg = None
     if needs_generation:
         status_msg = await message.answer("⏳ Генерирую следующий вопрос...")
-        
+
         # ✨ TIER 1: Генерация с timeout (30 сек) и анимированным таймером
         start_time = time.time()
         TIMEOUT_SECONDS = 30
@@ -756,7 +756,7 @@ async def _ensure_next_question(message: Message, quiz_session) -> tuple:
                 pass
             
             # Пробуем ещё раз без анимации
-            updated_session = await _queue_next_question_if_needed(quiz_session)
+    updated_session = await _queue_next_question_if_needed(quiz_session)
     else:
         updated_session = quiz_session
     

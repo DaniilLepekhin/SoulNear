@@ -73,7 +73,7 @@ def percent(*values):
 
 async def check_user_info(message: Message, state: FSMContext):
     user = await db_user.get(user_id=message.chat.id)
-    
+
     # ✅ FIX: Check if user exists
     if user is None:
         return False

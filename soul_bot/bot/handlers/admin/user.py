@@ -120,7 +120,7 @@ async def user_update_sub(message: Message, state: FSMContext):
     await message.answer('Успешно!')
 
     user = await db_user.get(user_id)
-    
+
     # ✅ FIX: Check if user exists
     if user is None:
         await message.answer("❌ Ошибка: пользователь не найден")

@@ -47,6 +47,304 @@ QUIZ_CATEGORIES = {
 }
 
 
+# ==========================================
+# 🔠 ВСПОМОГАТЕЛЬНЫЕ КОНСТАНТЫ И ХЕЛПЕРЫ
+# ==========================================
+
+_OPEN_QUESTION_KEYWORDS = {
+    "если бы",
+    "как бы",
+    "что бы",
+    "что для тебя",
+    "что это изменило",
+    "что это изменит",
+    "что это значит",
+    "что для тебя значит",
+    "почему",
+    "зачем",
+    "расскажи",
+    "опиши",
+    "поделись",
+    "что почувствовал",
+    "что чувствовал",
+    "что чувствуешь",
+    "как ты",
+    "как измени",
+    "как повлия",
+    "что случилось",
+    "что изменится",
+}
+
+_FOLLOWUP_LIKELY_KEYWORDS = {
+    "если бы",
+    "как бы",
+    "как изменило",
+    "как изменило бы",
+    "как это изменило",
+    "как это повлияло",
+    "что бы это значило",
+    "что ты сделал",
+    "что бы ты сделал",
+}
+
+_SCALE_EMOJI_KEYWORDS = [
+    ("никогда", "⭕"),
+    ("редко", "🟡"),
+    ("иногда", "🟠"),
+    ("часто", "🔴"),
+    ("постоянно", "🔥"),
+    ("совсем не", "⭕"),
+    ("почти не", "🟡"),
+    ("иногда", "🟠"),
+    ("частенько", "🔴"),
+    ("практически всегда", "🔥"),
+]
+
+_DEFAULT_SCALE_BASE_OPTIONS = [
+    "Никогда",
+    "Редко",
+    "Иногда",
+    "Часто",
+    "Постоянно",
+]
+
+_GENERIC_MULTIPLE_CHOICE_FALLBACK = [
+    "Начал(а) бы менять своё поведение",
+    "Скорее оставил(а) всё как есть",
+    "Обратился(ась) бы за помощью или советом",
+    "Испытал(а) бы тревогу и сомнения",
+]
+
+
+def _is_open_question(text: str) -> bool:
+    """Определяет, требует ли вопрос развёрнутого ответа."""
+
+    if not text:
+        return False
+
+    normalized = text.lower()
+
+    if len(normalized) > 140:  # длинные вопросы почти всегда открытые
+        return True
+
+    if normalized.count("?") >= 2:
+        return True
+
+    if any(keyword in normalized for keyword in _OPEN_QUESTION_KEYWORDS):
+        return True
+
+    if any(keyword in normalized for keyword in _FOLLOWUP_LIKELY_KEYWORDS):
+        return True
+
+    # Если вопрос заканчивается вопросительным знаком и содержит местоимения "как",
+    # "что" вместе с глаголами размышления — считаем открытым.
+    if normalized.rstrip().endswith("?") and any(
+        phrase in normalized
+        for phrase in ("как", "что", "зачем", "почему")
+    ) and any(
+        verb in normalized
+        for verb in ("думаешь", "чувствуешь", "видишь", "реагируешь", "воспринимаешь")
+    ):
+        return True
+
+    return False
+
+
+def _decorate_scale_options(options: list[str]) -> list[str]:
+    """Добавляет эмодзи к вариантам шкалы, если их ещё нет."""
+
+    decorated: list[str] = []
+    for original in options or []:
+        option = original.strip()
+        lower_option = option.lower()
+        emoji = None
+        for keyword, icon in _SCALE_EMOJI_KEYWORDS:
+            if keyword in lower_option:
+                emoji = icon
+                break
+        if emoji and not option.startswith(emoji):
+            decorated.append(f"{emoji} {option}")
+        else:
+            decorated.append(option)
+    if decorated:
+        return decorated
+
+    # Если список пустой, возвращаем стандартную шкалу с эмодзи
+    default_icons = ["⭕", "🟡", "🟠", "🔴", "🔥"]
+    return [f"{icon} {label}" for icon, label in zip(default_icons, _DEFAULT_SCALE_BASE_OPTIONS)]
+
+
+_DEFAULT_SCALE_OPTIONS = _decorate_scale_options(_DEFAULT_SCALE_BASE_OPTIONS)
+
+
+def _fallback_question_for_type(
+    question: dict,
+    *,
+    category: str,
+    desired_type: str,
+) -> dict:
+    """Создаёт fallback-вопрос нужного типа, если GPT не справился."""
+
+    base_text = (question.get("text") or "").strip()
+    preface = question.get("preface")
+    question_id = question.get("id")
+
+    if desired_type == "scale":
+        fallback_text = (
+            f"Насколько для тебя верно утверждение: «{base_text.rstrip('?')}»?"
+            if base_text
+            else "Насколько тебе знакомо это состояние?"
+        )
+        fallback = {
+            "id": question_id,
+            "text": fallback_text,
+            "type": "scale",
+            "category": category,
+            "options": list(_DEFAULT_SCALE_OPTIONS),
+        }
+        if preface:
+            fallback["preface"] = preface
+        return fallback
+
+    if desired_type == "multiple_choice":
+        fallback_options = list(_GENERIC_MULTIPLE_CHOICE_FALLBACK)
+        fallback = {
+            "id": question_id,
+            "text": base_text or "Какой вариант тебе ближе?",
+            "type": "multiple_choice",
+            "category": category,
+            "options": fallback_options,
+        }
+        if preface:
+            fallback["preface"] = preface
+        return fallback
+
+    fallback = dict(question)
+    fallback["category"] = category
+    fallback["type"] = desired_type
+    if desired_type == "text":
+        fallback["options"] = []
+    return fallback
+
+
+async def _regenerate_question_with_type(
+    *,
+    question: dict,
+    category: str,
+    desired_type: str,
+    previous_answers: list[dict],
+) -> dict:
+    """Просит GPT переформулировать вопрос под нужный тип и возвращает нормализованный результат."""
+
+    import asyncio
+
+    category_info = QUIZ_CATEGORIES.get(
+        category,
+        {
+            "name": category,
+            "description": "",
+            "tone_hint": "Разговаривай честно и по-человечески.",
+        },
+    )
+
+    answers_text = "\n".join(
+        [
+            f"Q{i + 1}: {answer.get('question_text', '')}\nA: {answer.get('answer_value', '')}"
+            for i, answer in enumerate(previous_answers[-3:])
+        ]
+    ) or "— пользователь пока ничего не рассказал."
+
+    original_text = (question.get("text") or "").strip()
+    preface = question.get("preface") or ""
+
+    prompt = f"""
+Тебе нужно переписать вопрос квиза под формат "{desired_type}".
+
+Категория: {category_info['name']}
+Описание: {category_info['description']}
+Тон: {category_info.get('tone_hint', 'Будь честным, тёплым и точным.')}
+
+Исходный вопрос:
+\"\"\"{original_text}\"\"\"
+
+Preface (если пусто — можешь опустить):
+\"\"\"{preface}\"\"\"
+
+Последние ответы пользователя:
+{answers_text}
+
+Правила:
+- Сохрани смысл вопроса, но подбери форму "{desired_type}".
+- Если тип = "scale" — сформулируй утверждение, к которому человек может отнестись по шкале из 5 пунктов.
+- Если тип = "multiple_choice" — дай 3-4 осмысленных варианта, отражающих разные реакции или стратегии.
+- Если тип = "text" — задай глубокий открытый вопрос.
+- Пиши по-русски.
+
+Верни JSON вида:
+{{
+  "question": {{
+    "text": "...",
+    "type": "{desired_type}",
+    "options": ["...", "..."] (если тип не text),
+    "preface": "..." (опционально, до 100 символов)
+  }}
+}}
+"""
+
+    try:
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Ты психолог, который задаёт точные вопросы и строго следует формату.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.4,
+            ),
+            timeout=20.0,
+        )
+
+        data = json.loads(response.choices[0].message.content)
+        new_question = data.get("question")
+        if not isinstance(new_question, dict):
+            raise ValueError("GPT returned invalid question structure")
+
+        new_question.setdefault("type", desired_type)
+        new_question.setdefault("category", category)
+        if preface and not new_question.get("preface"):
+            new_question["preface"] = preface
+
+        normalized = _normalize_question_list([new_question], category)
+        if normalized:
+            return normalized[0]
+        raise ValueError("Normalization returned empty result")
+
+    except asyncio.TimeoutError:
+        logger.warning(
+            "⏱ Question regeneration timed out (category=%s, desired=%s). Using fallback.",
+            category,
+            desired_type,
+        )
+    except Exception as err:  # noqa: BLE001
+        logger.error(
+            "Question regeneration failed (category=%s, desired=%s): %s",
+            category,
+            desired_type,
+            err,
+        )
+
+    fallback = _fallback_question_for_type(
+        question,
+        category=category,
+        desired_type=desired_type,
+    )
+    normalized = _normalize_question_list([fallback], category)
+    return normalized[0] if normalized else fallback
+
 # Стартовые "крючки" для пользователей без истории
 # Включают сценарные вопросы + разные типы для вовлечения
 SEED_QUESTIONS: dict[str, list[dict]] = {
@@ -141,73 +439,61 @@ TARGET_QUESTION_COUNT = 10
 # 🎯 ГЕНЕРАЦИЯ ВОПРОСОВ (MVP)
 # ==========================================
 
-def _validate_and_fix_question_type(question: dict, previous_answers: list[dict]) -> dict:
-    """
-    🔥 VALIDATION: Гарантировать mix типов вопросов
-    
-    Логика:
-    - Если последние 2 вопроса = text → force scale/multiple_choice
-    - Если последние 3 вопроса = НЕ text → force text
-    
-    Args:
-        question: Сгенерированный вопрос
-        previous_answers: История ответов (чтобы узнать типы предыдущих вопросов)
-        
-    Returns:
-        Валидированный вопрос (возможно с изменённым типом)
-    """
+async def _validate_and_fix_question_type(
+    question: dict,
+    previous_answers: list[dict],
+    *,
+    category: str,
+) -> dict:
+    """Проверяет тип вопроса и при необходимости перегенерирует его под другой тип."""
+
     import random
-    
+
     if not previous_answers or len(previous_answers) < 2:
-        # Если вопросов мало, не валидируем
         return question
-    
-    # Получаем типы последних 2-3 вопросов
-    recent_types = []
-    for answer in previous_answers[-3:]:
-        q_type = answer.get('question_type', 'text')
-        recent_types.append(q_type)
-    
-    current_type = question.get('type', 'text')
-    
-    # RULE 1: Если последние 2 = text И текущий = text → force другой тип
-    if len(recent_types) >= 2 and recent_types[-2:] == ['text', 'text'] and current_type == 'text':
-        # Проверяем, это ОТКРЫТЫЙ вопрос (требует развёрнутого ответа)?
-        question_text = question.get('text', '').lower()
-        open_question_markers = ['почему', 'как ты', 'что думаешь', 'что чувствуешь', 'расскажи', 'опиши']
-        is_open_question = any(marker in question_text for marker in open_question_markers)
-        
-        if is_open_question:
-            # Открытые вопросы НЕЛЬЗЯ менять на multiple_choice с generic опциями
+
+    recent_types = [answer.get("question_type", "text") for answer in previous_answers[-3:]]
+    current_type = question.get("type", "text")
+    question_text = question.get("text", "")
+
+    # Если подряд уже 2 открытых вопроса, пытаемся сменить тип
+    if (
+        len(recent_types) >= 2
+        and recent_types[-2:] == ["text", "text"]
+        and current_type == "text"
+    ):
+        if _is_open_question(question_text):
             logger.info(
-                f"💡 Validation: Open question detected ('{question_text[:50]}...'). "
-                f"Keeping as 'text' despite 3 text questions in a row."
+                "💡 Validation: keeping open question despite streak (text='%s')",
+                question_text[:80],
             )
         else:
-            # Не открытый вопрос → можем поменять тип
-            new_type = random.choice(['scale', 'multiple_choice'])
+            desired_pool = [t for t in ["scale", "multiple_choice"] if t != recent_types[-1]] or [
+                "scale",
+                "multiple_choice",
+            ]
+            desired_type = random.choice(desired_pool)
             logger.warning(
-                f"⚠️ Validation: 3 text questions in a row detected. "
-                f"Forcing type change: text → {new_type}"
+                "⚠️ Validation: forcing type change text → %s (streak detected)",
+                desired_type,
             )
-            question['type'] = new_type
-            
-            # Добавляем default options если их нет
-            if new_type == 'scale' and not question.get('options'):
-                question['options'] = ["Никогда", "Редко", "Иногда", "Часто", "Постоянно"]
-            elif new_type == 'multiple_choice' and not question.get('options'):
-                question['options'] = ["Скорее да", "Скорее нет", "Это зависит"]
-    
-    # RULE 2: Если последние 3 = НЕ text → желательно text
-    if len(recent_types) >= 3 and all(t != 'text' for t in recent_types) and current_type != 'text':
+            return await _regenerate_question_with_type(
+                question=question,
+                category=category,
+                desired_type=desired_type,
+                previous_answers=previous_answers,
+            )
+
+    # Если давно не было открытых вопросов, можно оставить как есть
+    if (
+        len(recent_types) >= 3
+        and all(t != "text" for t in recent_types)
+        and current_type != "text"
+    ):
         logger.info(
-            "💡 Validation: 3 non-text questions in a row. "
-            "Current question is also non-text, but allowing (deep exploration needed)."
+            "💡 Validation: detected long non-text streak (recent=%s).", recent_types
         )
-        # Не force'им text, но логируем (можно раскомментировать если нужно строже)
-        # question['type'] = 'text'
-        # question['options'] = []
-    
+
     return question
 
 
@@ -369,13 +655,13 @@ REMEMBER: Generate question in RUSSIAN. Mix types. Reference previous answers wh
         
         response = await asyncio.wait_for(
             client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "You are an expert at designing adaptive psychological assessments."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.5
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert at designing adaptive psychological assessments."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.5
             ),
             timeout=20.0  # ✅ TIER 1: 20 second timeout for GPT
         )
@@ -384,29 +670,45 @@ REMEMBER: Generate question in RUSSIAN. Mix types. Reference previous answers wh
         question['category'] = category
         
         # 🔥 VALIDATION: Force mix question types if needed
-        question = _validate_and_fix_question_type(question, previous_answers)
+        question = await _validate_and_fix_question_type(
+            question,
+            previous_answers,
+            category=category,
+        )
+
+        normalized = _normalize_question_list([question], category)
+        if normalized:
+            final_question = normalized[0]
+        else:
+            final_question = question
         
-        logger.info(f"✅ Generated adaptive question #{question_number} (type: {question['type']})")
-        return question
+        logger.info(
+            "✅ Generated adaptive question #%s (type: %s)",
+            question_number,
+            final_question.get('type'),
+        )
+        return final_question
         
     except asyncio.TimeoutError:
         logger.warning(f"⏱ Adaptive question generation timed out after 20s - using fallback")
         # ✅ TIER 1: Fallback при timeout - генерируем базовый вопрос
-        return {
+        fallback = {
             "id": f"q{question_number}",
             "text": "Расскажи больше об этой теме.",
             "type": "text",
             "category": category
         }
+        return _normalize_question_list([fallback], category)[0]
     except Exception as e:
         logger.error(f"Adaptive question generation failed: {e}")
         # Fallback: generate basic question
-        return {
+        fallback = {
             "id": f"q{question_number}",
             "text": "Расскажи больше об этой теме.",
             "type": "text",
             "category": category
         }
+        return _normalize_question_list([fallback], category)[0]
 
 
 async def _detect_contradictions_via_gpt(answers: list[dict], category: str) -> list[str]:
@@ -484,13 +786,13 @@ QUALITY over QUANTITY: Better 1 good insight than 3 obvious ones.
         
         response = await asyncio.wait_for(
             client.chat.completions.create(
-                model="gpt-4o-mini",  # Fast & cheap для mid-quiz analysis
-                messages=[
-                    {"role": "system", "content": "You find hidden psychological patterns that users don't see."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.3  # Low temperature для более deterministic
+            model="gpt-4o-mini",  # Fast & cheap для mid-quiz analysis
+            messages=[
+                {"role": "system", "content": "You find hidden psychological patterns that users don't see."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3  # Low temperature для более deterministic
             ),
             timeout=20.0  # ✅ TIER 1: 20 second timeout for GPT
         )
@@ -842,21 +1144,14 @@ def _normalize_question_list(questions: list[dict], category: str) -> list[dict]
             question_type = "multiple_choice"
         question["type"] = question_type
 
-        if question_type in {"scale"} and not question.get("options"):
-            question["options"] = [
-                "Никогда",
-                "Редко",
-                "Иногда",
-                "Часто",
-                "Постоянно",
-            ]
-        elif question_type in {"multiple_choice"} and not question.get("options"):
-            question["options"] = [
-                "Скорее да",
-                "Скорее нет",
-                "Это зависит",
-                "Не понимаю",
-            ]
+        if question_type in {"scale"}:
+            if not question.get("options"):
+                question["options"] = list(_DEFAULT_SCALE_OPTIONS)
+            else:
+                question["options"] = _decorate_scale_options(question["options"])
+        elif question_type in {"multiple_choice"}:
+            if not question.get("options"):
+                question["options"] = list(_GENERIC_MULTIPLE_CHOICE_FALLBACK)
         elif question_type == "text":
             question.setdefault("options", [])
 
@@ -1002,16 +1297,16 @@ async def _generate_dynamic_batch(
         
         response = await asyncio.wait_for(
             client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You craft psychologically sharp, empathetic questions in Russian.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.6,
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You craft psychologically sharp, empathetic questions in Russian.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.6,
             ),
             timeout=20.0  # ✅ TIER 1: 20 second timeout for GPT
         )

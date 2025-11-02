@@ -74,7 +74,7 @@ async def panel() -> (int, int):
 
 async def update_active(user_id: int) -> None:
     user = await get(user_id=user_id)
-    
+
     # ✅ FIX: Check if user exists before accessing attributes
     if user is None:
         return

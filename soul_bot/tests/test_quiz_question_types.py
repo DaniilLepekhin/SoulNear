@@ -13,53 +13,94 @@ from soul_bot.bot.services.quiz_service import generator
 
 class TestQuestionTypeValidation:
     """Тесты валидации типов вопросов"""
-    
-    def test_validate_forces_type_change_on_3_text_in_row(self):
+
+    @pytest.mark.asyncio
+    async def test_validate_forces_type_change_on_3_text_in_row(self):
         """Если последние 2 вопроса = text, должен force другой тип"""
-        # Arrange
-        question = {"type": "text", "text": "Test question"}
+        question = {"type": "text", "text": "Test question", "category": "relationships"}
         previous_answers = [
             {"question_type": "text", "answer_value": "Answer 1"},
             {"question_type": "text", "answer_value": "Answer 2"},
         ]
-        
-        # Act
-        result = generator._validate_and_fix_question_type(question, previous_answers)
-        
-        # Assert
-        assert result['type'] in ['scale', 'multiple_choice'], \
-            "Should force scale or multiple_choice when 3 text in a row"
-        assert 'options' in result, "Should add default options"
-        assert len(result['options']) > 0, "Options should not be empty"
-    
-    def test_validate_allows_text_when_recent_not_all_text(self):
+
+        regenerated = {
+            "id": "mock",
+            "text": "Насколько верно утверждение?",
+            "type": "scale",
+            "options": ["⭕ Никогда", "🟡 Редко", "🟠 Иногда", "🔴 Часто", "🔥 Постоянно"],
+            "category": "relationships",
+        }
+
+        with patch.object(
+            generator,
+            "_regenerate_question_with_type",
+            new=AsyncMock(return_value=regenerated),
+        ) as mock_regen:
+            result = await generator._validate_and_fix_question_type(
+                question,
+                previous_answers,
+                category="relationships",
+            )
+
+        mock_regen.assert_called_once()
+        assert result['type'] == 'scale', "Should force scale when 3 text in a row"
+        assert result['options'][0].startswith('⭕'), "Scale options should include emoji"
+
+    @pytest.mark.asyncio
+    async def test_validate_allows_text_when_recent_not_all_text(self):
         """Если последние вопросы не все text, text разрешён"""
-        # Arrange
         question = {"type": "text", "text": "Test question"}
         previous_answers = [
             {"question_type": "scale", "answer_value": "Иногда"},
             {"question_type": "text", "answer_value": "Answer"},
         ]
-        
-        # Act
-        result = generator._validate_and_fix_question_type(question, previous_answers)
-        
-        # Assert
+
+        with patch.object(
+            generator,
+            "_regenerate_question_with_type",
+            new=AsyncMock(),
+        ) as mock_regen:
+            result = await generator._validate_and_fix_question_type(
+                question,
+                previous_answers,
+                category="relationships",
+            )
+
+        mock_regen.assert_not_called()
         assert result['type'] == 'text', "Should allow text when not 3 in a row"
-    
-    def test_validate_skips_when_few_answers(self):
+
+    @pytest.mark.asyncio
+    async def test_validate_skips_when_few_answers(self):
         """Не валидируем если ответов мало (< 2)"""
-        # Arrange
         question = {"type": "text", "text": "Test question"}
         previous_answers = [
             {"question_type": "text", "answer_value": "Answer 1"}
         ]
-        
-        # Act
-        result = generator._validate_and_fix_question_type(question, previous_answers)
-        
-        # Assert
+
+        with patch.object(
+            generator,
+            "_regenerate_question_with_type",
+            new=AsyncMock(),
+        ) as mock_regen:
+            result = await generator._validate_and_fix_question_type(
+                question,
+                previous_answers,
+                category="relationships",
+            )
+
+        mock_regen.assert_not_called()
         assert result['type'] == 'text', "Should skip validation when < 2 answers"
+
+    def test_is_open_question_detector(self):
+        """Детектор открытых вопросов должен распознавать follow-up формат"""
+
+        assert generator._is_open_question(
+            "Если бы ты узнал, что спокойствие — способ избегания, как бы это изменило твои решения?"
+        ), "Should detect follow-up open question"
+
+        assert not generator._is_open_question(
+            "Как часто ты чувствуешь усталость?"
+        ), "Scale-like question should not be considered open"
 
 
 class TestQuestionNormalization:
@@ -105,8 +146,12 @@ class TestQuestionNormalization:
         assert result[0]['type'] == 'scale'
         assert 'options' in result[0]
         assert len(result[0]['options']) == 5, "Scale should have 5 options"
-        assert result[0]['options'][0] == "Никогда"
-        assert result[0]['options'][-1] == "Постоянно"
+        first_option = result[0]['options'][0]
+        last_option = result[0]['options'][-1]
+        assert first_option.startswith('⭕'), "First scale option should start with emoji"
+        assert 'Никогда' in first_option
+        assert last_option.startswith('🔥'), "Last scale option should start with emoji"
+        assert 'Постоянно' in last_option
     
     def test_normalize_adds_default_multiple_choice_options(self):
         """Для type='multiple_choice' без options должны добавиться default"""
