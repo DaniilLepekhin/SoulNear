@@ -1,0 +1,25 @@
+🔧 Critical Bug Fixes: None checks, Connection pool, DB auto-init
+
+Fixed 3 critical production issues:
+
+1. AttributeError: 'NoneType' object has no attribute 'block_date'
+   - Added None checks in 10 critical locations
+   - Files: user.py, profile.py, other.py, premium.py, admin/user.py, openai_service.py
+
+2. InterfaceError: connection is closed
+   - Configured connection pool (pool_size=20, max_overflow=10, pool_pre_ping=True)
+   - Files: soul_bot/database/database.py, webapp_api/app.py
+
+3. InvalidCatalogNameError: database "soul_bot" does not exist
+   - Created docker/init-db.sh for automatic DB creation
+   - Updated docker-compose.yml to mount init script
+
+Changes:
+- ✅ Defensive coding: All db_user.get() calls now check for None
+- ✅ Stable connections: SQLAlchemy pool with pre-ping and recycle
+- ✅ Zero-config deploy: DB creates automatically on first run
+
+Impact: Eliminates random crashes on production
+
+See: CRITICAL_FIXES_NOV2.md for detailed analysis
+

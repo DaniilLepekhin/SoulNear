@@ -13,7 +13,13 @@ engine = create_async_engine(
         port=POSTGRES_PORT,
         database=POSTGRES_DB,
         query={},
-    ), future=True,
+    ),
+    future=True,
+    # ✅ FIX: Add connection pool settings to prevent "connection is closed" errors
+    pool_size=20,              # Number of permanent connections
+    max_overflow=10,           # Number of additional connections when pool is full
+    pool_pre_ping=True,        # Verify connections before using them
+    pool_recycle=3600,         # Recycle connections after 1 hour
 )
 
 db = async_sessionmaker(engine, expire_on_commit=False)

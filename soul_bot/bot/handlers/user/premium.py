@@ -77,6 +77,10 @@ async def check_pay(callback: CallbackQuery, state: FSMContext):
             await db_statistic_day.increment(column='earn', value=cost['amount'])
 
             user = await db_user.get(user_id=user_id)
+            
+            # ✅ FIX: Check if user exists
+            if user is None:
+                return
 
             if user.ref:
                 if not user.ref.isdigit():

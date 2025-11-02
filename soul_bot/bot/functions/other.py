@@ -73,6 +73,10 @@ def percent(*values):
 
 async def check_user_info(message: Message, state: FSMContext):
     user = await db_user.get(user_id=message.chat.id)
+    
+    # ✅ FIX: Check if user exists
+    if user is None:
+        return False
 
     if user.real_name is None:
         m = await message.answer('Перед тем как мы начнем, расскажи немного о себе.\n'
@@ -88,6 +92,10 @@ async def check_user_info(message: Message, state: FSMContext):
 
 async def check_sub(user_id: int):
     user = await db_user.get(user_id=user_id)
+    
+    # ✅ FIX: Check if user exists
+    if user is None:
+        return False
 
     sub = user.sub_date >= datetime.now()
 
@@ -102,6 +110,10 @@ async def check_sub(user_id: int):
 
 async def check_sub_assistant(user_id: int, assistant: str) -> bool:
     user = await db_user.get(user_id=user_id)
+    
+    # ✅ FIX: Check if user exists
+    if user is None:
+        return False
 
     sub = user.sub_date >= datetime.now()
 

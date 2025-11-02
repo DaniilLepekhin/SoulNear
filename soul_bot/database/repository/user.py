@@ -74,7 +74,11 @@ async def panel() -> (int, int):
 
 async def update_active(user_id: int) -> None:
     user = await get(user_id=user_id)
-
+    
+    # ✅ FIX: Check if user exists before accessing attributes
+    if user is None:
+        return
+    
     if user.block_date:
         asyncio.get_event_loop().create_task(db_statistic_day.increment('return_users'))
 
@@ -91,6 +95,10 @@ async def update_sub_date(user_id: int,
                           weeks: int = 0,
                           days: int = 0) -> None:
     user = await get(user_id=user_id)
+    
+    # ✅ FIX: Check if user exists before accessing attributes
+    if user is None:
+        return
 
     now = datetime.now()
     sub_date = now if user.sub_date < now else user.sub_date

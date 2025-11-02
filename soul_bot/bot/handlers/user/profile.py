@@ -292,6 +292,12 @@ async def my_profile_command(message: Message):
     try:
         profile = await db_user_profile.get_or_create(user_id)
         user = await db_user.get(user_id)
+        
+        # ✅ FIX: Check if user exists
+        if user is None:
+            await status_msg.edit_text("❌ Ошибка: пользователь не найден")
+            return
+        
         formatted_profile = _format_profile_compact(profile, user)
         
         # Удаляем "печатаю..." (с защитой от ошибки если уже удалено)
@@ -328,6 +334,12 @@ async def view_psychological_profile_callback(call: CallbackQuery):
     try:
         profile = await db_user_profile.get_or_create(user_id)
         user = await db_user.get(user_id)
+        
+        # ✅ FIX: Check if user exists
+        if user is None:
+            await call.answer("❌ Ошибка: пользователь не найден", show_alert=True)
+            return
+        
         formatted_profile = _format_profile_compact(profile, user)
         
         try:
@@ -345,6 +357,12 @@ async def view_psychological_profile_callback(call: CallbackQuery):
 async def profile_callback(call: CallbackQuery, state: FSMContext):
     user_id = call.from_user.id
     user = await db_user.get(user_id=user_id)
+    
+    # ✅ FIX: Check if user exists
+    if user is None:
+        await call.answer("❌ Ошибка: пользователь не найден", show_alert=True)
+        return
+    
     profile_data = await db_user_profile.get_or_create(user_id)
 
     sub_date = '❌' if user.sub_date < datetime.now() else f'{user.sub_date}'[:-10]

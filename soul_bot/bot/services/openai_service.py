@@ -81,7 +81,12 @@ async def build_system_prompt(
     """
     profile = await user_profile.get_or_create(user_id)
     user = await db_user.get(user_id)
-    preferences = getattr(profile, 'preferences', {}) if profile else {}
+    
+    # ✅ FIX: Check if user exists (fallback to defaults)
+    if user is None:
+        preferences = {}
+    else:
+        preferences = getattr(profile, 'preferences', {}) if profile else {}
 
     if base_instructions is None:
         base_instructions = _get_base_instructions(assistant_type)
