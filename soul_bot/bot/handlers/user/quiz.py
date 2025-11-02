@@ -696,6 +696,8 @@ async def _ensure_next_question(message: Message, quiz_session) -> tuple:
     )
 
     status_msg = None
+    updated_session = quiz_session
+
     if needs_generation:
         status_msg = await message.answer("⏳ Генерирую следующий вопрос...")
 
@@ -740,25 +742,25 @@ async def _ensure_next_question(message: Message, quiz_session) -> tuple:
             return await generation_task
         
         try:
-            # ✨ TIER 1: Основной timeout на всю генерацию
             updated_session = await asyncio.wait_for(
                 generate_with_animation(),
-                timeout=TIMEOUT_SECONDS
+                timeout=TIMEOUT_SECONDS,
             )
         except asyncio.TimeoutError:
-            # ✨ TIER 1: Fallback при timeout
-            logging.error(f"[quiz] Generation timeout after {TIMEOUT_SECONDS}s for session {quiz_session.id}")
+            logging.error(
+                f"[quiz] Generation timeout after {TIMEOUT_SECONDS}s for session {quiz_session.id}"
+            )
             try:
                 await status_msg.edit_text(
                     "⚠️ Генерация затянулась. Использую запасной вопрос..."
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
-            
-            # Пробуем ещё раз без анимации
-    updated_session = await _queue_next_question_if_needed(quiz_session)
-    else:
-        updated_session = quiz_session
+
+            updated_session = await _queue_next_question_if_needed(quiz_session)
+        except Exception as err:  # noqa: BLE001
+            logging.exception("[quiz] Unexpected error while generating question: %s", err)
+            updated_session = await _queue_next_question_if_needed(quiz_session)
     
     # НЕ удаляем status_msg здесь — вернём его наружу для удаления перед показом вопроса
     return updated_session, status_msg
