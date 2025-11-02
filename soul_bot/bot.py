@@ -13,13 +13,14 @@ logger = logging.getLogger(__name__)
 async def wait_for_db(max_retries: int = 30, delay: int = 1):
     """Wait for database to be ready with retry logic"""
     from database.database import engine
+    from sqlalchemy import text
     import asyncpg
     
     for attempt in range(1, max_retries + 1):
         try:
             logger.info(f"🔄 Attempting to connect to database (attempt {attempt}/{max_retries})...")
             async with engine.connect() as conn:
-                await conn.execute("SELECT 1")
+                await conn.execute(text("SELECT 1"))
             logger.info("✅ Database connection successful!")
             return True
         except (asyncpg.InvalidCatalogNameError, ConnectionRefusedError, OSError) as e:
