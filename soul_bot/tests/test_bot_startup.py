@@ -74,29 +74,37 @@ class TestEnvironmentFlags:
     def test_test_flag_affects_behavior(self):
         """Проверка, что флаг TEST влияет на поведение"""
         os.environ['ENV'] = 'test'
+        os.environ['TEST'] = 'true'
         
         import importlib
         if 'config' in sys.modules:
-            importlib.reload(sys.modules['config'])
+            config = importlib.reload(sys.modules['config'])
         else:
-            import config
+            config = importlib.import_module('config')
         
         # В тестовом режиме TEST должен быть True
         assert config.TEST == True, "В тестовом режиме TEST должен быть True"
+
+        os.environ.pop('ENV', None)
+        os.environ.pop('TEST', None)
     
     
     def test_prod_flag_sets_prod_mode(self):
         """Проверка, что в продакшн режиме TEST=False"""
         os.environ['ENV'] = 'prod'
+        os.environ['TEST'] = 'false'
         
         import importlib
         if 'config' in sys.modules:
-            importlib.reload(sys.modules['config'])
+            config = importlib.reload(sys.modules['config'])
         else:
-            import config
+            config = importlib.import_module('config')
         
         # В продакшн режиме TEST должен быть False
         assert config.TEST == False, "В продакшн режиме TEST должен быть False"
+
+        os.environ.pop('ENV', None)
+        os.environ.pop('TEST', None)
 
 
 if __name__ == '__main__':

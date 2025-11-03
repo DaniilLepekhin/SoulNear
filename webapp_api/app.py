@@ -7,8 +7,12 @@ from datetime import datetime
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from typing import Optional
-from sqlalchemy import URL, select, update
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from contextlib import asynccontextmanager
+
+from asyncpg import DuplicateDatabaseError, InvalidCatalogNameError
+from sqlalchemy import URL, select, text, update
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 from sqlalchemy import VARCHAR, DateTime, Integer, Boolean, TEXT
 from datetime import datetime as dt
@@ -41,25 +45,112 @@ POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'localhost')
 POSTGRES_PORT = int(os.getenv('POSTGRES_PORT', '5432'))
 POSTGRES_DB = os.getenv('POSTGRES_DB', 'soul_bot')
 
-engine = create_async_engine(
-    URL(
-        drivername='postgresql+asyncpg',
-        username=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-        database=POSTGRES_DB,
-        query={},
-    ),
-    future=True,
-    # ✅ FIX: Add connection pool settings
-    pool_size=10,
-    max_overflow=5,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-)
 
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+def _build_engine(database_name: str) -> AsyncEngine:
+    return create_async_engine(
+        URL(
+            drivername='postgresql+asyncpg',
+            username=POSTGRES_USER,
+            password=POSTGRES_PASSWORD,
+            host=POSTGRES_HOST,
+            port=POSTGRES_PORT,
+            database=database_name,
+            query={},
+        ),
+        future=True,
+        pool_size=10,
+        max_overflow=5,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
+
+
+_engine: AsyncEngine = _build_engine(POSTGRES_DB)
+_session_factory = async_sessionmaker(_engine, expire_on_commit=False, class_=AsyncSession)
+
+
+class DatabaseManager:
+    """Self-healing database engine for the Quart API."""
+
+    def __init__(self, engine_obj: AsyncEngine, session_factory: async_sessionmaker) -> None:
+        self._engine = engine_obj
+        self._session_factory = session_factory
+        self._lock = asyncio.Lock()
+
+    @property
+    def engine(self) -> AsyncEngine:
+        return self._engine
+
+    async def ensure_ready(self) -> None:
+        async with self._lock:
+            retries = 0
+            while True:
+                try:
+                    async with self._engine.connect() as conn:
+                        await conn.execute(text('SELECT 1'))
+                    return
+                except InvalidCatalogNameError:
+                    logger.warning("WebApp DB '%s' missing, creating...", POSTGRES_DB)
+                    await self._create_database()
+                    await self._reset_engine()
+                except OperationalError as exc:
+                    if not self._is_missing_database(exc):
+                        raise
+                    logger.warning("WebApp DB '%s' missing (OperationalError), creating...", POSTGRES_DB)
+                    await self._create_database()
+                    await self._reset_engine()
+
+                retries += 1
+                if retries > 3:
+                    raise RuntimeError(f"Unable to prepare database '{POSTGRES_DB}' for WebApp")
+
+    def _is_missing_database(self, exc: OperationalError) -> bool:
+        origin = getattr(exc, 'orig', None)
+        if isinstance(origin, InvalidCatalogNameError):
+            return True
+        message = str(exc).lower()
+        return POSTGRES_DB.lower() in message and 'does not exist' in message
+
+    async def _create_database(self) -> None:
+        admin_engine = _build_engine('postgres')
+        try:
+            async with admin_engine.begin() as conn:
+                await conn.execute(text(f'CREATE DATABASE "{POSTGRES_DB}"'))
+                logger.info("Created WebApp database '%s'", POSTGRES_DB)
+        except DuplicateDatabaseError:
+            logger.info("WebApp database '%s' already exists", POSTGRES_DB)
+        finally:
+            await admin_engine.dispose()
+
+    async def _reset_engine(self) -> None:
+        global _engine, _session_factory
+
+        await self._engine.dispose()
+        self._engine = _build_engine(POSTGRES_DB)
+        self._session_factory = async_sessionmaker(self._engine, expire_on_commit=False, class_=AsyncSession)
+        _engine = self._engine
+        _session_factory = self._session_factory
+
+    @asynccontextmanager
+    async def _session_context(self):
+        await self.ensure_ready()
+        async with self._session_factory() as session:
+            yield session
+
+    @asynccontextmanager
+    async def _begin_context(self):
+        await self.ensure_ready()
+        async with self._session_factory().begin() as session:
+            yield session
+
+    def __call__(self):
+        return self._session_context()
+
+    def begin(self):
+        return self._begin_context()
+
+
+AsyncSessionLocal = DatabaseManager(_engine, _session_factory)
 
 # Database models (copy from bot, read-only)
 class Base(DeclarativeBase):
