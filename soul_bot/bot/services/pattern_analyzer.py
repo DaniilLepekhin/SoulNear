@@ -23,10 +23,12 @@ from sqlalchemy import update
 from config import OPENAI_API_KEY, is_feature_enabled
 from bot.services import embedding_service
 from bot.services.pattern_context_filter import (
+    TOPIC_KEYWORDS,
     infer_context_weights_from_tags,
     merge_context_weights,
     normalize_topic,
 )
+from bot.services.text_formatting import safe_shorten
 from bot.services.constants import (
     SIMILARITY_THRESHOLD_DUPLICATE,
     SIMILARITY_THRESHOLD_RELATED,
@@ -171,6 +173,36 @@ def _contains_cyrillic(text: str | None) -> bool:
     return bool(re.search(r"[А-Яа-яЁё]", text))
 
 
+def _extract_context_snippets(pattern: dict) -> dict[str, list[str]]:
+    """Собирает короткие выдержки, которые подтверждают связь паттерна с темами."""
+
+    snippets: dict[str, list[str]] = {}
+    sources: list[str] = []
+
+    for field_name in ("description", "contradiction", "hidden_dynamic", "blocked_resource"):
+        value = pattern.get(field_name)
+        if isinstance(value, str) and value.strip():
+            sources.append(value.strip())
+
+    for evidence in pattern.get("evidence", []) or []:
+        if isinstance(evidence, str) and evidence.strip():
+            sources.append(evidence.strip())
+
+    for text in sources:
+        lower_text = text.lower()
+        for topic, keywords in TOPIC_KEYWORDS.items():
+            if any(keyword in lower_text for keyword in keywords):
+                canonical_topic = normalize_topic(topic)
+                bucket = snippets.setdefault(canonical_topic, [])
+                snippet_text = safe_shorten(text, 200)
+                if snippet_text and snippet_text not in bucket:
+                    bucket.append(snippet_text)
+                if len(bucket) >= 2:
+                    continue
+
+    return snippets
+
+
 def _normalize_new_patterns(patterns: list[dict] | None) -> list[dict]:
     """Привести паттерны от GPT к ожидаемому формату"""
     if not patterns:
@@ -246,6 +278,8 @@ def _normalize_new_patterns(patterns: list[dict] | None) -> list[dict]:
             pattern['response_hint'] = response_hint.strip()
         else:
             pattern['response_hint'] = None
+
+        pattern['context_snippets'] = _extract_context_snippets(pattern)
 
         normalized.append(pattern)
 

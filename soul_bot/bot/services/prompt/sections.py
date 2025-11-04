@@ -4,6 +4,7 @@
 Каждая функция возвращает отформатированную секцию промпта.
 Если данных нет - возвращает пустую строку.
 """
+import html
 from typing import Optional
 
 from bot.services.pattern_context_filter import (
@@ -114,6 +115,13 @@ def render_patterns_section_contextual(
         confidence_pct = int((pattern.get('confidence') or 0.7) * 100)
         evidence = pattern.get('evidence', [])[:3]
         primary_context = pattern.get('primary_context')
+        context_snippets = pattern.get('context_snippets') or {}
+        topic_snippets = context_snippets.get(detected_topic) or []
+        snippet_source = detected_topic
+
+        if not topic_snippets and primary_context and primary_context != detected_topic:
+            topic_snippets = context_snippets.get(primary_context) or []
+            snippet_source = primary_context
 
         block_lines = [f"🧩 <b>{title}</b> · уверенность {confidence_pct}%", ""]
 
@@ -123,31 +131,40 @@ def render_patterns_section_contextual(
         block_lines.append(f"Частота: повторяется {occurrences} раз")
         block_lines.append("")
 
-        contradiction = safe_shorten(pattern.get('contradiction'), 180)
-        if contradiction:
-            block_lines.append(f"🔁 Противоречие: {contradiction}")
-            block_lines.append("")
-
-        hidden_dynamic = safe_shorten(pattern.get('hidden_dynamic'), 180)
-        if hidden_dynamic:
-            block_lines.append(f"🎭 Динамика: {hidden_dynamic}")
-            block_lines.append("")
-
-        blocked_resource = safe_shorten(pattern.get('blocked_resource'), 160)
-        if blocked_resource:
-            block_lines.append(f"💎 Ресурс: {blocked_resource}")
-            block_lines.append("")
-
-        if primary_context:
+        if primary_context and primary_context != detected_topic:
             context_label = context_labels.get(primary_context, primary_context)
-            block_lines.append(f"🌿 Контекст: {context_label}")
+            current_label = context_labels.get(detected_topic, detected_topic)
+            block_lines.append(
+                f"🌉 Обычно этот паттерн звучит в теме «{context_label}», но сейчас он проявляется через «{current_label}»."
+            )
             block_lines.append("")
+
+        if topic_snippets:
+            snippet = safe_shorten(topic_snippets[0], 180)
+            if snippet:
+                block_lines.append(f"💬 {html.escape(snippet)}")
+                block_lines.append("")
+        else:
+            contradiction = safe_shorten(pattern.get('contradiction'), 180)
+            if contradiction:
+                block_lines.append(f"🔁 Противоречие: {contradiction}")
+                block_lines.append("")
+
+            hidden_dynamic = safe_shorten(pattern.get('hidden_dynamic'), 180)
+            if hidden_dynamic:
+                block_lines.append(f"🎭 Динамика: {hidden_dynamic}")
+                block_lines.append("")
+
+            blocked_resource = safe_shorten(pattern.get('blocked_resource'), 160)
+            if blocked_resource:
+                block_lines.append(f"💎 Ресурс: {blocked_resource}")
+                block_lines.append("")
 
         if evidence:
             quotes = [safe_shorten(quote, 140) for quote in evidence if quote]
             clean_quotes = [quote for quote in quotes if quote]
             if clean_quotes:
-                quote_lines = [f"  • «{quote}»" for quote in clean_quotes]
+                quote_lines = [f"  • «{html.escape(quote)}»" for quote in clean_quotes]
                 block_lines.append("📝 Примеры:")
                 block_lines.extend(quote_lines)
                 block_lines.append("")

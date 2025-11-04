@@ -17,6 +17,7 @@ The entry-points are `get_relevant_patterns_for_quiz` and
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from datetime import datetime
@@ -83,6 +84,9 @@ UNIVERSAL_PATTERN_HINTS: Tuple[str, ...] = (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 def _stem(text: str) -> str:
     """Very small stemmer: lowercase + strip Russian endings."""
 
@@ -145,14 +149,35 @@ def _freshness_multiplier(pattern: dict) -> float:
     return max(0.4, math.exp(-days / 90.0))
 
 
-def _context_weight(pattern: dict, topic: str) -> float:
-    topic = normalize_topic(topic)
-    weights = pattern.get("context_weights") or {}
-    if topic in weights:
+def _extract_context_weights(pattern: dict) -> Dict[str, float]:
+    raw_weights = pattern.get("context_weights") or {}
+    normalized: Dict[str, float] = {}
+    for raw_key, raw_value in raw_weights.items():
         try:
-            return float(weights[topic])
+            value = float(raw_value)
         except (TypeError, ValueError):
-            return 0.0
+            continue
+        if value <= 0.0:
+            continue
+        topic_key = normalize_topic(str(raw_key))
+        normalized[topic_key] = max(normalized.get(topic_key, 0.0), value)
+
+    if not normalized:
+        return {}
+
+    max_value = max(normalized.values())
+    if max_value <= 0.0:
+        return {}
+
+    return {topic: min(1.0, value / max_value) for topic, value in normalized.items()}
+
+
+def _context_weight(pattern: dict, topic: str, *, weights: Optional[Dict[str, float]] = None) -> float:
+    topic = normalize_topic(topic)
+    if weights is None:
+        weights = _extract_context_weights(pattern)
+    if topic in weights:
+        return weights[topic]
     tags = pattern.get("tags") or []
     normalized_tags = {normalize_topic(tag) for tag in tags if isinstance(tag, str)}
     if topic in normalized_tags:
@@ -186,21 +211,71 @@ def _semantic_boost(pattern: dict, topic: str, user_message: Optional[str]) -> f
     return min(0.35, 0.15 + matches * 0.05)
 
 
-def _combined_score(
+def _score_pattern(
     pattern: dict,
     topic: str,
     user_message: Optional[str],
-) -> Tuple[float, float]:
-    relevance = _context_weight(pattern, topic)
-    relevance = max(relevance, _semantic_boost(pattern, topic, user_message))
-    if relevance == 0.0:
-        return 0.0, 0.0
+    *,
+    min_relevance: float,
+    strict: bool,
+) -> Optional[Tuple[float, float, dict]]:
+    canonical_topic = normalize_topic(topic)
+    weights = _extract_context_weights(pattern)
+    context_value = _context_weight(pattern, canonical_topic, weights=weights)
+    semantic = _semantic_boost(pattern, canonical_topic, user_message)
+    relevance = max(context_value, semantic)
+
+    snippets = pattern.get("context_snippets") or {}
+    has_snippet = bool(snippets.get(canonical_topic))
+
+    max_topic = None
+    max_weight = 0.0
+    topic_weight = context_value
+    if weights:
+        max_topic, max_weight = max(weights.items(), key=lambda item: item[1])
+        topic_weight = weights.get(canonical_topic, 0.0)
+
+    if strict and not has_snippet and max_topic and max_topic != canonical_topic and (max_weight - topic_weight) >= 0.2 and semantic < 0.3:
+        logger.debug(
+            "Pattern '%s' skipped for topic '%s': dominant topic '%s' (%.2f > %.2f)",
+            pattern.get("title"),
+            canonical_topic,
+            max_topic,
+            max_weight,
+            topic_weight,
+        )
+        return None
+
+    if not has_snippet:
+        snippet_threshold = 0.45 if strict else 0.35
+        if semantic < 0.25 and context_value < snippet_threshold:
+            logger.debug(
+                "Pattern '%s' skipped for topic '%s': lacks snippet and weak signal (semantic=%.2f, weight=%.2f)",
+                pattern.get("title"),
+                canonical_topic,
+                semantic,
+                context_value,
+            )
+            return None
+        relevance *= 0.7
+
+    if relevance < min_relevance:
+        logger.debug(
+            "Pattern '%s' skipped for topic '%s': relevance %.2f < threshold %.2f",
+            pattern.get("title"),
+            canonical_topic,
+            relevance,
+            min_relevance,
+        )
+        return None
+
     occurrences = float(pattern.get("occurrences", 1) or 1)
     occurrences = min(occurrences, 10.0) / 10.0
     confidence = float(pattern.get("confidence", 0.7) or 0.7)
     freshness = _freshness_multiplier(pattern)
     score = relevance * (0.5 + occurrences * 0.2 + confidence * 0.2) * freshness
-    return relevance, score
+
+    return relevance, score, pattern
 
 
 def filter_patterns_by_relevance(
@@ -213,19 +288,28 @@ def filter_patterns_by_relevance(
     topic = normalize_topic(current_topic)
     scored: List[Tuple[float, float, dict]] = []
     for pattern in patterns or []:
-        relevance, score = _combined_score(pattern, topic, user_message)
-        if relevance == 0.0:
-            continue
-        if relevance < min_relevance:
-            continue
-        scored.append((relevance, score, pattern))
+        result = _score_pattern(
+            pattern,
+            topic,
+            user_message,
+            min_relevance=min_relevance,
+            strict=True,
+        )
+        if result is not None:
+            scored.append(result)
 
     if not scored:
         # relax threshold slightly as a fallback
         for pattern in patterns or []:
-            relevance, score = _combined_score(pattern, topic, user_message)
-            if relevance >= 0.1 and score > 0.0:
-                scored.append((relevance, score, pattern))
+            result = _score_pattern(
+                pattern,
+                topic,
+                user_message,
+                min_relevance=max(0.2, min_relevance * 0.75),
+                strict=False,
+            )
+            if result is not None:
+                scored.append(result)
 
     scored.sort(key=lambda item: (item[1], item[0]), reverse=True)
     return [item[2] for item in scored[:max_patterns]]

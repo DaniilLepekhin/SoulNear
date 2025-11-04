@@ -21,6 +21,7 @@ def _pattern(title: str, **overrides):
     }
     if "tags" in overrides:
         pattern["tags"] = overrides["tags"]
+    pattern["context_snippets"] = overrides.get("context_snippets", {})
     return pattern
 
 
@@ -76,12 +77,14 @@ def test_get_relevant_patterns_for_chat_uses_message_keywords():
             context_weights={"work": 0.6},
             evidence=["Я снова переписываю отчёт перед начальником"],
             last_detected=datetime.utcnow().isoformat(),
+            context_snippets={"work": ["Я переписываю отчёт перед руководителем."]},
         ),
         _pattern(
             "Relationship Anxiety",
             context_weights={"relationships": 0.9},
             evidence=["Боюсь признаться партнёру"],
             last_detected=datetime.utcnow().isoformat(),
+            context_snippets={"relationships": ["Боюсь признаться партнёру."]},
         ),
     ]
 
@@ -90,4 +93,69 @@ def test_get_relevant_patterns_for_chat_uses_message_keywords():
 
     assert len(result) == 1
     assert result[0]["title"] == "Work Perfectionism"
+
+
+def test_chat_skips_cross_topic_without_snippet():
+    patterns = [
+        _pattern(
+            "Relationship Fear",
+            context_weights={"relationships": 1.0, "money": 0.3},
+            evidence=["Боюсь, что останусь один"],
+            context_snippets={"relationships": ["Боюсь, что останусь один."]},
+            last_detected=datetime.utcnow().isoformat(),
+        ),
+        _pattern(
+            "Money Flow",
+            context_weights={"money": 1.0},
+            evidence=["Тревожно смотреть на баланс счёта"],
+            context_snippets={"money": ["Тревожно смотреть на баланс счёта." ]},
+            last_detected=datetime.utcnow().isoformat(),
+        ),
+    ]
+
+    message = "Меня душит тревога из-за денег и новых платежей"
+    result = get_relevant_patterns_for_chat(
+        patterns,
+        user_message=message,
+        detected_topic="money",
+        max_patterns=2,
+    )
+
+    titles = [pattern["title"] for pattern in result]
+    assert "Money Flow" in titles
+    assert "Relationship Fear" not in titles
+
+
+def test_chat_allows_cross_topic_with_snippet():
+    patterns = [
+        _pattern(
+            "Relationship Fear",
+            context_weights={"relationships": 1.0, "money": 0.35},
+            evidence=["Когда денег мало, чувствую, что останусь один"],
+            context_snippets={
+                "relationships": ["Боюсь остаться один"],
+                "money": ["Когда денег мало, страх остаться один вспыхивает."],
+            },
+            last_detected=datetime.utcnow().isoformat(),
+        ),
+        _pattern(
+            "Money Flow",
+            context_weights={"money": 1.0},
+            evidence=["Тревожно смотреть на баланс счёта"],
+            context_snippets={"money": ["Тревожно смотреть на баланс счёта." ]},
+            last_detected=datetime.utcnow().isoformat(),
+        ),
+    ]
+
+    message = "Меня давит нехватка денег для аренды"
+    result = get_relevant_patterns_for_chat(
+        patterns,
+        user_message=message,
+        detected_topic="money",
+        max_patterns=2,
+    )
+
+    titles = [pattern["title"] for pattern in result]
+    assert titles[0] == "Money Flow"
+    assert "Relationship Fear" in titles
 
