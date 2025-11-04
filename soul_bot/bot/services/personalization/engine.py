@@ -15,6 +15,17 @@ from bot.services.pattern_context_filter import (
 logger = logging.getLogger(__name__)
 
 
+TOPIC_LABELS = {
+    'relationships': 'отношения',
+    'money': 'деньги',
+    'work': 'работу',
+    'purpose': 'предназначение',
+    'confidence': 'уверенность',
+    'fears': 'страхи',
+    'self': 'твои внутренние состояния',
+}
+
+
 def _deduplicate_quotes(quotes: List[str]) -> List[str]:
     """Remove duplicate evidence quotes preserving order."""
 
@@ -110,6 +121,12 @@ def _ensure_period(text: str) -> str:
     return f'{stripped}.'
 
 
+def _topic_label(topic: Optional[str]) -> str:
+    if not topic:
+        return 'этой теме'
+    return TOPIC_LABELS.get(topic, topic)
+
+
 def _select_primary_pattern(
     patterns: List[dict],
     user_message: str = "",
@@ -146,17 +163,16 @@ def _select_primary_pattern(
             detected_topic=detected_topic,
             max_patterns=5,  # Get top 5 relevant patterns
         )
-        
+
         if relevant_patterns:
             logger.debug(
                 f"Context filter: {len(relevant_patterns)}/{len(patterns)} patterns relevant to message"
             )
         else:
-            # Fallback: use all patterns if none are contextually relevant
             logger.debug(
-                f"Context filter: no relevant patterns found, using all {len(patterns)} patterns"
+                f"Context filter: no relevant patterns found for message '{user_message}'"
             )
-            relevant_patterns = patterns
+            return None
 
     # 🏆 Step 2: Sort by frequency and confidence
     sorted_patterns = sorted(
@@ -228,20 +244,26 @@ def _is_personalization_relevant(
     # 🎯 0. Check context_weights: LOW relevance to current topic → skip
     if primary_pattern:
         context_weights = primary_pattern.get('context_weights', {})
-        if context_weights:
-            # Detect topic if not provided
-            topic = detected_topic or detect_topic_from_message(user_message)
-            
-            if topic:
-                relevance = context_weights.get(topic, 0.0)
-                
-                # If pattern has VERY LOW relevance to current topic → skip
-                if relevance < 0.3:
-                    logger.debug(
-                        f"Personalization skipped: pattern '{primary_pattern.get('title')}' "
-                        f"has low relevance ({relevance:.2f}) to topic '{topic}'"
-                    )
-                    return False
+        snippets = primary_pattern.get('context_snippets') or {}
+
+        topic = detected_topic or detect_topic_from_message(user_message)
+
+        if topic:
+            has_snippet = bool(snippets.get(topic))
+            relevance = context_weights.get(topic, 0.0) if context_weights else 0.0
+
+            if context_weights and relevance < 0.3 and not has_snippet:
+                logger.debug(
+                    f"Personalization skipped: pattern '{primary_pattern.get('title')}' "
+                    f"has low relevance ({relevance:.2f}) to topic '{topic}'"
+                )
+                return False
+
+            if not has_snippet:
+                logger.debug(
+                    "Skipping personalization: no context snippet for topic '%s'", topic
+                )
+                return False
     
     # 1. Emotional content? → ALWAYS relevant (highest priority)
     emotional_keywords = [
@@ -364,15 +386,48 @@ async def build_personalized_response(
         logger.debug("[%s] personalization skipped: not relevant to current message", user_id)
         return base_response
 
+    topic = detected_topic or detect_topic_from_message(user_message)
+    snippets = primary_pattern.get('context_snippets') or {}
+    snippet_topic = None
+    snippet_text = None
+
+    if topic and snippets.get(topic):
+        snippet_topic = topic
+        snippet_text = snippets[topic][0]
+    elif primary_pattern.get('primary_context') and snippets.get(primary_pattern.get('primary_context')):
+        snippet_topic = primary_pattern.get('primary_context')
+        snippet_text = snippets[snippet_topic][0]
+    elif snippets:
+        snippet_topic, snippet_list = next(iter(snippets.items()))
+        if snippet_list:
+            snippet_text = snippet_list[0]
+
     evidence_list = primary_pattern['evidence']
-    quote = evidence_list[0]
+    fallback_quote = evidence_list[0]
 
     occurrences = primary_pattern.get('occurrences', len(evidence_list))
     occurrences_text = _format_occurrence_text(occurrences)
     pattern_title = primary_pattern.get('title') or 'выявленного паттерна'
 
-    quote_sentence = _ensure_period(
-        f'Ты писал: "{quote}" — ты повторял это {occurrences_text}. Это проявление {pattern_title}.'
+    if snippet_text:
+        snippet_text_clean = snippet_text.strip().strip('"')
+        quote_body = f'«{snippet_text_clean}»'
+        if snippet_topic and topic and snippet_topic != topic:
+            quote_sentence = _ensure_period(
+                f"Когда говоришь про {_topic_label(topic)}, всплывает то, что звучало в теме {_topic_label(snippet_topic)}: {quote_body}"
+            )
+        elif snippet_topic:
+            quote_sentence = _ensure_period(
+                f"Когда говоришь про {_topic_label(snippet_topic)}, всплывает мысль: {quote_body}"
+            )
+        else:
+            quote_sentence = _ensure_period(f"Ты отмечал: {quote_body}")
+    else:
+        fallback_clean = fallback_quote.strip().strip('"')
+        quote_sentence = _ensure_period(f"Ты отмечал: «{fallback_clean}»")
+
+    pattern_sentence = _ensure_period(
+        f"Это откликается паттерном {pattern_title}: мы возвращались к нему {occurrences_text}."
     )
     action_sentence = _ensure_period(
         f'Сделай шаг: {_select_action_for_pattern(pattern_title, primary_pattern.get("type"))}'
@@ -392,7 +447,7 @@ async def build_personalized_response(
         parts = []
         if hint_sentence:
             parts.append(hint_sentence)
-        for part in (quote_sentence, action_sentence):
+        for part in (quote_sentence, pattern_sentence, action_sentence):
             if part and part not in parts:
                 parts.append(part)
         final_message = ' '.join(parts).strip()
@@ -407,6 +462,9 @@ async def build_personalized_response(
         if quote_sentence:
             result_parts.append(quote_sentence)
 
+        if pattern_sentence:
+            result_parts.append(pattern_sentence)
+
         if base_sentence and base_sentence not in result_parts:
             result_parts.append(base_sentence)
 
@@ -419,11 +477,11 @@ async def build_personalized_response(
         final_message = ' '.join(part for part in result_parts if part).strip()
 
     logger.debug(
-        "[%s] personalization: pattern=%s occurrences=%s quote=%s",
+        "[%s] personalization: pattern=%s occurrences=%s snippet=%s",
         user_id,
         pattern_title,
         occurrences,
-        quote,
+        snippet_text or fallback_quote,
     )
 
     if hint_id:

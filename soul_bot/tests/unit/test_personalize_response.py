@@ -23,7 +23,13 @@ async def test_personalize_response_ultra_brief_contains_quote_and_action():
                     'evidence': [
                         'Я недостаточно хорош для этой работы.',
                         'Боюсь, что коллеги считают меня самозванцем.'
-                    ]
+                    ],
+                    'context_weights': {'work': 0.9},
+                    'primary_context': 'work',
+                    'context_snippets': {
+                        'work': ['Я недостаточно хорош для этой работы.'],
+                        'self': ['Я недостаточно хорош для этой работы.']
+                    }
                 }
             ]
         }
@@ -37,8 +43,9 @@ async def test_personalize_response_ultra_brief_contains_quote_and_action():
         user_message='Я недостаточно хорош для этой работы.'
     )
 
-    assert '"Я недостаточно хорош для этой работы."' in result
-    assert '4 раз' in result
+    assert '«Я недостаточно хорош для этой работы.»' in result
+    assert 'паттерном Imposter Syndrome' in result
+    assert '4 раз' in result or '4 раза' in result
     assert 'Сделай шаг:' in result
     assert len(result.split()) <= 50
 
@@ -60,7 +67,13 @@ async def test_personalize_response_brief_includes_supportive_sentence():
                     'evidence': [
                         'Код должен быть идеальным.',
                         'Я снова переписываю один и тот же модуль.'
-                    ]
+                    ],
+                    'context_weights': {'work': 1.0},
+                    'primary_context': 'work',
+                    'context_snippets': {
+                        'work': ['Код должен быть идеальным.'],
+                        'self': ['Код должен быть идеальным.']
+                    }
                 }
             ]
         }
@@ -74,8 +87,9 @@ async def test_personalize_response_brief_includes_supportive_sentence():
         user_message='Код должен быть идеальным.'
     )
 
-    assert '"Код должен быть идеальным."' in result
-    assert '6 раз' in result
+    assert '«Код должен быть идеальным.»' in result
+    assert 'паттерном Perfectionism' in result
+    assert '6 раз' in result or '6 раза' in result
     assert 'Сделай шаг:' in result
     assert 'Сообщи потом, как мир выжил' in result
     assert len(result.split()) <= 120
@@ -95,7 +109,10 @@ async def test_personalize_response_unknown_pattern_uses_fallback_action():
                     'description': 'Something unusual.',
                     'occurrences': 1,
                     'confidence': 0.5,
-                    'evidence': ['Это что-то новенькое.']
+                    'evidence': ['Это что-то новенькое.'],
+                    'context_weights': {'self': 1.0},
+                    'primary_context': 'self',
+                    'context_snippets': {'self': ['Это что-то новенькое.']}
                 }
             ]
         }
@@ -109,7 +126,7 @@ async def test_personalize_response_unknown_pattern_uses_fallback_action():
         user_message='Это что-то новенькое.'
     )
 
-    assert 'Это что-то новенькое' in result
+    assert '«Это что-то новенькое.»' in result
     assert 'выдели 5 минут на маленький шаг' in result
 
 
@@ -140,7 +157,8 @@ async def test_personalize_response_skips_irrelevant_pattern():
                         'money': 0.1,  # Very low relevance to money
                         'work': 0.2
                     },
-                    'primary_context': 'relationships'
+                    'primary_context': 'relationships',
+                    'context_snippets': {'relationships': ['Страх быть отвергнутым, непринятым, и собственно, что полностью меня поняв, девушка меня оставит.']}
                 }
             ]
         }
