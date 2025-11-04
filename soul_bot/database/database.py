@@ -89,14 +89,13 @@ class DatabaseManager:
         return POSTGRES_DB.lower() in message and 'does not exist' in message
 
     async def _create_database(self) -> None:
-        admin_engine = _build_engine('postgres')
+        # Build engine with AUTOCOMMIT isolation level for CREATE DATABASE
+        admin_engine = _build_engine('postgres').execution_options(
+            isolation_level='AUTOCOMMIT'
+        )
         try:
-            # Use connect() instead of begin() - CREATE DATABASE can't run in transaction
             async with admin_engine.connect() as conn:
-                # Set isolation level to AUTOCOMMIT for CREATE DATABASE
-                await conn.execution_options(isolation_level='AUTOCOMMIT').execute(
-                    text(f'CREATE DATABASE "{POSTGRES_DB}"')
-                )
+                await conn.execute(text(f'CREATE DATABASE "{POSTGRES_DB}"'))
                 logger.info("Created database '%s'", POSTGRES_DB)
         except DuplicateDatabaseError:
             logger.info("Database '%s' already exists", POSTGRES_DB)
