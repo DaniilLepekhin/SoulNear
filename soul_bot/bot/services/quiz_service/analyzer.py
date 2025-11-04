@@ -10,13 +10,12 @@
 """
 import logging
 import json
-import textwrap
-from typing import Optional
 from openai import AsyncOpenAI
 
 from config import OPENAI_API_KEY
 from bot.services import pattern_analyzer
 import database.repository.user_profile as db_user_profile
+from bot.services.text_formatting import localize_pattern_title, safe_shorten
 
 logger = logging.getLogger(__name__)
 
@@ -358,15 +357,6 @@ def _confidence_to_stars(confidence: float) -> str:
     return f"{stars} ({percentage}%)"
 
 
-def _shorten(text: str | None, limit: int = 160) -> str:
-    text = (text or "").strip()
-    if not text:
-        return ""
-    if len(text) <= limit:
-        return text
-    return textwrap.shorten(text, width=limit, placeholder="…")
-
-
 def _calculate_confidence(answers: list[dict]) -> float:
     """
     Рассчитать уверенность в результатах
@@ -416,87 +406,74 @@ async def format_results_for_telegram(
     """
     import html
 
-    category = (results.get('category') or 'Квиз').title()
+    category_code = (results.get('category') or 'общие')
+    category_labels = {
+        'relationships': 'отношения',
+        'money': 'деньги',
+        'purpose': 'предназначение',
+        'confidence': 'уверенность',
+        'fears': 'страхи',
+        'sleep': 'сны',
+        'stress': 'стресс',
+    }
+    category_label = category_labels.get(str(category_code).lower(), str(category_code))
     patterns = results.get('new_patterns') or []
     recommendations = results.get('recommendations') or []
 
-    # ═══════════════════════════════════════════════════════════════
-    # HEADER: Разговорный, не официальный
-    # ═══════════════════════════════════════════════════════════════
     sections: list[str] = [
-        "Окей, вот что я понял про тебя.",
-        ""  # Отступ
+        f"💬 Я собрал краткий разбор по теме «{html.escape(category_label)}»."
     ]
 
-    # ═══════════════════════════════════════════════════════════════
-    # PATTERNS: Показываем не как список, а как откровенный разговор
-    # ═══════════════════════════════════════════════════════════════
     if patterns:
-        sections.append("━━━━━━━━━━━━━━━━━━━")
-        
+        pattern_blocks: list[str] = []
         for idx, pattern in enumerate(patterns[:3], 1):
-            title = html.escape(pattern.get('title', 'Паттерн'))
+            title = html.escape(localize_pattern_title(pattern.get('title')))
             confidence = pattern.get('confidence', 0.0)
             stars = _confidence_to_stars(confidence)
-            
-            # Блок паттерна
-            pattern_lines = [
-                f"\n<b>{idx}. {title}</b> {stars}\n"
+            block_lines = [
+                f"🧩 <b>{idx}. {title}</b> {stars}"
             ]
-            
-            # ПРОТИВОРЕЧИЕ (если есть)
+
             contradiction = pattern.get('contradiction')
             if contradiction:
-                short_contradiction = _shorten(contradiction, 200)
-                pattern_lines.append(f"💡 <b>Противоречие:</b>")
-                pattern_lines.append(f"{html.escape(short_contradiction)}\n")
-            
-            # СКРЫТАЯ ДИНАМИКА (главное!)
+                short_contradiction = safe_shorten(contradiction, 220)
+                if short_contradiction:
+                    block_lines.append(f"🔁 <b>Петля:</b> {html.escape(short_contradiction)}")
+
             hidden_dynamic = pattern.get('hidden_dynamic')
             if hidden_dynamic:
-                short_dynamic = _shorten(hidden_dynamic, 200)
-                pattern_lines.append(f"🔍 <b>Что это значит:</b>")
-                pattern_lines.append(f"{html.escape(short_dynamic)}\n")
-            
-            # РЕСУРС (где сила)
+                short_dynamic = safe_shorten(hidden_dynamic, 220)
+                if short_dynamic:
+                    block_lines.append(f"🎭 <b>Динамика:</b> {html.escape(short_dynamic)}")
+
             blocked_resource = pattern.get('blocked_resource')
             if blocked_resource:
-                short_resource = _shorten(blocked_resource, 180)
-                pattern_lines.append(f"⚡ <b>Где тут сила:</b>")
-                pattern_lines.append(f"{html.escape(short_resource)}\n")
-            
-            # ПРИМЕР (один, самый яркий)
+                short_resource = safe_shorten(blocked_resource, 200)
+                if short_resource:
+                    block_lines.append(f"💎 <b>Ресурс:</b> {html.escape(short_resource)}")
+
             evidence = pattern.get('evidence') or []
             if evidence:
-                sample = _shorten(evidence[0], 120)
+                sample = safe_shorten(evidence[0], 160)
                 if sample:
-                    pattern_lines.append(f'<i>Твои слова: "{html.escape(sample)}"</i>')
-            
-            sections.append("\n".join(pattern_lines))
-            sections.append("━━━━━━━━━━━━━━━━━━━")
+                    block_lines.append(f'<i>«{html.escape(sample)}»</i>')
+
+            pattern_blocks.append("\n".join(block_lines))
+
+        sections.append("\n\n".join(pattern_blocks))
     
     else:
-        sections.append("Пока без ярких паттернов.")
-        sections.append("Либо данных мало, либо ты мастер скрывать следы 😏")
-        sections.append("")
-    
-    # ═══════════════════════════════════════════════════════════════
-    # РЕКОМЕНДАЦИИ: Конкретные шаги, не абстракции
-    # ═══════════════════════════════════════════════════════════════
-    if recommendations:
-        sections.append("\n<b>Что попробовать:</b>\n")
-        for rec in recommendations[:3]:
-            short_rec = _shorten(rec, 150)
-            sections.append(f"• {html.escape(short_rec)}")
-        sections.append("")
-    
-    # ═══════════════════════════════════════════════════════════════
-    # OUTRO: Не "спасибо за прохождение", а call to action
-    # ═══════════════════════════════════════════════════════════════
-    sections.append("━━━━━━━━━━━━━━━━━━━")
-    sections.append("\n<b>Что дальше?</b>")
-    sections.append("Выбери ОДИН паттерн. Самый больной. Попробуй что-то изменить.")
-    sections.append("\nНапиши мне когда сделаешь — разберём что вышло.")
+        sections.append("🧩 Пока без ярких паттернов — продолжим диалог, чтобы услышать больше контекста.")
 
-    return "\n".join([line for line in sections if line is not None])
+    if recommendations:
+        rec_lines = ["🪷 <b>Что попробовать</b>"]
+        for rec in recommendations[:3]:
+            short_rec = safe_shorten(rec, 160)
+            if short_rec:
+                rec_lines.append(f"• {html.escape(short_rec)}")
+        sections.append("\n".join(rec_lines))
+
+    sections.append("🤍 Выбери один шаг и напиши, как пойдёт. Я помогу отследить изменения.")
+
+    return "\n\n".join([line for line in sections if line and line.strip()])
 

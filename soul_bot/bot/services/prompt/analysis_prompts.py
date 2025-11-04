@@ -17,7 +17,7 @@ def get_quick_analysis_prompt(conversation_text: str, existing_summaries: list[s
     Returns:
         Полный промпт для GPT-4o-mini
     """
-    existing_patterns_str = "\n".join(existing_summaries) if existing_summaries else 'None yet'
+    existing_patterns_str = "\n".join(existing_summaries) if existing_summaries else 'нет сохранённых паттернов'
     
     return f"""
 🔍 You are a psychological DETECTIVE - REVEAL hidden dynamics, don't label.
@@ -61,13 +61,13 @@ YOUR TASK: 3-Step Framework
 📋 RULES
 ═══════════════════════════════════════════════════════════════════
 
-• ALL titles in ENGLISH: "Imposter Syndrome" not "Синдром самозванца"
-• ВСЕ остальные поля (description, contradiction, hidden_dynamic, blocked_resource, response_hint) — пиши на русском языке
-• Use ESTABLISHED terms (Burnout, Perfectionism, Social Anxiety)
-• Evidence: 2-3 direct quotes max (в точных русских формулировках пользователя)
-• Primary context: выбери тему, где паттерн проявляется СИЛЬНЕЕ ВСЕГО (relationships|money|work|purpose|confidence|fears|self)
-• Context weights: оцени релевантность паттерна к темам (0.0-1.0) и верни как словарь {"relationships": 1.0, "money": 0.4, ...}
-• If pattern repeats → CREATE AGAIN (tracks frequency)
+• Название паттерна — живой русский термин (без латиницы и кальки).
+• Все поля (description, contradiction, hidden_dynamic, blocked_resource, response_hint) формулируй на русском языке.
+• Используй узнаваемые психологические понятия, но переводи их на русский («Синдром самозванца», «Перфекционизм», «Финансовая тревога»).
+• Evidence: оставь 2–3 точные цитаты пользователя (без сокращений и выдумок).
+• Primary context: выбери тему, где паттерн проявляется сильнее всего (relationships|money|work|purpose|confidence|fears|self).
+• Context weights: оцени релевантность тем (0.0–1.0) и верни словарь {"relationships": 1.0, "money": 0.4, ...}.
+• Если паттерн повторяется — создай новую запись, чтобы отслеживать частоту.
 
 ═══════════════════════════════════════════════════════════════════
 📊 CONVERSATION TO ANALYZE
@@ -87,18 +87,18 @@ EXISTING PATTERNS (DON'T create variations):
   "new_patterns": [
     {{
       "type": "behavioral|emotional|cognitive",
-      "title": "Established Clinical Term (English)",
-      
-      "description": "Clinical description of surface behavior",
-      
-      "contradiction": "What contradiction exists? 'Says X but does Y because...'",
-      
-      "hidden_dynamic": "What DRIVES this? 'Real fear is... Dynamic: behavior serves to...'",
-      
-      "blocked_resource": "Hidden strength. 'This shows [quality], but directed against self instead of for self. Could redirect by...'",
-      
-      "evidence": ["exact quote 1", "exact quote 2"],
-      "tags": ["clinical-term", "auto-detected"],
+      "title": "Русское название паттерна",
+
+      "description": "Короткое описание проявления (на русском)",
+
+      "contradiction": "Где конфликт? 'Говорит X, делает Y, потому что...'",
+
+      "hidden_dynamic": "Что движет? 'Истинный страх... Поведение служит...'",
+
+      "blocked_resource": "Какая сила спрятана? 'Это показывает [качество], но направлено против себя. Как перенаправить?'",
+
+      "evidence": ["точная цитата 1", "точная цитата 2"],
+      "tags": ["основной термин", "авто"],
       "primary_context": "relationships",
       "context_weights": {
         "relationships": 1.0,
@@ -111,14 +111,14 @@ EXISTING PATTERNS (DON'T create variations):
       },
       "frequency": "high|medium|low",
       "confidence": 0.7-1.0,
-      "response_hint": "Soul Near style mirror for immediate reply."
+      "response_hint": "Зеркало в стиле Soul Near на русском (1–2 предложения)."
     }}
   ],
   "mood": {{
     "current_mood": "slightly_down|neutral|good|energetic|stressed",
     "stress_level": "low|medium|high|critical",
     "energy_level": "low|medium|high",
-    "triggers": ["specific trigger phrases from conversation"]
+    "triggers": ["ключевые фразы из диалога"]
   }}
 }}
 
@@ -126,28 +126,28 @@ EXISTING PATTERNS (DON'T create variations):
 ✅ PRE-FLIGHT CHECKLIST
 ═══════════════════════════════════════════════════════════════════
 
-Before returning JSON, verify:
-1. ✓ Title = established psychological term (clinician would recognize)
-2. ✓ Contradiction field filled (what person doesn't see)
-3. ✓ Hidden_dynamic explains WHAT DRIVES behavior (not just describes it)
-4. ✓ Blocked_resource shows STRENGTH not just problem
-5. ✓ Evidence = EXACT quotes from user messages
-6. ✓ If pattern repeats → created AGAIN for frequency tracking
+Перед отправкой JSON проверь:
+1. ✓ Title — понятное русское название паттерна.
+2. ✓ Contradiction заполнено и показывает конфликт между словами и действиями.
+3. ✓ Hidden_dynamic объясняет, что двигает поведением (а не повторяет описание).
+4. ✓ Blocked_resource подсвечивает силу/ресурс, а не ещё одну проблему.
+5. ✓ Evidence содержит точные цитаты пользователя.
+6. ✓ Повторяющийся паттерн добавлен заново для учёта частоты.
 
 ═══════════════════════════════════════════════════════════════════
 🎯 REMEMBER YOUR MISSION
 ═══════════════════════════════════════════════════════════════════
 
-You are NOT a label-maker. You are a TRUTH-REVEALER.
+Ты не штампуешь ярлыки — ты подсвечиваешь правду.
 
-Don't tell them what they already know ("you're anxious").
-Show them what they CAN'T see ("your perfectionism is hiding you from the world").
+Не повторяй очевидное («ты тревожишься»).
+Покажи то, что человек не видит («твой перфекционизм прячет тебя от мира»).
 
-DEPTH > CLASSIFICATION
-INSIGHT > DIAGNOSIS  
-REVELATION > DESCRIPTION
+ГЛУБИНА > КЛАССИФИКАЦИЯ
+ИНСАЙТ > ДИАГНОЗ  
+ОТКРЫТИЕ > ОПИСАНИЕ
 
-Now analyze.
+Теперь анализируй.
 """
 
 
@@ -164,7 +164,7 @@ def get_deep_analysis_prompt(conversation_text: str, patterns_summary: str) -> s
     Returns:
         Полный промпт для GPT-4o
     """
-    patterns_str = patterns_summary if patterns_summary else 'No patterns yet'
+    patterns_str = patterns_summary if patterns_summary else 'паттернов пока нет'
     
     return f"""
 You are a psychological SYNTHESIZER. You see the BIG PICTURE.

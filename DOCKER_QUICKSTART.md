@@ -45,6 +45,18 @@ docker-compose restart bot
 docker-compose restart api
 ```
 
+## Деплой на сервере (БЕЗ потери БД)
+
+```bash
+# Безопасный способ (рекомендуется):
+./scripts/safe_redeploy.sh
+
+# Или вручную:
+docker-compose down && git pull && make rebuild && make logs-bot
+
+# ⚠️ НЕ ИСПОЛЬЗУЙ make redeploy - он удаляет БД!
+```
+
 ## Работа с БД
 
 ```bash
@@ -61,15 +73,12 @@ make shell-api   # Зайти в контейнер API
 make stats       # Использование ресурсов
 ```
 
-## Разные окружения
+## Важные заметки
 
-```bash
-ENV=prod make up    # Production
-ENV=test make up    # Test
-ENV=dev make up     # Development
-```
-
-(Создай соответствующие .env.prod, .env.test, .env.dev)
+### Переменные окружения
+- Docker Compose читает переменные из `.env.prod` (указан в `env_file`)
+- **НЕ нужно** экспортировать переменные в shell на хосте
+- Все настройки - только в `.env.prod` файле
 
 ## Первый запуск
 

@@ -1,0 +1,91 @@
+fix: remove hardcoded postgres credentials causing auth failure
+
+## Problem
+After fixing execution_options, new error appeared:
+```
+asyncpg.exceptions.InvalidPasswordError: password authentication failed for user "postgres"
+```
+
+## Root Cause
+In docker-compose.yml, postgres service had hardcoded credentials:
+```yaml
+postgres:
+  env_file:
+    - .env.prod
+  environment:
+    POSTGRES_USER: nikitagorokhov
+    POSTGRES_PASSWORD: " "  # ← hardcoded single space!
+    POSTGRES_DB: soul_bot
+```
+
+This meant:
+- Postgres container started with password = " " (single space)
+- Bot tried to connect with password from .env.prod (different value)
+- Result: authentication failed
+
+## Solution
+Remove ALL hardcoded values from postgres environment section.
+
+Let postgres read credentials **directly** from .env.prod:
+
+```yaml
+postgres:
+  env_file:
+    - .env.prod
+  # No environment overrides - use values from .env.prod directly
+```
+
+Also simplified healthcheck to not hardcode username:
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -d soul_bot"]
+```
+
+## Final Architecture
+
+**Single Source of Truth:** `.env.prod`
+
+**All services read from it:**
+```yaml
+services:
+  postgres:
+    env_file: .env.prod
+    # All vars from file
+
+  bot:
+    env_file: .env.prod
+    environment:
+      # ONLY Docker-specific overrides
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+
+  api:
+    env_file: .env.prod
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+```
+
+## Deploy on Server
+```bash
+git pull
+./FIX_DB_ISSUE.sh
+```
+
+## Expected Result
+- ✅ Database 'soul_bot' is ready!
+- ✅ Database connected successfully
+- ✅ No authentication errors
+- ✅ Bot responds in Telegram
+
+## Summary of All Fixes
+
+1. ✅ Environment variables (removed ${VAR} interpolation)
+2. ✅ Transaction error (used AUTOCOMMIT isolation level)
+3. ✅ Coroutine error (execution_options on engine, not connection)
+4. ✅ **Password mismatch (this fix - removed hardcodes)**
+
+Changes:
+- Modified: docker-compose.yml (removed postgres hardcoded credentials)
+- Added: FIX_V3_FINAL.md, DEPLOY_FINAL_V3.md (documentation)
+

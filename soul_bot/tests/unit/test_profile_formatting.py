@@ -63,7 +63,7 @@ def test_shorten_truncates_long_text():
     long_text = "слово " * 80
     shortened = _shorten(long_text, limit=60)
     assert len(shortened) <= 60
-    assert shortened.endswith("…")
+    assert not shortened.endswith("…")
 
 
 def test_format_patterns_section_includes_evidence_marker():

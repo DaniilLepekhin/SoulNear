@@ -1,0 +1,66 @@
+fix: resolve database creation transaction error
+
+## Additional Problem Found
+After fixing env variables, discovered database creation issue:
+- init-db.sh only runs on first volume creation
+- If volume exists, script doesn't run again
+- Bot tries to create DB but uses `begin()` which starts transaction
+- CREATE DATABASE cannot run inside transaction → error
+
+## Solution
+1. **Fixed database.py**: Changed `admin_engine.begin()` to `admin_engine.connect()` 
+   with `isolation_level='AUTOCOMMIT'` for CREATE DATABASE command
+   
+2. **Created FIX_DB_ISSUE.sh**: Script to remove postgres volume and recreate
+   - Stops containers
+   - Removes old volume (triggers init-db.sh on next start)
+   - Rebuilds and starts services
+   
+3. **Updated safe_redeploy.sh**: Added `--clean` flag to optionally remove DB
+   - `./scripts/safe_redeploy.sh` - keeps DB
+   - `./scripts/safe_redeploy.sh --clean` - fresh DB
+
+4. **Updated documentation**: 
+   - QUICK_FIX_NOW.md - immediate fix instructions
+   - ACTION_PLAN_NOW.md - step-by-step guide
+   - DEPLOY_CHEATSHEET.md - added --clean flag info
+
+## Technical Details
+
+**Before (database.py):**
+```python
+async with admin_engine.begin() as conn:  # starts transaction
+    await conn.execute(text(f'CREATE DATABASE "{POSTGRES_DB}"'))
+```
+
+**After (database.py):**
+```python
+async with admin_engine.connect() as conn:
+    await conn.execution_options(isolation_level='AUTOCOMMIT').execute(
+        text(f'CREATE DATABASE "{POSTGRES_DB}"')
+    )
+```
+
+## How to Fix on Server
+
+```bash
+git pull
+./FIX_DB_ISSUE.sh
+```
+
+Or use updated safe_redeploy:
+```bash
+./scripts/safe_redeploy.sh --clean
+```
+
+## Note about WARNING
+```
+WARNING: The POSTGRES_PASSWORD variable is not set
+```
+This appears during `docker-compose down` BEFORE `git pull` (old config).
+It's harmless - ignore it. After pull, new config works correctly.
+
+Changes:
+- Modified: soul_bot/database/database.py, scripts/safe_redeploy.sh, DEPLOY_CHEATSHEET.md
+- Created: FIX_DB_ISSUE.sh, QUICK_FIX_NOW.md, ACTION_PLAN_NOW.md
+
