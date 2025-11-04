@@ -23,6 +23,12 @@ make logs
 
 **📖 Подробнее:** [DOCKER_QUICKSTART.md](./DOCKER_QUICKSTART.md)
 
+### 🚀 Деплой на сервере
+```bash
+./scripts/safe_redeploy.sh
+```
+**📖 Инструкции:** [SERVER_DEPLOY_INSTRUCTIONS.md](./SERVER_DEPLOY_INSTRUCTIONS.md) | [Шпаргалка](./DEPLOY_CHEATSHEET.md)
+
 ### 🐍 Вариант 2: Локальный запуск
 
 1. **Setup:**

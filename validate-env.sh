@@ -4,8 +4,8 @@
 
 set -e
 
-ENV=${ENV:-prod}
-ENV_FILE=".env.${ENV}"
+# Всегда проверяем .env.prod (указан в docker-compose.yml)
+ENV_FILE=".env.prod"
 
 echo "🔍 Проверка конфигурации: ${ENV_FILE}"
 
