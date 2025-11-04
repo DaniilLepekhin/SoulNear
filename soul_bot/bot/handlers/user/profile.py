@@ -130,26 +130,30 @@ def _format_patterns_section(patterns: list[dict]) -> str:
     for pattern in patterns[:3]:
         title = html.escape(localize_pattern_title(pattern.get('title')))
         confidence = int((pattern.get('confidence') or 0) * 100)
-        lines.append(f"• <b>{title}</b> · уверенность {confidence}%")
+        block_lines: list[str] = [f"• <b>{title}</b> · уверенность {confidence}%"]
 
-        contradiction = safe_shorten(pattern.get('contradiction'), 160)
+        contradiction = safe_shorten(pattern.get('contradiction'), 150)
         if contradiction:
-            lines.append(f"  🔁 {html.escape(contradiction)}")
+            block_lines.extend(["", f"  🔁 {html.escape(contradiction)}"])
 
-        hidden_dynamic = safe_shorten(pattern.get('hidden_dynamic'), 160)
+        hidden_dynamic = safe_shorten(pattern.get('hidden_dynamic'), 150)
         if hidden_dynamic:
-            lines.append(f"  🎭 {html.escape(hidden_dynamic)}")
+            block_lines.extend(["", f"  🎭 {html.escape(hidden_dynamic)}"])
 
-        resource = safe_shorten(pattern.get('blocked_resource'), 150)
+        resource = safe_shorten(pattern.get('blocked_resource'), 140)
         if resource:
-            lines.append(f"  💎 {html.escape(resource)}")
+            block_lines.extend(["", f"  💎 {html.escape(resource)}"])
 
         evidence = pattern.get('evidence') or []
         if evidence:
-            snippet = safe_shorten(evidence[0], 140)
+            snippet = safe_shorten(evidence[0], 130)
             if snippet:
-                lines.append(f"  📝 <i>«{html.escape(snippet)}»</i>")
+                block_lines.extend(["", f"  📝 <i>«{html.escape(snippet)}»</i>"])
 
+        while block_lines and block_lines[-1] == "":
+            block_lines.pop()
+
+        lines.extend(block_lines)
         lines.append("")
 
     while lines and lines[-1] == "":
@@ -162,23 +166,27 @@ def _format_insights_section(insights: list[dict]) -> str:
     if not insights:
         return ""
 
-    lines: list[str] = ["💡 <b>Инсайты</b>"]
+    lines: list[str] = ["💡 <b>Инсайты</b>", ""]
     for insight in insights[:3]:
         title = html.escape(insight.get('title', 'Инсайт'))
-        lines.append(f"• <b>{title}</b>")
+        block_lines: list[str] = [f"• <b>{title}</b>"]
 
-        description = safe_shorten(insight.get('description'), 220)
+        description = safe_shorten(insight.get('description'), 180)
         if description:
-            lines.append(f"  {html.escape(description)}")
+            block_lines.extend(["", f"  {html.escape(description)}"])
 
         recs = insight.get('recommendations') or []
         if recs:
-            lines.append(f"  👉 Что попробовать:")
+            block_lines.append("  👉 Что попробовать:")
             for rec in recs[:2]:
-                snippet = safe_shorten(rec, 160)
+                snippet = safe_shorten(rec, 150)
                 if snippet:
-                    lines.append(f"    – {html.escape(snippet)}")
+                    block_lines.append(f"    – {html.escape(snippet)}")
 
+        while block_lines and block_lines[-1] == "":
+            block_lines.pop()
+
+        lines.extend(block_lines)
         lines.append("")
 
     while lines and lines[-1] == "":
@@ -195,13 +203,16 @@ def _format_emotional_state_section(emotional_state: dict) -> str:
     stress = STRESS_LABELS.get((emotional_state.get('stress_level') or '').lower())
     energy = ENERGY_LABELS.get((emotional_state.get('energy_level') or '').lower())
 
-    lines = ["😊 <b>Текущее состояние</b>"]
+    lines = ["😊 <b>Текущее состояние</b>", ""]
     if mood:
         lines.append(f"• Настроение: {mood}")
     if stress:
         lines.append(f"• Стресс: {stress}")
     if energy:
         lines.append(f"• Энергия: {energy}")
+
+    while lines and lines[-1] == "":
+        lines.pop()
 
     return "\n".join(lines) if len(lines) > 1 else ""
 
@@ -215,19 +226,24 @@ def _format_learning_section(preferences: dict) -> str:
     if not works and not doesnt:
         return ""
 
-    lines = ["🎓 <b>Что помогает</b>"]
+    lines = ["🎓 <b>Что помогает</b>", ""]
     if works:
-        lines.append("• Работает:")
+        lines.append("• <b>Работает</b>:")
         for item in works[:3]:
-            snippet = safe_shorten(item, 160)
+            snippet = safe_shorten(item, 150)
             if snippet:
                 lines.append(f"  – {html.escape(snippet)}")
+        lines.append("")
+
     if doesnt:
-        lines.append("• Не работает:")
+        lines.append("• <b>Не работает</b>:")
         for item in doesnt[:3]:
-            snippet = safe_shorten(item, 160)
+            snippet = safe_shorten(item, 150)
             if snippet:
                 lines.append(f"  – {html.escape(snippet)}")
+
+    while lines and lines[-1] == "":
+        lines.pop()
 
     return "\n".join(lines)
 

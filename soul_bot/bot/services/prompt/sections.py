@@ -11,6 +11,7 @@ from bot.services.pattern_context_filter import (
     get_relevant_patterns_for_chat,
 )
 from bot.services.text_formatting import (
+    get_topic_emoji,
     localize_pattern_title,
     localize_pattern_type,
     safe_shorten,
@@ -114,35 +115,45 @@ def render_patterns_section_contextual(
         evidence = pattern.get('evidence', [])[:3]
         primary_context = pattern.get('primary_context')
 
-        block_lines = [f"🧩 <b>{title}</b> · уверенность {confidence_pct}%"]
+        block_lines = [f"🧩 <b>{title}</b> · уверенность {confidence_pct}%", ""]
 
         if pattern_type:
             block_lines.append(f"Тип: {pattern_type}")
+            block_lines.append("")
         block_lines.append(f"Частота: повторяется {occurrences} раз")
+        block_lines.append("")
 
-        contradiction = safe_shorten(pattern.get('contradiction'), 220)
+        contradiction = safe_shorten(pattern.get('contradiction'), 180)
         if contradiction:
             block_lines.append(f"🔁 Противоречие: {contradiction}")
+            block_lines.append("")
 
-        hidden_dynamic = safe_shorten(pattern.get('hidden_dynamic'), 220)
+        hidden_dynamic = safe_shorten(pattern.get('hidden_dynamic'), 180)
         if hidden_dynamic:
             block_lines.append(f"🎭 Динамика: {hidden_dynamic}")
+            block_lines.append("")
 
-        blocked_resource = safe_shorten(pattern.get('blocked_resource'), 200)
+        blocked_resource = safe_shorten(pattern.get('blocked_resource'), 160)
         if blocked_resource:
             block_lines.append(f"💎 Ресурс: {blocked_resource}")
+            block_lines.append("")
 
         if primary_context:
             context_label = context_labels.get(primary_context, primary_context)
             block_lines.append(f"🌿 Контекст: {context_label}")
+            block_lines.append("")
 
         if evidence:
-            quotes = [safe_shorten(quote, 160) for quote in evidence if quote]
+            quotes = [safe_shorten(quote, 140) for quote in evidence if quote]
             clean_quotes = [quote for quote in quotes if quote]
             if clean_quotes:
                 quote_lines = [f"  • «{quote}»" for quote in clean_quotes]
                 block_lines.append("📝 Примеры:")
                 block_lines.extend(quote_lines)
+                block_lines.append("")
+
+        while block_lines and block_lines[-1] == "":
+            block_lines.pop()
 
         pattern_blocks.append("\n".join(block_lines))
 
@@ -150,7 +161,9 @@ def render_patterns_section_contextual(
 
     topic_label = context_labels.get(detected_topic, detected_topic or 'текущая тема')
 
-    return f"""## 🧩 Паттерны по теме «{topic_label}»
+    topic_emoji = get_topic_emoji(detected_topic, "🧩")
+
+    return f"""## {topic_emoji} Паттерны по теме «{topic_label}»
 
 {patterns_str}
 

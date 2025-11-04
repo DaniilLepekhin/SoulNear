@@ -15,7 +15,11 @@ from openai import AsyncOpenAI
 from config import OPENAI_API_KEY
 from bot.services import pattern_analyzer
 import database.repository.user_profile as db_user_profile
-from bot.services.text_formatting import localize_pattern_title, safe_shorten
+from bot.services.text_formatting import (
+    get_topic_emoji,
+    localize_pattern_title,
+    safe_shorten,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -420,8 +424,9 @@ async def format_results_for_telegram(
     patterns = results.get('new_patterns') or []
     recommendations = results.get('recommendations') or []
 
+    topic_emoji = get_topic_emoji(category_code, "💬")
     sections: list[str] = [
-        f"💬 Я собрал краткий разбор по теме «{html.escape(category_label)}»."
+        f"{topic_emoji} Я собрал краткий разбор по теме «{html.escape(category_label)}»."
     ]
 
     if patterns:
@@ -431,32 +436,40 @@ async def format_results_for_telegram(
             confidence = pattern.get('confidence', 0.0)
             stars = _confidence_to_stars(confidence)
             block_lines = [
-                f"🧩 <b>{idx}. {title}</b> {stars}"
+                f"🧩 <b>{idx}. {title}</b> {stars}",
+                "",
             ]
 
             contradiction = pattern.get('contradiction')
             if contradiction:
-                short_contradiction = safe_shorten(contradiction, 220)
+                short_contradiction = safe_shorten(contradiction, 180)
                 if short_contradiction:
                     block_lines.append(f"🔁 <b>Петля:</b> {html.escape(short_contradiction)}")
+                    block_lines.append("")
 
             hidden_dynamic = pattern.get('hidden_dynamic')
             if hidden_dynamic:
-                short_dynamic = safe_shorten(hidden_dynamic, 220)
+                short_dynamic = safe_shorten(hidden_dynamic, 180)
                 if short_dynamic:
                     block_lines.append(f"🎭 <b>Динамика:</b> {html.escape(short_dynamic)}")
+                    block_lines.append("")
 
             blocked_resource = pattern.get('blocked_resource')
             if blocked_resource:
-                short_resource = safe_shorten(blocked_resource, 200)
+                short_resource = safe_shorten(blocked_resource, 160)
                 if short_resource:
                     block_lines.append(f"💎 <b>Ресурс:</b> {html.escape(short_resource)}")
+                    block_lines.append("")
 
             evidence = pattern.get('evidence') or []
             if evidence:
-                sample = safe_shorten(evidence[0], 160)
+                sample = safe_shorten(evidence[0], 140)
                 if sample:
                     block_lines.append(f'<i>«{html.escape(sample)}»</i>')
+                    block_lines.append("")
+
+            while block_lines and block_lines[-1] == "":
+                block_lines.pop()
 
             pattern_blocks.append("\n".join(block_lines))
 
@@ -466,11 +479,16 @@ async def format_results_for_telegram(
         sections.append("🧩 Пока без ярких паттернов — продолжим диалог, чтобы услышать больше контекста.")
 
     if recommendations:
-        rec_lines = ["🪷 <b>Что попробовать</b>"]
-        for rec in recommendations[:3]:
-            short_rec = safe_shorten(rec, 160)
+        rec_lines = ["🪷 <b>Что попробовать</b>", ""]
+        for idx, rec in enumerate(recommendations[:3], 1):
+            short_rec = safe_shorten(rec, 150)
             if short_rec:
-                rec_lines.append(f"• {html.escape(short_rec)}")
+                rec_lines.append(f"<b>Шаг {idx}.</b> {html.escape(short_rec)}")
+                rec_lines.append("")
+
+        while rec_lines and rec_lines[-1] == "":
+            rec_lines.pop()
+
         sections.append("\n".join(rec_lines))
 
     sections.append("🤍 Выбери один шаг и напиши, как пойдёт. Я помогу отследить изменения.")

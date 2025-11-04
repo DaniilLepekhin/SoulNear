@@ -66,6 +66,13 @@ def test_shorten_truncates_long_text():
     assert not shortened.endswith("…")
 
 
+def test_shorten_stops_on_sentence_boundary():
+    text = "Первое предложение заканчивается точкой. Второе предложение тоже длинное и должно быть отброшено."
+    shortened = _shorten(text, limit=70)
+    assert shortened.endswith('.')
+    assert 'Второе предложение' not in shortened
+
+
 def test_format_patterns_section_includes_evidence_marker():
     patterns = [
         {
@@ -82,6 +89,7 @@ def test_format_patterns_section_includes_evidence_marker():
     block = _format_patterns_section(patterns)
     assert "📝" in block
     assert "«Прячу настоящие мысли" in block
+    assert "\n\n  🔁" in block
 
 
 def test_compact_profile_contains_main_sections():
@@ -94,4 +102,5 @@ def test_compact_profile_contains_main_sections():
     assert "Страх уязвимости" in text
     assert "💡 <b>Инсайты</b>" in text
     assert "😊 <b>Текущее состояние</b>" in text
+    assert "\n\n🎓 <b>Что помогает</b>" in text
 

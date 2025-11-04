@@ -71,7 +71,7 @@ def test_question_formatting():
     result = format_question_for_telegram(question, current=1, total=10)
     
     # Проверяем что есть ключевые элементы
-    assert '❤️' in result  # Эмодзи категории
+    assert '🤍' in result  # Эмодзи категории
     assert 'Вопрос 1 из 10' in result  # "из" вместо "/"
     assert '<b>Что для тебя важнее всего?</b>' in result  # Вопрос жирным
     assert '<i>Давай поговорим откровенно.</i>' in result  # Preface курсивом
@@ -94,7 +94,7 @@ def test_question_formatting_without_preface():
     
     result = format_question_for_telegram(question, current=5, total=10)
     
-    assert '💰' in result  # Эмодзи категории деньги
+    assert '💸' in result  # Эмодзи категории деньги
     assert 'Вопрос 5 из 10' in result
     assert '<b>Как часто ты это делаешь?</b>' in result
     assert '📊' in result  # Инструкция для scale вопроса

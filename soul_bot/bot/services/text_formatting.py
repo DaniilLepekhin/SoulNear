@@ -7,10 +7,12 @@
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 
 _SENTENCE_ENDINGS = (".", "!", "?")
+_SENTENCE_SPLIT_REGEX = re.compile(r"(?<=[.!?])\s+")
 
 
 _PATTERN_TITLE_TRANSLATIONS = {
@@ -42,6 +44,18 @@ _PATTERN_TITLE_TRANSLATIONS = {
     "people-pleasing": "Страх отказать",
     "procrastination": "Прокрастинация",
     "hyper-independence": "Гипернезависимость",
+    "commitment anxiety": "Страх обязательств",
+    "emotional walls": "Эмоциональные стены",
+    "people pleasing loop": "Петля угождения",
+    "scarcity mindset": "Сценарий нехватки",
+    "financial guilt": "Вина за деньги",
+    "control loop": "Контроль во вред себе",
+    "fear of intimacy": "Страх близости",
+    "avoidant attachment": "Избегающая привязанность",
+    "anxious attachment": "Тревожная привязанность",
+    "imposter loop": "Петля самозванца",
+    "perfection loop": "Петля перфекционизма",
+    "perfection spiral": "Спираль перфекционизма",
 }
 
 
@@ -52,32 +66,77 @@ _PATTERN_TYPE_TRANSLATIONS = {
 }
 
 
+_TOPIC_EMOJI_MAP = {
+    "relationships": "🤍",
+    "money": "💸",
+    "purpose": "🌿",
+    "confidence": "☁️",
+    "fears": "🧩",
+    "sleep": "🌙",
+    "dreams": "🌙",
+    "stress": "☁️",
+    "self": "🧩",
+    "work": "🧩",
+    "chat": "💬",
+    "communication": "💬",
+    "practices": "🪷",
+    "video": "🎥",
+}
+
+
 def safe_shorten(text: Optional[str], limit: int = 160) -> str:
     """Возвращает текст, обрезанный без обрывов предложений и троеточий."""
 
     if not text:
         return ""
 
-    normalized = text.strip()
+    normalized = " ".join(text.strip().split())
     if len(normalized) <= limit:
         return normalized
 
-    cutoff = normalized[:limit]
+    sentences = _SENTENCE_SPLIT_REGEX.split(normalized)
 
-    # Пытаемся сохранить полное предложение
+    collected: list[str] = []
+    current_length = 0
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+
+        proposed_length = current_length + (1 if collected else 0) + len(sentence)
+        if proposed_length <= limit:
+            collected.append(sentence)
+            current_length = proposed_length
+        else:
+            break
+
+    if collected:
+        result = " ".join(collected).strip()
+        # Если результат заканчивается знаком, возвращаем как есть
+        if result.endswith(_SENTENCE_ENDINGS):
+            return result
+
+        # Попробуем укоротить до последнего знака окончания предложения внутри
+        for index in range(len(result) - 1, -1, -1):
+            if result[index] in _SENTENCE_ENDINGS:
+                candidate = result[: index + 1].strip()
+                if candidate:
+                    return candidate
+
+    cutoff = normalized[:limit].rstrip()
+
     for index in range(len(cutoff) - 1, -1, -1):
         if cutoff[index] in _SENTENCE_ENDINGS:
             candidate = cutoff[: index + 1].strip()
             if candidate:
                 return candidate
 
-    # Иначе обрезаем по последнему пробелу
     if " " in cutoff:
         candidate = cutoff.rsplit(" ", 1)[0].strip()
         if candidate:
-            return candidate
+            return candidate.rstrip(",;:-")
 
-    return cutoff.strip()
+    return cutoff.rstrip(",;:-")
 
 
 def localize_pattern_title(title: Optional[str]) -> str:
@@ -105,5 +164,15 @@ def localize_pattern_type(pattern_type: Optional[str]) -> str:
         return translation
 
     return pattern_type
+
+
+def get_topic_emoji(topic: Optional[str], fallback: str = "🧩") -> str:
+    """Возвращает аккуратный эмодзи по теме/категории."""
+
+    if not topic:
+        return fallback
+
+    normalized = str(topic).lower().strip()
+    return _TOPIC_EMOJI_MAP.get(normalized, fallback)
 
 
