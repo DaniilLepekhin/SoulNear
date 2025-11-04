@@ -85,16 +85,30 @@ _TOPIC_EMOJI_MAP = {
 
 
 def safe_shorten(text: Optional[str], limit: int = 160) -> str:
-    """Возвращает текст, обрезанный без обрывов предложений и троеточий."""
+    """
+    Возвращает текст, обрезанный без обрывов предложений и троеточий.
+    
+    Если текст превышает лимит, но не превышает лимит * 1.5, возвращает его полностью,
+    чтобы сохранить целостность предложений. Это предотвращает обрывы в середине фраз.
+    """
 
     if not text:
         return ""
 
     normalized = " ".join(text.strip().split())
-    if len(normalized) <= limit:
+    
+    # Мягкий лимит: если текст не превышает лимит в 1.5 раза, возвращаем полностью
+    soft_limit = int(limit * 1.5)
+    if len(normalized) <= soft_limit:
         return normalized
-
+    
+    # Если текст слишком длинный, применяем строгий лимит с обрезкой по предложениям
     sentences = _SENTENCE_SPLIT_REGEX.split(normalized)
+    
+    # Если только одно предложение и оно не превышает мягкий лимит, возвращаем полностью
+    non_empty_sentences = [s.strip() for s in sentences if s.strip()]
+    if len(non_empty_sentences) == 1 and len(non_empty_sentences[0]) <= soft_limit:
+        return normalized
 
     collected: list[str] = []
     current_length = 0
@@ -108,6 +122,9 @@ def safe_shorten(text: Optional[str], limit: int = 160) -> str:
             collected.append(sentence)
             current_length = proposed_length
         else:
+            # Если предложение не помещается, но оно одно и не превышает мягкий лимит, возвращаем его
+            if not collected and len(sentence) <= soft_limit:
+                return sentence
             break
 
     if collected:
