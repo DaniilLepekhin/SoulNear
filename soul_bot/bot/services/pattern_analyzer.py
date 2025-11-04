@@ -22,6 +22,11 @@ from sqlalchemy import update
 
 from config import OPENAI_API_KEY, is_feature_enabled
 from bot.services import embedding_service
+from bot.services.pattern_context_filter import (
+    infer_context_weights_from_tags,
+    merge_context_weights,
+    normalize_topic,
+)
 from bot.services.constants import (
     SIMILARITY_THRESHOLD_DUPLICATE,
     SIMILARITY_THRESHOLD_RELATED,
@@ -88,6 +93,14 @@ QUICK_ANALYSIS_RESPONSE_FORMAT = {
                                 "type": "array",
                                 "items": {"type": "string"},
                                 "maxItems": 5,
+                            },
+                            "primary_context": {
+                                "type": "string",
+                                "maxLength": 32
+                            },
+                            "context_weights": {
+                                "type": "object",
+                                "additionalProperties": {"type": "number"}
                             },
                             "frequency": {
                                 "type": "string",
@@ -205,6 +218,28 @@ def _normalize_new_patterns(patterns: list[dict] | None) -> list[dict]:
         if not isinstance(tags, list):
             tags = []
         pattern['tags'] = [str(tag) for tag in tags][:5]
+
+        context_weights = pattern.get('context_weights')
+        if isinstance(context_weights, dict) and context_weights:
+            cleaned_weights: dict[str, float] = {}
+            for raw_key, raw_value in context_weights.items():
+                try:
+                    cleaned_weights[normalize_topic(str(raw_key))] = float(raw_value)
+                except (TypeError, ValueError):
+                    continue
+            pattern['context_weights'] = cleaned_weights
+        else:
+            pattern['context_weights'] = infer_context_weights_from_tags(pattern)
+
+        primary_context = pattern.get('primary_context')
+        if isinstance(primary_context, str) and primary_context.strip():
+            normalized_primary = normalize_topic(primary_context)
+            pattern['primary_context'] = normalized_primary
+            if pattern['context_weights'] is not None:
+                current = pattern['context_weights'].get(normalized_primary, 0.0)
+                pattern['context_weights'][normalized_primary] = max(current, 1.0)
+        else:
+            pattern['primary_context'] = None
 
         response_hint = pattern.get('response_hint')
         if isinstance(response_hint, str):
@@ -994,6 +1029,15 @@ async def _add_patterns_with_dedup(
                 # Also update description if GPT refined it
                 if 'description' in new_pattern and new_pattern['description']:
                     duplicate['description'] = new_pattern['description']
+
+                duplicate['context_weights'] = merge_context_weights(
+                    duplicate.get('context_weights', {}),
+                    new_pattern.get('context_weights', {}),
+                )
+
+                new_primary = new_pattern.get('primary_context')
+                if new_primary:
+                    duplicate['primary_context'] = normalize_topic(new_primary)
                 
                 logger.info(f"✅ MERGED: '{new_pattern['title']}' → '{duplicate['title']}' | similarity: {similarity:.2f} | occurrences: {old_occurrences} → {duplicate['occurrences']}")
             else:

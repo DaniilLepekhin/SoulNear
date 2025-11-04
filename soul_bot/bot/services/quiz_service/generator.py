@@ -15,6 +15,7 @@ from typing import Optional
 from openai import AsyncOpenAI
 
 from config import OPENAI_API_KEY
+from bot.services.pattern_context_filter import get_relevant_patterns_for_quiz
 
 logger = logging.getLogger(__name__)
 
@@ -1084,17 +1085,14 @@ def _build_profile_probe_questions(
     if not patterns:
         return []
 
-    sorted_patterns = sorted(
-        patterns,
-        key=lambda item: (
-            item.get("occurrences", 0),
-            item.get("confidence", 0.0),
-        ),
-        reverse=True,
-    )[:2]
+    relevant_patterns = get_relevant_patterns_for_quiz(
+        patterns=patterns,
+        category=category,
+        max_patterns=2,
+    )
 
     probes: list[dict] = []
-    for pattern in sorted_patterns:
+    for pattern in relevant_patterns:
         title = (pattern.get("title") or "").strip()
         if not title:
             continue
@@ -1194,12 +1192,21 @@ async def _generate_dynamic_batch(
     ) or "— пользователь пока не отвечал."
 
     patterns = (user_profile or {}).get("patterns") or []
-    patterns_summary = "\n".join(
-        [
-            f"- {item.get('title', 'Паттерн')} (confidence {item.get('confidence', 0):.0%})"
-            for item in patterns[:3]
-        ]
-    ) or "— данных нет, считай пользователя белым листом."
+    relevant_patterns = get_relevant_patterns_for_quiz(
+        patterns=patterns,
+        category=category,
+        max_patterns=3,
+    )
+
+    if relevant_patterns:
+        patterns_summary = "\n".join(
+            [
+                f"- {item.get('title', 'Паттерн')} (confidence {item.get('confidence', 0):.0%})"
+                for item in relevant_patterns
+            ]
+        )
+    else:
+        patterns_summary = "— данных нет, считай пользователя белым листом."
 
     prompt = f"""
 Ты — психолог, который ведёт глубинный квиз в формате живого диалога. 
@@ -1214,7 +1221,7 @@ async def _generate_dynamic_batch(
 Ответы пользователя:
 {answers_text}
 
-Известные паттерны:
+Известные паттерны (релевантные теме "{category_info['name']}"):
 {patterns_summary}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

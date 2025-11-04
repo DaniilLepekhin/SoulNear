@@ -194,6 +194,15 @@ def _is_personalization_relevant(user_message: str, primary_pattern: dict) -> bo
             if any(word in message_lower for word in title_words):
                 logger.debug("Personalization relevant: pattern title keyword found")
                 return True
+
+        # Точное совпадение с evidence — считаем релевантным даже для коротких сообщений
+        evidence_entries = primary_pattern.get('evidence', []) or []
+        normalized_message = message_lower.strip().strip('"')
+        for quote in evidence_entries:
+            quote_normalized = quote.lower().strip().strip('"')
+            if quote_normalized and quote_normalized == normalized_message:
+                logger.debug("Personalization relevant: message matches evidence quote")
+                return True
     
     # 3. Factual questions WITHOUT emotions or pattern keywords → skip
     factual_indicators = [
