@@ -1,9 +1,13 @@
 """Unit-тесты для свежей версии OpenAI сервиса."""
 
+import os
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+
+os.environ.setdefault("BOT_TOKEN", "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 
 @pytest.mark.asyncio
@@ -13,7 +17,7 @@ async def test_build_system_prompt_helper_includes_persona(monkeypatch):
 
     fake_profile = SimpleNamespace(
         tone_style='friendly',
-        personality='therapist',
+        personality='coach',
         message_length='brief',
         patterns={'patterns': []},
         insights={'insights': []},

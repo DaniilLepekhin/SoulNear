@@ -40,7 +40,7 @@ async def get_or_create(user_id: int) -> UserProfile:
         new_profile = UserProfile(
             user_id=user_id,
             tone_style='friendly',
-            personality='therapist',
+            personality='coach',
             message_length='brief',
             patterns={'patterns': []},
             insights={'insights': []},
@@ -234,7 +234,7 @@ async def add_response_hints(user_id: int, hints: list[dict]) -> None:
             profile = UserProfile(
                 user_id=user_id,
                 tone_style='friendly',
-                personality='therapist',
+                personality='coach',
                 message_length='brief',
                 patterns={'patterns': []},
                 insights={'insights': []},

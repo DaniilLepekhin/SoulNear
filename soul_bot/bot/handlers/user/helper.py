@@ -5,6 +5,7 @@ import bot.text as texts
 from bot.functions.other import check_sub_assistant, voice_answer, text_answer, photo_answer, check_user_info
 from bot.loader import dp
 from bot.states.states import get_prompt, Update_user_info
+from database.repository import conversation_history
 import bot.keyboards.practice as keyboards
 
 
@@ -28,6 +29,26 @@ async def support(callback: CallbackQuery, state: FSMContext):
             reply_markup=keyboards.to_menu,
             parse_mode='html',
             protect_content=True)
+
+
+@dp.callback_query(F.data == 'clear_context')
+async def clear_context(callback: CallbackQuery, state: FSMContext):
+    user_id = callback.from_user.id
+
+    await state.set_state(get_prompt.helper_prompt)
+
+    try:
+        await conversation_history.clear_history(user_id, 'helper')
+    except Exception as exc:  # pragma: no cover - defensive
+        await callback.answer("Не удалось очистить контекст 😔", show_alert=True)
+        print(f"Ошибка при очистке контекста через кнопку: {exc}")
+        return
+
+    await callback.answer("Контекст очищен ✨", show_alert=False)
+    await callback.message.answer(
+        "🧹 Контекст очищен. Расскажи, что сейчас важно.",
+        protect_content=True
+    )
 
 
 @dp.message(F.photo, get_prompt.helper_prompt)
