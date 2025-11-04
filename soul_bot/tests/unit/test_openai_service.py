@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-    
-    @pytest.mark.asyncio
+
+@pytest.mark.asyncio
 async def test_build_system_prompt_helper_includes_persona(monkeypatch):
     """Проверяем, что system prompt для helper содержит новую персону Soul Near."""
     from bot.services import openai_service

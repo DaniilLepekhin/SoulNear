@@ -112,3 +112,52 @@ async def test_personalize_response_unknown_pattern_uses_fallback_action():
     assert 'Это что-то новенькое' in result
     assert 'выдели 5 минут на маленький шаг' in result
 
+
+@pytest.mark.asyncio
+async def test_personalize_response_skips_irrelevant_pattern():
+    """
+    Test that personalization is skipped when pattern is not relevant to current topic.
+    
+    User has relationship pattern but talks about money → should skip personalization.
+    """
+    profile = SimpleNamespace(
+        message_length='brief',
+        tone_style='friendly',
+        personality='friend',
+        patterns={
+            'patterns': [
+                {
+                    'title': 'Страх потери интереса',
+                    'type': 'emotional',
+                    'description': 'Боится, что партнер потеряет интерес.',
+                    'occurrences': 5,
+                    'confidence': 0.8,
+                    'evidence': [
+                        'Страх быть отвергнутым, непринятым, и собственно, что полностью меня поняв, девушка меня оставит.'
+                    ],
+                    'context_weights': {
+                        'relationships': 1.0,
+                        'money': 0.1,  # Very low relevance to money
+                        'work': 0.2
+                    },
+                    'primary_context': 'relationships'
+                }
+            ]
+        }
+    )
+
+    result = await build_personalized_response(
+        user_id=999,
+        assistant_type='helper',
+        profile=profile,
+        base_response='Давай разберемся с твоими финансами.',
+        user_message='У меня постоянно нет денег'
+    )
+
+    # Should NOT mention relationship pattern when talking about money
+    assert 'Страх быть отвергнутым' not in result
+    assert 'девушка' not in result
+    
+    # Should return base response (or close to it)
+    assert 'финанс' in result.lower() or 'денег' in result.lower() or 'разберемся' in result.lower()
+
