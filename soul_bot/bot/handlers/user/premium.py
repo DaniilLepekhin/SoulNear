@@ -78,6 +78,10 @@ async def check_pay(callback: CallbackQuery, state: FSMContext):
 
             user = await db_user.get(user_id=user_id)
 
+            # ✅ FIX: Check if user exists
+            if user is None:
+                return
+
             if user.ref:
                 if not user.ref.isdigit():
                     await db_ads.update_earn(link=user.ref,

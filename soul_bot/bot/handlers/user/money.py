@@ -7,7 +7,7 @@ from bot.handlers.user.start import menu_message_not_delete
 from bot.loader import dp
 from bot.states.states import get_prompt
 import bot.keyboards.practice as keyboards
-from bot.functions.ChatGPT import new_context
+from database.repository import conversation_history
 
 
 # Чат ассистентом по деньгам
@@ -25,7 +25,8 @@ async def money(callback: CallbackQuery, state: FSMContext):
         await state.clear()
         await state.set_state(get_prompt.money_prompt)
 
-        await new_context(user_id=user_id, assistant='none')
+        # Очищаем контекст для money ассистента
+        await conversation_history.clear(user_id=user_id, assistant_type='money')
 
         await callback.message.answer(
             texts.money,

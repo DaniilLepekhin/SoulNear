@@ -1,26 +1,24 @@
 from datetime import datetime, date, timedelta
 
 from sqlalchemy import select, update, func
+from sqlalchemy.dialects.postgresql import insert
 
 from database.database import db
 from database.models.statistic_day import Statistic_day
 
 
 async def check_today(today) -> None:
-    async with db.begin() as session:
-        result = await session.scalar(select(func.count()).
-                                      where(Statistic_day.date == today))
-
-        if result == 0:
-            session.add(Statistic_day(date=today))
-            await session.commit()
+    async with db() as session:
+        stmt = insert(Statistic_day).values(date=today).on_conflict_do_nothing(index_elements=[Statistic_day.date])
+        await session.execute(stmt)
+        await session.commit()
 
 
 async def increment(column, value=1):
     today = date.today()
     await check_today(today)
 
-    async with db.begin() as session:
+    async with db() as session:
         match column:
             case 'new_users':
                 await session.execute(update(Statistic_day).
@@ -81,7 +79,7 @@ async def increment(column, value=1):
 async def get_today() -> Statistic_day | None:
     today = date.today()
 
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(select(Statistic_day).
                                       where(Statistic_day.date == today))
         return result
@@ -90,7 +88,7 @@ async def get_today() -> Statistic_day | None:
 async def get_yesterday() -> Statistic_day | None:
     yesterday = (datetime.now() - timedelta(days=1)).date()
 
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(select(Statistic_day).
                                       where(Statistic_day.date == yesterday))
         return result

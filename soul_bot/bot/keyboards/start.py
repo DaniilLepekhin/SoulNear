@@ -7,6 +7,7 @@ start = InlineKeyboardMarkup(inline_keyboard=[
 menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='💬 Чат с SOUL.near GPT', callback_data='support')],
     [InlineKeyboardButton(text='👤 Анализ личности', callback_data='analysis')],
+    [InlineKeyboardButton(text='🧠 Психологический квиз', callback_data='quiz_start')],
     [InlineKeyboardButton(text='💤 Сны', callback_data='soulsleep')],
 
     [InlineKeyboardButton(text='🧘 Практики', callback_data='media_categories practices'),

@@ -8,4 +8,6 @@ from .premium import dp
 from .relationships import dp
 from .sleeper import dp
 from .sounds import dp
+from .webapp import dp
+from .quiz import dp  # Stage 4
 __all__ = ['dp']

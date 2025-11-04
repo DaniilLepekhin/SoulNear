@@ -14,10 +14,6 @@ class User(Base):
     username: Mapped[str] = mapped_column(VARCHAR(length=32), nullable=True)
     ref: Mapped[str] = mapped_column(VARCHAR(length=32), nullable=True)
 
-    helper_thread_id: Mapped[str] = mapped_column(VARCHAR(length=32), nullable=True)
-    assistant_thread_id: Mapped[str] = mapped_column(VARCHAR(length=32), nullable=True)
-    sleeper_thread_id: Mapped[str] = mapped_column(VARCHAR(length=32), nullable=True)
-
     reg_date: Mapped[datetime] = mapped_column(default=datetime.now())
     active_date: Mapped[datetime] = mapped_column(default=datetime.now())
 

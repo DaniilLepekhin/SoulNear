@@ -121,6 +121,12 @@ async def user_update_sub(message: Message, state: FSMContext):
 
     user = await db_user.get(user_id)
 
+    # ✅ FIX: Check if user exists
+    if user is None:
+        await message.answer("❌ Ошибка: пользователь не найден")
+        await state.clear()
+        return
+
     await message.answer(text=user_info_text(user=user),
                          reply_markup=kba.user_menu(user_id))
 

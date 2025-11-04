@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: soulnear_postgres
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    # No environment overrides - use values from .env.prod directly
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # ✅ FIX: Mount init script to auto-create database
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d soul_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soulnear_network
+
+  # Telegram Bot
+  bot:
+    build:
+      context: ./soul_bot
+      dockerfile: Dockerfile
+    container_name: soulnear_bot
+    restart: unless-stopped
+    env_file:
+     - .env.prod
+    environment:
+      # Docker-specific overrides (only override host-dependent values)
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./soul_bot/logs:/app/logs
+    networks:
+      - soulnear_network
+
+  # WebApp API
+  api:
+    build:
+      context: ./webapp_api
+      dockerfile: Dockerfile
+    container_name: soulnear_api
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      # Docker-specific overrides
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8888:8888"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - soulnear_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  soulnear_network:
+    driver: bridge
+

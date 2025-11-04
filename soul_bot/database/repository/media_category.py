@@ -6,21 +6,21 @@ from database.models.media_category import Media_category
 
 
 async def get(id: int) -> Media_category:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalar(select(Media_category).
                                       where(Media_category.id == id))
         return result
 
 
 async def get_all() -> List[Media_category]:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalars(select(Media_category).
                                        order_by(Media_category.position))
         return result.all()
 
 
 async def get_all_by_type(category: str) -> List[Media_category]:
-    async with db.begin() as session:
+    async with db() as session:
         result = await session.scalars(select(Media_category).
                                        where(Media_category.category==category).
                                        order_by(Media_category.position))
@@ -35,7 +35,7 @@ async def new(name: str,
               destination: str) -> None:
     categories = await get_all()
 
-    async with db.begin() as session:
+    async with db() as session:
         session.add(Media_category(name=name,
                                    text=text,
                                    category=category,
@@ -58,7 +58,7 @@ async def delete(id: int) -> None:
         p.position = i
         tmp_medias.append(p)
 
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(delete_(Media_category))
 
         for p in tmp_medias:
@@ -89,7 +89,7 @@ async def update_position(now_position: int, need_position: int) -> None:
         p.position = i
         tmp_medias.append(p)
 
-    async with db.begin() as session:
+    async with db() as session:
         await session.execute(delete_(Media_category))
 
         for p in tmp_medias:

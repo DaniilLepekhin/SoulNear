@@ -53,14 +53,39 @@ logs/
 *.sqlite
 *.sqlite3
 
-# Environment variables
+# Environment variables (но НЕ .env.example - он нужен как шаблон!)
 .env
+.env.prod
+.env.test
+.env.dev
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.example
+.env.*.local
 
 # Temporary files
 *.tmp
 *.temp
+
+# User generated content
+soul_bot/bot/media/voices/
+soul_bot/ready/
+soul_bot/voice/
+
+# Backups
+*_backup/
+*.backup
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Migration artifacts (если добавим Alembic)
+# alembic/versions/*.py
+
+# Docker
+.playwright-mcp/
+backups/
+*.sql
+
+# Docker volumes & build artifacts
+.docker/

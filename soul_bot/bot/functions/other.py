@@ -8,7 +8,7 @@ from datetime import datetime
 from aiogram.fsm.context import FSMContext
 
 import database.repository.user as db_user
-from bot.functions.speech import convert_voice, recognize
+from bot.functions.speech import convert_voice, transcribe_audio
 from bot.keyboards.premium import sub_menu
 from bot.loader import bot
 import uuid
@@ -16,6 +16,7 @@ from aiogram.enums import ChatAction
 from aiogram.types import Message, FSInputFile
 import bot.keyboards.practice as keyboards
 import bot.text as texts
+from utils.date_helpers import add_months
 
 from bot.functions.ChatGPT import get_assistant_response, generate_audio, analyse_photo
 from bot.states.states import Update_user_info
@@ -34,13 +35,6 @@ def generate_string(size=16):
     return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(size))
 
 
-def add_months(now: datetime, months: int) -> datetime:
-    if now.month + months > 12:
-        return now.replace(year=now.year + 1, month=(now.month + months) - 12)
-
-    return now.replace(month=now.month + months)
-
-
 # Экранирует специальные символы для MarkdownV2
 def escape_html(text):
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -48,6 +42,13 @@ def escape_html(text):
 
 # Форматирование для MarkdownV2
 def format_response_with_headers(res):
+    if not res:
+        return res
+
+    # Если ответ уже содержит HTML-разметку, не экранируем её повторно
+    if any(tag in res for tag in ("<b", "<i", "<u", "<a", "<code", "<pre")):
+        return res
+
     lines = res.split("\n")
     formatted_lines = []
 
@@ -80,6 +81,10 @@ def percent(*values):
 async def check_user_info(message: Message, state: FSMContext):
     user = await db_user.get(user_id=message.chat.id)
 
+    # ✅ FIX: Check if user exists
+    if user is None:
+        return False
+
     if user.real_name is None:
         m = await message.answer('Перед тем как мы начнем, расскажи немного о себе.\n'
                                  'Какое у тебя имя?')
@@ -94,6 +99,10 @@ async def check_user_info(message: Message, state: FSMContext):
 
 async def check_sub(user_id: int):
     user = await db_user.get(user_id=user_id)
+    
+    # ✅ FIX: Check if user exists
+    if user is None:
+        return False
 
     sub = user.sub_date >= datetime.now()
 
@@ -108,6 +117,10 @@ async def check_sub(user_id: int):
 
 async def check_sub_assistant(user_id: int, assistant: str) -> bool:
     user = await db_user.get(user_id=user_id)
+    
+    # ✅ FIX: Check if user exists
+    if user is None:
+        return False
 
     sub = user.sub_date >= datetime.now()
 
@@ -164,7 +177,7 @@ async def voice_answer(message: Message, assistant: str):
     user_id = message.from_user.id
 
     if is_waiting(user_id=user_id):
-        await message.answer('Давай сначала решим прошлый вопрос, а потом перейдем к следующему')
+        await message.answer('⏳ Обрабатываю ваш предыдущий запрос. Пожалуйста, подождите.')
         return
 
     if not await check_sub(user_id=user_id):
@@ -192,15 +205,7 @@ async def voice_answer(message: Message, assistant: str):
             return
 
         convert_voice(file_name_full, file_name_full_converted)
-
-        if os.path.exists(file_name_full_converted):
-            text = recognize(file_name_full_converted)
-        else:
-            remove_user(user_id)
-            print("Файл не создан:", file_name_full_converted)
-            await message.answer("Ошибка создания файла. Пожалуйста, попробуйте ещё раз.")
-            await gen_message.delete()
-            return
+        text = await transcribe_audio(file_name_full_converted)
 
         res_text = await get_assistant_response(user_id, text, assistant)
         if not res_text:
@@ -231,13 +236,20 @@ async def voice_answer(message: Message, assistant: str):
     except Exception as e:
         print(e)
         remove_user(user_id)
+    finally:
+        for path in (file_name_full, file_name_full_converted):
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
 
 
 async def text_answer(message: Message, assistant: str):
     user_id = message.from_user.id
 
     if is_waiting(user_id=user_id):
-        await message.answer('Давай сначала решим прошлый вопрос, а потом перейдем к следующему')
+        await message.answer('⏳ Обрабатываю ваш предыдущий запрос. Пожалуйста, подождите.')
         return
 
     if not await check_sub_assistant(user_id=user_id, assistant=assistant):
@@ -273,7 +285,7 @@ async def photo_answer(message: Message):
     user_id = message.from_user.id
 
     if is_waiting(user_id=user_id):
-        await message.answer('Давай сначала решим прошлый вопрос, а потом перейдем к следующему')
+        await message.answer('⏳ Обрабатываю ваш предыдущий запрос. Пожалуйста, подождите.')
         return
 
     if not await check_sub(user_id=user_id):
