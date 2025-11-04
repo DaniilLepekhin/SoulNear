@@ -6,6 +6,11 @@
 """
 from typing import Optional
 
+from bot.services.pattern_context_filter import (
+    detect_topic_from_message,
+    get_relevant_patterns_for_chat,
+)
+
 
 def render_style_section(style_instructions: str) -> str:
     """Секция настроек стиля (tone, personality, length)"""
@@ -52,28 +57,41 @@ def render_user_info(user) -> str:
 {chr(10).join(parts)}"""
 
 
-def render_patterns_section(profile) -> str:
-    """
-    Секция с выявленными паттернами пользователя
-    
-    LEVEL 2: Включает evidence (цитаты из диалогов)
-    """
+def render_patterns_section_contextual(
+    profile,
+    user_message: Optional[str] = None,
+    current_topic: Optional[str] = None,
+) -> str:
+    """Context-aware pattern rendering for the system prompt."""
+
     if not profile or not profile.patterns:
         return ""
-    
+
     patterns = profile.patterns.get('patterns', [])
     if not patterns:
         return ""
-    
-    # Берём топ-5 паттернов (сортировка по occurrences)
-    top_patterns = sorted(
-        patterns,
-        key=lambda p: p.get('occurrences', 1),
-        reverse=True
-    )[:5]
-    
+
+    detected_topic = current_topic
+    if not detected_topic and user_message:
+        detected_topic = detect_topic_from_message(user_message)
+
+    relevant_patterns = get_relevant_patterns_for_chat(
+        patterns=patterns,
+        user_message=user_message or "",
+        detected_topic=detected_topic,
+        max_patterns=5,
+    )
+
+    if not relevant_patterns:
+        # fallback — берём топ по встречаемости
+        relevant_patterns = sorted(
+            patterns,
+            key=lambda p: p.get('occurrences', 1),
+            reverse=True,
+        )[:3]
+
     pattern_texts = []
-    for pattern in top_patterns:
+    for pattern in relevant_patterns:
         title = pattern.get('title', 'Unknown')
         pattern_type = pattern.get('type', 'behavioral').upper()
         description = pattern.get('description', '')
@@ -81,6 +99,8 @@ def render_patterns_section(profile) -> str:
         confidence = pattern.get('confidence', 0.7)
         evidence = pattern.get('evidence', [])[:3]  # Макс 3 примера
         tags = pattern.get('tags', [])
+        context_weights = pattern.get('context_weights') or {}
+        primary_context = pattern.get('primary_context')
         
         # 🆕 V2 FIELDS: Глубокий анализ
         contradiction = pattern.get('contradiction')
@@ -108,17 +128,43 @@ def render_patterns_section(profile) -> str:
         
         if tags:
             pattern_text += f"\nТеги: {', '.join(tags)}"
+
+        if context_weights:
+            sorted_contexts = sorted(
+                context_weights.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )[:3]
+            context_parts = [
+                f"{topic}:{value:.2f}"
+                for topic, value in sorted_contexts
+                if value > 0
+            ]
+            if context_parts:
+                context_note = ", ".join(context_parts)
+                if primary_context:
+                    pattern_text += f"\n🌐 Контекст: {primary_context} (weights: {context_note})"
+                else:
+                    pattern_text += f"\n🌐 Контекст: {context_note}"
+        elif primary_context:
+            pattern_text += f"\n🌐 Контекст: {primary_context}"
         
         pattern_texts.append(pattern_text)
     
     patterns_str = "\n\n".join(pattern_texts)
-    
-    return f"""## 🧠 Выявленные паттерны пользователя:
+
+    topic_label = detected_topic or 'self'
+
+    return f"""## 🧠 Выявленные паттерны (релевантные теме: {topic_label}):
 
 {patterns_str}
 
 ⚠️ ВАЖНО: Используй эти КОНКРЕТНЫЕ ПРИМЕРЫ из диалогов в своих ответах.
 Формат: 'Помнишь, ты говорил: "[точная цитата]". Это проявление [паттерн]...'"""
+
+
+def render_patterns_section(profile) -> str:
+    return render_patterns_section_contextual(profile)
 
 
 def render_recent_messages_section(recent_user_messages: list[str]) -> str:

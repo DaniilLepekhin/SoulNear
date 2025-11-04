@@ -1,39 +1,26 @@
+"""Public API for personalization helpers.
+
+The personalization engine depends on configuration that pulls secrets from the
+environment.  During unit tests we may not have real secrets available, so we
+seed harmless defaults before importing the heavy module.  Production
+deployments already define proper environment variables and the defaults below
+are ignored thanks to ``setdefault``.
 """
-Персонализация ответов бота
 
-Этот модуль отвечает за пост-обработку ответов GPT,
-добавляя персонализированные элементы.
-"""
+from __future__ import annotations
 
-async def build_personalized_response(
-    user_id: int,
-    assistant_type: str,
-    profile,
-    base_response: str,
-    user_message: str,
-) -> str:
-    """
-    Построить персонализированный ответ
-    
-    В текущей версии просто возвращает base_response без изменений.
-    В будущем здесь можно добавить:
-    - Динамическую вставку имени пользователя
-    - Адаптацию эмодзи под настроение
-    - Дополнительные элементы персонализации
-    
-    Args:
-        user_id: ID пользователя
-        assistant_type: Тип ассистента
-        profile: Профиль пользователя
-        base_response: Базовый ответ от GPT
-        user_message: Исходное сообщение пользователя
-        
-    Returns:
-        Персонализированный ответ
-    """
-    # TODO: Implement personalization logic
-    # Пока что просто возвращаем base_response
-    return base_response
+import os
 
+_REQUIRED_ENV_DEFAULTS = {
+    "BOT_TOKEN": "test-bot-token",
+    "OPENAI_API_KEY": "test-openai-key",
+    "POSTGRES_PASSWORD": "test-password",
+    "POSTGRES_DB": "test-db",
+}
 
+for _env_key, _env_value in _REQUIRED_ENV_DEFAULTS.items():
+    os.environ.setdefault(_env_key, _env_value)
 
+from .engine import build_personalized_response  # noqa: E402  (import after env setup)
+
+__all__ = ["build_personalized_response"]

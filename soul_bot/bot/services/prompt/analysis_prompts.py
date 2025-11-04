@@ -65,6 +65,8 @@ YOUR TASK: 3-Step Framework
 • ВСЕ остальные поля (description, contradiction, hidden_dynamic, blocked_resource, response_hint) — пиши на русском языке
 • Use ESTABLISHED terms (Burnout, Perfectionism, Social Anxiety)
 • Evidence: 2-3 direct quotes max (в точных русских формулировках пользователя)
+• Primary context: выбери тему, где паттерн проявляется СИЛЬНЕЕ ВСЕГО (relationships|money|work|purpose|confidence|fears|self)
+• Context weights: оцени релевантность паттерна к темам (0.0-1.0) и верни как словарь {"relationships": 1.0, "money": 0.4, ...}
 • If pattern repeats → CREATE AGAIN (tracks frequency)
 
 ═══════════════════════════════════════════════════════════════════
@@ -97,6 +99,16 @@ EXISTING PATTERNS (DON'T create variations):
       
       "evidence": ["exact quote 1", "exact quote 2"],
       "tags": ["clinical-term", "auto-detected"],
+      "primary_context": "relationships",
+      "context_weights": {
+        "relationships": 1.0,
+        "money": 0.4,
+        "work": 0.3,
+        "purpose": 0.2,
+        "confidence": 0.6,
+        "fears": 0.8,
+        "self": 0.5
+      },
       "frequency": "high|medium|low",
       "confidence": 0.7-1.0,
       "response_hint": "Soul Near style mirror for immediate reply."

@@ -33,7 +33,7 @@ from bot.services.prompt.sections import (
     render_insights_section,
     render_learning_preferences_section,
     render_meta_instructions,
-    render_patterns_section,
+    render_patterns_section_contextual,
     render_recent_messages_section,
     render_style_section,
     render_user_info,
@@ -45,6 +45,7 @@ from bot.services.realtime_mood_detector import (
 )
 from bot.services.temperature_adapter import adapt_style_to_temperature, apply_overrides
 from bot.services.formatting import format_bot_message
+from bot.services.user_style_detector import analyze_user_style
 
 # Инициализация OpenAI клиента
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -239,7 +240,8 @@ async def build_system_prompt(
     user_id: int,
     assistant_type: str,
     base_instructions: str = None,
-    extra_sections: Optional[List[str]] = None
+    extra_sections: Optional[List[str]] = None,
+    user_message: Optional[str] = None,
 ) -> str:
     """
     Построить динамический system prompt на основе профиля пользователя
@@ -287,26 +289,36 @@ async def build_system_prompt(
     patterns_data = getattr(profile, 'patterns', {}) or {}
     patterns_list = patterns_data.get('patterns', []) if isinstance(patterns_data, dict) else []
     
-    sections = [
-        render_style_section(_build_style_instructions(
-            profile,
-            effective_tone=effective_tone,
-            effective_personality=effective_personality,
-            effective_length=effective_length
-        )),
-        render_base_instructions(base_instructions),
-        render_user_info(user),
-        render_patterns_section(profile),
-        render_insights_section(profile),
-        render_active_hints_section(preferences, patterns=patterns_list),
-    ]
-
     recent_history = await conversation_history.get_context(
         user_id=user_id,
         assistant_type=assistant_type,
         max_messages=10,
     )
     recent_user_messages = [msg['content'] for msg in recent_history if msg['role'] == 'user'][-5:]
+
+    style_messages = list(recent_user_messages)
+    if user_message:
+        style_messages.append(user_message)
+
+    observed_style = analyze_user_style(style_messages)
+
+    pattern_message = user_message or (style_messages[-1] if style_messages else "")
+
+    sections = [
+        render_style_section(_build_style_instructions(
+            profile,
+            effective_tone=effective_tone,
+            effective_personality=effective_personality,
+            effective_length=effective_length,
+            user_style=observed_style,
+        )),
+        render_base_instructions(base_instructions),
+        render_user_info(user),
+        render_patterns_section_contextual(profile, user_message=pattern_message),
+        render_insights_section(profile),
+        render_active_hints_section(preferences, patterns=patterns_list),
+    ]
+
     sections.append(render_recent_messages_section(recent_user_messages))
     
     # 🆕 ANTI-REPEAT CHECK: показываем боту его последние ответы чтобы он не повторялся
@@ -326,9 +338,9 @@ async def build_system_prompt(
         ))
     
     # 🆕 REAL-TIME STYLE MATCHING: адаптация длины ответа по последнему сообщению
-    if recent_user_messages:
-        last_msg = recent_user_messages[-1]
-        msg_len = len(last_msg)
+    realtime_reference = user_message or (recent_user_messages[-1] if recent_user_messages else "")
+    if realtime_reference:
+        msg_len = len(realtime_reference)
         
         if msg_len < 20:  # Короткое сообщение ("угу", "да", "хорошо")
             sections.append("""
@@ -347,7 +359,7 @@ async def build_system_prompt(
         patterns = profile.patterns.get('patterns', [])
         
         # Собираем весь текст недавних сообщений пользователя
-        recent_text = ' '.join([msg.lower() for msg in recent_user_messages])
+        recent_text = ' '.join([msg.lower() for msg in style_messages])
         
         for pattern in patterns:
             # Валидируем evidence
@@ -583,7 +595,8 @@ def _build_style_instructions(
     profile,
     effective_tone: str = None,
     effective_personality: str = None,
-    effective_length: str = None
+    effective_length: str = None,
+    user_style: Optional[dict] = None,
 ) -> str:
     """
     Построить стиль-инструкции с поддержкой temperature overrides
@@ -597,7 +610,42 @@ def _build_style_instructions(
     tone_style = effective_tone or getattr(profile, 'tone_style', '') or ''
     personality = effective_personality or getattr(profile, 'personality', '') or ''
     message_length = effective_length or getattr(profile, 'message_length', '') or ''
-    return _cached_style_instructions(tone_style, personality, message_length)
+    base_instructions = _cached_style_instructions(tone_style, personality, message_length)
+
+    notes: list[str] = []
+    if user_style:
+        capitalization = user_style.get('capitalization')
+        if capitalization == 'lowercase':
+            notes.append("⚠️ Пользователь пишет с маленькой буквы. Допустимо опускать заглавные, чтобы звучать естественно (кроме имен и новых абзацев).")
+        elif capitalization == 'mixed':
+            notes.append("ℹ️ Пользователь иногда пишет с маленькой буквы. Можно слегка варьировать капитализацию для живости, но не злоупотребляй.")
+
+        emoji_usage = user_style.get('emoji_usage')
+        if emoji_usage == 'none':
+            notes.append("⚠️ Пользователь не использует эмодзи — избегай их, чтобы не казаться искусственным.")
+        elif emoji_usage == 'heavy':
+            notes.append("✨ Пользователь любит эмодзи. Вплетай 1-2 уместных эмодзи в ответ (но не превращай в список).")
+        elif emoji_usage == 'moderate':
+            notes.append("✨ Пользователь иногда использует эмодзи. Допустимо добавить 1 эмодзи, если чувство просится наружу.")
+
+        message_pref = user_style.get('message_length')
+        if message_pref == 'ultra_short':
+            notes.append("⚡ Пользователь отвечает сверхкоротко. Держи ответы ещё лаконичнее и чаще задавай уточняющий вопрос в конце.")
+        elif message_pref == 'short':
+            notes.append("⚡ Пользователь предпочитает короткие реплики. Будь ёмким: 1 абзац + вопрос.")
+        elif message_pref == 'long':
+            notes.append("📝 Пользователь пишет развёрнуто. Можешь раскрывать тему подробнее (но в рамках выбранной длины).")
+
+        formality = user_style.get('formality')
+        if formality == 'casual':
+            notes.append("🙂 Пользователь говорит непринуждённо. Допускается лёгкий сленг, но без пошлостей.")
+        elif formality == 'formal':
+            notes.append("🎩 Пользователь держится формально. Избегай просторечий и обращайся уважительно.")
+
+    if notes:
+        return f"{base_instructions}\n\n**Как подстроиться под стиль пользователя:**\n" + "\n".join(notes)
+
+    return base_instructions
 
 
 def _enforce_message_length(text: str, message_length: str) -> str:
@@ -733,7 +781,8 @@ async def get_chat_completion(
             system_prompt = await build_system_prompt(
                 user_id,
                 assistant_type,
-                extra_sections=extra_sections if extra_sections else None
+                extra_sections=extra_sections if extra_sections else None,
+                user_message=message,
             )
         
         # 2. Загружаем историю сообщений
