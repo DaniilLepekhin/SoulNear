@@ -18,10 +18,12 @@ def configure_logging() -> None:
             "disable_existing_loggers": False,
             "formatters": {
                 "standard": {
-                    "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                    "format": "[%(asctime)s][%(levelname)s] %(name)s: %(message)s",
+                    "datefmt": "%Y/%m/%d %H:%M:%S",
                 },
                 "concise": {
-                    "format": "%(levelname)s › %(message)s",
+                    "format": "[%(asctime)s][%(levelname)s] %(message)s",
+                    "datefmt": "%Y/%m/%d %H:%M:%S",
                 },
             },
             "handlers": {
