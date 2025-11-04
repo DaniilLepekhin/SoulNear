@@ -91,8 +91,12 @@ class DatabaseManager:
     async def _create_database(self) -> None:
         admin_engine = _build_engine('postgres')
         try:
-            async with admin_engine.begin() as conn:
-                await conn.execute(text(f'CREATE DATABASE "{POSTGRES_DB}"'))
+            # Use connect() instead of begin() - CREATE DATABASE can't run in transaction
+            async with admin_engine.connect() as conn:
+                # Set isolation level to AUTOCOMMIT for CREATE DATABASE
+                await conn.execution_options(isolation_level='AUTOCOMMIT').execute(
+                    text(f'CREATE DATABASE "{POSTGRES_DB}"')
+                )
                 logger.info("Created database '%s'", POSTGRES_DB)
         except DuplicateDatabaseError:
             logger.info("Database '%s' already exists", POSTGRES_DB)

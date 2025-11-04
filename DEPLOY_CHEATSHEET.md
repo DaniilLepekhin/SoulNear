@@ -6,6 +6,9 @@
 # Быстрый способ (БЕЗ потери БД):
 ./scripts/safe_redeploy.sh
 
+# С очисткой БД (fresh start):
+./scripts/safe_redeploy.sh --clean
+
 # Или одной строкой:
 docker-compose down && git pull && docker rm -f soulnear_postgres soulnear_bot soulnear_api 2>/dev/null || true && make rebuild && make logs-bot
 ```
@@ -74,6 +77,9 @@ git pull  # Обнови docker-compose.yml
 
 # ContainerConfig error?
 docker rm -f soulnear_postgres soulnear_bot soulnear_api
+
+# CREATE DATABASE transaction error?
+./FIX_DB_ISSUE.sh  # Или: ./scripts/safe_redeploy.sh --clean
 
 # Бот не видит переменные?
 ls -la .env.prod && grep env_file docker-compose.yml
