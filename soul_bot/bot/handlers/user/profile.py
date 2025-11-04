@@ -1,6 +1,5 @@
 from datetime import datetime
 import html
-import textwrap
 
 from aiogram import F
 from aiogram.filters import Command
@@ -19,6 +18,10 @@ import database.repository.user as db_user
 import database.repository.user_profile as db_user_profile
 from bot.states.states import Update_user_info
 from config import is_feature_enabled
+from bot.services.text_formatting import (
+    localize_pattern_title,
+    safe_shorten,
+)
 
 
 # Telegram message length limit
@@ -113,51 +116,39 @@ ENERGY_LABELS = {
     'high': 'много',
 }
 
-
 def _shorten(text: str | None, limit: int = 160) -> str:
-    text = (text or "").strip()
-    if not text:
-        return ""
-    if len(text) <= limit:
-        return text
-    return textwrap.shorten(text, width=limit, placeholder="…")
+    """Сохранён для обратной совместимости с тестами и использует safe_shorten."""
+
+    return safe_shorten(text, limit)
 
 
 def _format_patterns_section(patterns: list[dict]) -> str:
     if not patterns:
         return ""
 
-    lines: list[str] = ["🧠 <b>Главные паттерны</b>"]
+    lines: list[str] = ["🧩 <b>Главные паттерны</b>", ""]
     for pattern in patterns[:3]:
-        title = html.escape(pattern.get('title', 'Паттерн'))
+        title = html.escape(localize_pattern_title(pattern.get('title')))
         confidence = int((pattern.get('confidence') or 0) * 100)
         lines.append(f"• <b>{title}</b> · уверенность {confidence}%")
 
-        description = _shorten(pattern.get('description'), 150)
-        if description:
-            lines.append(f"  <i>{html.escape(description)}</i>")
-
-        contradiction = _shorten(pattern.get('contradiction'), 140)
+        contradiction = safe_shorten(pattern.get('contradiction'), 160)
         if contradiction:
-            lines.append(f"  🔀 {html.escape(contradiction)}")
+            lines.append(f"  🔁 {html.escape(contradiction)}")
 
-        hidden_dynamic = _shorten(pattern.get('hidden_dynamic'), 140)
+        hidden_dynamic = safe_shorten(pattern.get('hidden_dynamic'), 160)
         if hidden_dynamic:
             lines.append(f"  🎭 {html.escape(hidden_dynamic)}")
 
-        resource = _shorten(pattern.get('blocked_resource'), 140)
+        resource = safe_shorten(pattern.get('blocked_resource'), 150)
         if resource:
             lines.append(f"  💎 {html.escape(resource)}")
 
         evidence = pattern.get('evidence') or []
-        quotes = []
-        for quote in evidence[:1]:
-            snippet = _shorten(quote, 120)
+        if evidence:
+            snippet = safe_shorten(evidence[0], 140)
             if snippet:
-                quotes.append(f"    – «{html.escape(snippet)}»")
-        if quotes:
-            lines.append("  📝 Примеры:")
-            lines.extend(quotes)
+                lines.append(f"  📝 <i>«{html.escape(snippet)}»</i>")
 
         lines.append("")
 
@@ -176,7 +167,7 @@ def _format_insights_section(insights: list[dict]) -> str:
         title = html.escape(insight.get('title', 'Инсайт'))
         lines.append(f"• <b>{title}</b>")
 
-        description = _shorten(insight.get('description'), 180)
+        description = safe_shorten(insight.get('description'), 220)
         if description:
             lines.append(f"  {html.escape(description)}")
 
@@ -184,7 +175,7 @@ def _format_insights_section(insights: list[dict]) -> str:
         if recs:
             lines.append(f"  👉 Что попробовать:")
             for rec in recs[:2]:
-                snippet = _shorten(rec, 140)
+                snippet = safe_shorten(rec, 160)
                 if snippet:
                     lines.append(f"    – {html.escape(snippet)}")
 
@@ -228,13 +219,13 @@ def _format_learning_section(preferences: dict) -> str:
     if works:
         lines.append("• Работает:")
         for item in works[:3]:
-            snippet = _shorten(item, 140)
+            snippet = safe_shorten(item, 160)
             if snippet:
                 lines.append(f"  – {html.escape(snippet)}")
     if doesnt:
         lines.append("• Не работает:")
         for item in doesnt[:3]:
-            snippet = _shorten(item, 140)
+            snippet = safe_shorten(item, 160)
             if snippet:
                 lines.append(f"  – {html.escape(snippet)}")
 
@@ -259,7 +250,7 @@ def _format_profile_compact(profile, user) -> str:
     if patterns_block:
         sections.append(patterns_block)
     else:
-        sections.append("🧠 Пока нет выявленных паттернов — продолжайте диалог, чтобы бот понял вас глубже.")
+        sections.append("🧩 Пока нет выявленных паттернов — продолжайте диалог, чтобы бот понял вас глубже.")
 
     insights = (profile.insights or {}).get('insights', []) if getattr(profile, 'insights', None) else []
     insights_block = _format_insights_section(insights)

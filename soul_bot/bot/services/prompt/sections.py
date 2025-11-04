@@ -10,6 +10,11 @@ from bot.services.pattern_context_filter import (
     detect_topic_from_message,
     get_relevant_patterns_for_chat,
 )
+from bot.services.text_formatting import (
+    localize_pattern_title,
+    localize_pattern_type,
+    safe_shorten,
+)
 
 
 def render_style_section(style_instructions: str) -> str:
@@ -90,77 +95,66 @@ def render_patterns_section_contextual(
             reverse=True,
         )[:3]
 
-    pattern_texts = []
+    context_labels = {
+        'relationships': 'отношения',
+        'money': 'деньги',
+        'work': 'работа',
+        'purpose': 'предназначение',
+        'confidence': 'уверенность',
+        'fears': 'страхи',
+        'self': 'самоопределение',
+    }
+
+    pattern_blocks: list[str] = []
     for pattern in relevant_patterns:
-        title = pattern.get('title', 'Unknown')
-        pattern_type = pattern.get('type', 'behavioral').upper()
-        description = pattern.get('description', '')
+        title = localize_pattern_title(pattern.get('title'))
+        pattern_type = localize_pattern_type(pattern.get('type'))
         occurrences = pattern.get('occurrences', 1)
-        confidence = pattern.get('confidence', 0.7)
-        evidence = pattern.get('evidence', [])[:3]  # Макс 3 примера
-        tags = pattern.get('tags', [])
-        context_weights = pattern.get('context_weights') or {}
+        confidence_pct = int((pattern.get('confidence') or 0.7) * 100)
+        evidence = pattern.get('evidence', [])[:3]
         primary_context = pattern.get('primary_context')
-        
-        # 🆕 V2 FIELDS: Глубокий анализ
-        contradiction = pattern.get('contradiction')
-        hidden_dynamic = pattern.get('hidden_dynamic')
-        blocked_resource = pattern.get('blocked_resource')
-        
-        pattern_text = f"""**[{pattern_type}] {title}**
-Описание: {description}
-Частота: встречается {occurrences}x (уверенность {int(confidence * 100)}%)"""
-        
-        # 🎯 LEVEL 2: Добавляем evidence (конкретные цитаты)
-        if evidence:
-            evidence_lines = [f'  • "{quote}"' for quote in evidence]
-            pattern_text += f"\n📝 Примеры из диалогов пользователя:\n{chr(10).join(evidence_lines)}"
-        
-        # 🆕 V2: Добавляем глубокий анализ (если есть)
+
+        block_lines = [f"🧩 <b>{title}</b> · уверенность {confidence_pct}%"]
+
+        if pattern_type:
+            block_lines.append(f"Тип: {pattern_type}")
+        block_lines.append(f"Частота: повторяется {occurrences} раз")
+
+        contradiction = safe_shorten(pattern.get('contradiction'), 220)
         if contradiction:
-            pattern_text += f"\n🔍 Противоречие: {contradiction}"
-        
+            block_lines.append(f"🔁 Противоречие: {contradiction}")
+
+        hidden_dynamic = safe_shorten(pattern.get('hidden_dynamic'), 220)
         if hidden_dynamic:
-            pattern_text += f"\n🧠 Скрытая динамика: {hidden_dynamic}"
-        
+            block_lines.append(f"🎭 Динамика: {hidden_dynamic}")
+
+        blocked_resource = safe_shorten(pattern.get('blocked_resource'), 200)
         if blocked_resource:
-            pattern_text += f"\n⚡ Заблокированный ресурс: {blocked_resource}"
-        
-        if tags:
-            pattern_text += f"\nТеги: {', '.join(tags)}"
+            block_lines.append(f"💎 Ресурс: {blocked_resource}")
 
-        if context_weights:
-            sorted_contexts = sorted(
-                context_weights.items(),
-                key=lambda item: item[1],
-                reverse=True,
-            )[:3]
-            context_parts = [
-                f"{topic}:{value:.2f}"
-                for topic, value in sorted_contexts
-                if value > 0
-            ]
-            if context_parts:
-                context_note = ", ".join(context_parts)
-                if primary_context:
-                    pattern_text += f"\n🌐 Контекст: {primary_context} (weights: {context_note})"
-                else:
-                    pattern_text += f"\n🌐 Контекст: {context_note}"
-        elif primary_context:
-            pattern_text += f"\n🌐 Контекст: {primary_context}"
-        
-        pattern_texts.append(pattern_text)
-    
-    patterns_str = "\n\n".join(pattern_texts)
+        if primary_context:
+            context_label = context_labels.get(primary_context, primary_context)
+            block_lines.append(f"🌿 Контекст: {context_label}")
 
-    topic_label = detected_topic or 'self'
+        if evidence:
+            quotes = [safe_shorten(quote, 160) for quote in evidence if quote]
+            clean_quotes = [quote for quote in quotes if quote]
+            if clean_quotes:
+                quote_lines = [f"  • «{quote}»" for quote in clean_quotes]
+                block_lines.append("📝 Примеры:")
+                block_lines.extend(quote_lines)
 
-    return f"""## 🧠 Выявленные паттерны (релевантные теме: {topic_label}):
+        pattern_blocks.append("\n".join(block_lines))
+
+    patterns_str = "\n\n".join(pattern_blocks)
+
+    topic_label = context_labels.get(detected_topic, detected_topic or 'текущая тема')
+
+    return f"""## 🧩 Паттерны по теме «{topic_label}»
 
 {patterns_str}
 
-⚠️ ВАЖНО: Используй эти КОНКРЕТНЫЕ ПРИМЕРЫ из диалогов в своих ответах.
-Формат: 'Помнишь, ты говорил: "[точная цитата]". Это проявление [паттерн]...'"""
+⚠️ Используй цитаты из блоков «📝 Примеры» и явно связывай их с текущим вопросом пользователя."""
 
 
 def render_patterns_section(profile) -> str:
@@ -180,17 +174,16 @@ def render_recent_messages_section(recent_user_messages: list[str]) -> str:
         return ""
     
     numbered_messages = [
-        f"{i+1}. \"{msg}\""
+        f"{i+1}. «{msg}»"
         for i, msg in enumerate(recent_user_messages)
     ]
-    
-    return f"""## 💬 ПОСЛЕДНИЕ СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ (для точного цитирования):
+
+    return f"""## 💬 Последние сообщения пользователя
+
 {chr(10).join(numbered_messages)}
 
-⚠️ КРИТИЧНОЕ ПРАВИЛО ЦИТИРОВАНИЯ:
-- Если хочешь процитировать пользователя → используй ТОЛЬКО фразы из списка выше!
-- Для примеров из прошлых разговоров → используй Evidence из секции "Паттерны" (с пометкой "В прошлых разговорах...")
-- НИКОГДА не придумывай цитаты! Если точной фразы нет — перефразируй общий смысл без кавычек."""
+⚠️ Цитируй только из этого списка.
+Если нужна ссылка на прошлые диалоги — используй evidence из секции «Паттерны» и явно говори, что это пример из истории."""
 
 
 def render_insights_section(profile) -> str:
@@ -212,16 +205,16 @@ def render_insights_section(profile) -> str:
     
     insight_texts = []
     for insight in top_insights:
-        title = insight.get('title', 'Unknown')
-        description = insight.get('description', '')
+        title = insight.get('title', 'Инсайт')
+        description = safe_shorten(insight.get('description'), 220)
         impact = insight.get('impact', 'neutral')
         recommendations = insight.get('recommendations', [])
         
         # 🆕 V2 FIELDS: Глубокие инсайты
-        the_system = insight.get('the_system')
-        the_blockage = insight.get('the_blockage')
-        the_way_out = insight.get('the_way_out')
-        why_this_matters = insight.get('why_this_matters')
+        the_system = safe_shorten(insight.get('the_system'), 220)
+        the_blockage = safe_shorten(insight.get('the_blockage'), 220)
+        the_way_out = safe_shorten(insight.get('the_way_out'), 220)
+        why_this_matters = safe_shorten(insight.get('why_this_matters'), 220)
         
         impact_emoji = {'positive': '✅', 'negative': '⚠️', 'neutral': 'ℹ️'}.get(impact, 'ℹ️')
         
@@ -250,7 +243,7 @@ def render_insights_section(profile) -> str:
     
     insights_str = "\n\n".join(insight_texts)
     
-    return f"""## 💡 ИНСАЙТЫ (глубокий анализ):
+    return f"""## 💡 Главные инсайты
 
 {insights_str}"""
 
@@ -265,7 +258,7 @@ def render_emotional_state_section(profile) -> str:
     current_mood = emotional_state.get('current_mood', 'neutral')
     stress_level = emotional_state.get('stress_level', 'medium')
     energy_level = emotional_state.get('energy_level', 'medium')
-    
+
     mood_emoji_map = {
         'slightly_down': '😔',
         'neutral': '😐',
@@ -273,15 +266,36 @@ def render_emotional_state_section(profile) -> str:
         'energetic': '😄',
         'stressed': '😰'
     }
-    
-    mood_emoji = mood_emoji_map.get(current_mood, '😐')
-    
-    return f"""## 😊 ЭМОЦИОНАЛЬНОЕ СОСТОЯНИЕ:
-{mood_emoji} Настроение: {current_mood}
-Стресс: {stress_level}
-Энергия: {energy_level}
+    mood_labels = {
+        'slightly_down': 'уставшее',
+        'neutral': 'ровное',
+        'good': 'поднятое',
+        'energetic': 'энергичное',
+        'stressed': 'на взводе'
+    }
+    stress_labels = {
+        'low': 'низкий',
+        'medium': 'средний',
+        'high': 'высокий',
+        'critical': 'критический'
+    }
+    energy_labels = {
+        'low': 'мало',
+        'medium': 'сбалансировано',
+        'high': 'много'
+    }
 
-⚠️ Учитывай текущее состояние пользователя в своих ответах."""
+    mood_emoji = mood_emoji_map.get(current_mood, '😐')
+    mood_label = mood_labels.get(current_mood, current_mood)
+    stress_label = stress_labels.get(stress_level, stress_level)
+    energy_label = energy_labels.get(energy_level, energy_level)
+
+    return f"""## 😊 Эмоциональное состояние
+{mood_emoji} Настроение: {mood_label}
+☁️ Стресс: {stress_label}
+⚡ Энергия: {energy_label}
+
+⚠️ Подстраивай тон и скорость ответа под это состояние."""
 
 
 def render_learning_preferences_section(profile) -> str:
@@ -300,18 +314,26 @@ def render_learning_preferences_section(profile) -> str:
     parts = []
     
     if works_well:
-        works_list = [f"  ✅ {item}" for item in works_well[:5]]
-        parts.append(f"Что работает хорошо:\n{chr(10).join(works_list)}")
-    
+        works_list = [
+            f"• {safe_shorten(item, 160)}"
+            for item in works_well[:5]
+            if item
+        ]
+        parts.append("✅ Подходит пользователю:\n" + chr(10).join(works_list))
+
     if doesnt_work:
-        doesnt_list = [f"  ❌ {item}" for item in doesnt_work[:5]]
-        parts.append(f"Что НЕ работает:\n{chr(10).join(doesnt_list)}")
-    
-    return f"""## 🎓 LEARNING PREFERENCES:
+        doesnt_list = [
+            f"• {safe_shorten(item, 160)}"
+            for item in doesnt_work[:5]
+            if item
+        ]
+        parts.append("⚠️ Не заходит:\n" + chr(10).join(doesnt_list))
+
+    return f"""## 🎓 Как подстраиваться под пользователя
 
 {chr(10).join(parts)}
 
-⚠️ Адаптируй свой подход основываясь на этих данных."""
+⚠️ Учитывай эти сигналы в следующем ответе и не возвращайся к «не работает» без объяснения."""
 
 
 def render_custom_instructions(profile) -> str:
@@ -339,25 +361,25 @@ def render_meta_instructions(has_patterns: bool, has_insights: bool) -> str:
     instructions = []
     
     if has_patterns:
-        instructions.append("""## 🎯 КАК ИСПОЛЬЗОВАТЬ ПРИМЕРЫ ИЗ ДИАЛОГОВ:
+        instructions.append("""## 🎯 Как опираться на прошлый опыт
 
-1. **Связывай текущее с прошлым:**
-   - "Помнишь, ты говорил: '[цитата из Evidence]'. Сейчас ты снова..."
-   - "В прошлых разговорах ты упоминал '[цитата]'. Вижу, что паттерн повторяется..."
+1. **Соединяй настоящее и историю.**
+   - «Помнишь, ты говорил: "[цитата из evidence]" — сейчас звучит то же чувство».
+   - «В прошлых разговорах ты упоминал "[цитата]" — петля повторяется». 
 
-2. **Показывай прогресс:**
-   - "Раньше ты говорил '[старая цитата]', а сейчас '[новая цитата]'. Это прогресс!"
-   - "Этот паттерн проявляется уже {occurrences} раз - значит, он важен для тебя."
+2. **Отмечай движение и прогресс.**
+   - «Раньше ты говорил "[старая цитата]", а сегодня уже "[новая цитата]"».
+   - «Этот паттерн звучал несколько раз — значит, тема для тебя важная».
 
-3. **Используй клинические термины:**
-   - Называй паттерны по их официальным названиям (Imposter Syndrome, Perfectionism)
-   - Но объясняй простым языком с примерами""")
+3. **Называй паттерн по-русски и поясняй смысл.**
+   - Используй дружеские формулировки («Синдром самозванца», «Страх отказа») и коротко объясняй, что это значит для пользователя.
+   - Не прячься за диагнозами — говори живым языком, ссылайся на цитаты.""")
     
     if has_insights:
-        instructions.append("""4. **Используй инсайты для глубины:**
-   - Связывай несколько паттернов вместе
-   - Предлагай конкретные рекомендации из инсайтов
-   - Показывай cause-and-effect связи""")
+        instructions.append("""## 💡 Как использовать инсайты
+   - Связывай несколько паттернов в одну цепочку, показывай причину и следствие.
+   - Предлагай шаги из инсайтов, объясняя зачем они нужны именно этому человеку.
+   - Подсвечивай выгоду изменений и цену бездействия.""")
     
     return "\n\n".join(instructions)
 
@@ -378,16 +400,16 @@ def render_active_hints_section(preferences: Optional[dict], patterns: list = No
     if not pending:
         patterns = patterns or []
         if len(patterns) < 3:
-            return """## 🎯 АКТИВНЫЕ ЗЕРКАЛА (FALLBACK для нового пользователя):
+            return """## 🎯 Идеи для первого отклика
 
-Пользователь впервые здесь. Возможные темы для отражения:
-- Страх начала: "не знаю с чего начать" → отзеркаль неопределённость, спроси что мешает
-- Застревание: "всё как в замкнутом круге" → отзеркаль ощущение повтора, спроси где именно
-- Потеря смысла: "а зачем всё это?" → отзеркаль экзистенциальный кризис, спроси что раньше давало смысл
-- Прокрастинация: "откладываю дела" → отзеркаль избегание, спроси что чувствует когда садится за задачу
-- Самокритика: "я плохой/слабый" → отзеркаль самообесценивание, спроси где научился так себя оценивать
+Пользователь только знакомится с ботом. Темы, которые стоит мягко отразить:
+- Страх начала: «не знаю с чего начать» → назови сомнение, уточни, что мешает сделать первый шаг.
+- Застревание: «всё как в замкнутом круге» → опиши цикл, спроси где он чувствует повтор.
+- Потеря смысла: «а зачем всё это?» → аккуратно подсвети пустоту, спроси что раньше давало опору.
+- Прокрастинация: «откладываю дела» → отзеркаль избегание, спроси что он чувствует в момент выбора.
+- Самокритика: «я плохой/слабый» → отметь суровый внутренний голос, спроси откуда он знаком.
 
-⚠️ ИСПОЛЬЗУЙ ЭТИ ТЕМЫ, если пользователь о них говорит. Отражай, НЕ советуй."""
+⚠️ Работай с одной темой за раз, задавай уточняющий вопрос и не торопись советовать."""
         return ""
 
     lines = []
@@ -404,9 +426,9 @@ def render_active_hints_section(preferences: Optional[dict], patterns: list = No
         return ""
 
     return (
-        "## 🎯 АКТИВНЫЕ ЗЕРКАЛА (используй в ближайшем ответе):\n"
+        "## 🎯 Активные зеркала для следующего ответа\n"
         + "\n".join(lines)
-        + "\n\n⚠️ Вплетай минимум одно зеркало в следующий ответ: сформулируй своими словами, свяжи с текущим сообщением и заверши открытым вопросом или паузой."
+        + "\n\n⚠️ Вплети хотя бы одно зеркало: перефразируй по-своему, привяжи к текущему сообщению и заверши вопросом или паузой."
     )
 
 
