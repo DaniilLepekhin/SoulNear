@@ -6,7 +6,10 @@ services:
     image: postgres:15-alpine
     container_name: soulnear_postgres
     restart: unless-stopped
+    env_file:
+      - .env.prod
     environment:
+      # These are needed for postgres init, can be set in .env.prod or passed via shell
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-soul_bot}
@@ -34,36 +37,9 @@ services:
     env_file:
      - .env.prod
     environment:
-      # Database connection (override .env values)
+      # Docker-specific overrides (only override host-dependent values)
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-soul_bot}
-      # Environment
-      ENV: ${ENV:-prod}
-      TEST: ${TEST:-false}
-      # OpenAI
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      HELPER_ID: ${HELPER_ID}
-      SOULSLEEP_ID: ${SOULSLEEP_ID}
-      RELATIONSHIPS_ID: ${RELATIONSHIPS_ID:-}
-      MONEY_ID: ${MONEY_ID:-}
-      CONFIDENCE_ID: ${CONFIDENCE_ID:-}
-      FEARS_ID: ${FEARS_ID:-}
-      # Payment
-      SHOP_ID: ${SHOP_ID:-476767}
-      SECRET_KEY: ${SECRET_KEY:-}
-      # Optional
-      ELEVEN_LABS_KEY: ${ELEVEN_LABS_KEY:-}
-      # Feature Flags
-      USE_CHAT_COMPLETION: ${USE_CHAT_COMPLETION:-false}
-      ENABLE_STYLE_SETTINGS: ${ENABLE_STYLE_SETTINGS:-false}
-      ENABLE_USER_PROFILES: ${ENABLE_USER_PROFILES:-false}
-      ENABLE_PATTERN_ANALYSIS: ${ENABLE_PATTERN_ANALYSIS:-false}
-      ENABLE_DYNAMIC_QUIZ: ${ENABLE_DYNAMIC_QUIZ:-false}
-      ENABLE_ADAPTIVE_QUIZ: ${ENABLE_ADAPTIVE_QUIZ:-false}
-      ENABLE_TUNE_STYLE: ${ENABLE_TUNE_STYLE:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,23 +55,12 @@ services:
       dockerfile: Dockerfile
     container_name: soulnear_api
     restart: unless-stopped
+    env_file:
+      - .env.prod
     environment:
-      # Database connection
+      # Docker-specific overrides
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-soul_bot}
-      # OpenAI
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      HELPER_ID: ${HELPER_ID}
-      SOULSLEEP_ID: ${SOULSLEEP_ID}
-      RELATIONSHIPS_ID: ${RELATIONSHIPS_ID:-}
-      MONEY_ID: ${MONEY_ID:-}
-      CONFIDENCE_ID: ${CONFIDENCE_ID:-}
-      FEARS_ID: ${FEARS_ID:-}
-      # Bot token (for file access)
-      BOT_TOKEN: ${BOT_TOKEN}
     ports:
       - "${API_PORT:-8888}:8888"
     depends_on:
