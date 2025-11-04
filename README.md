@@ -21,13 +21,13 @@ make up
 make logs
 ```
 
-**📖 Подробнее:** [DOCKER_QUICKSTART.md](./DOCKER_QUICKSTART.md)
+**📖 Подробнее:** см. [Документация по деплою](./docs/04-testing-deployment.md)
 
 ### 🚀 Деплой на сервере
 ```bash
 ./scripts/safe_redeploy.sh
 ```
-**📖 Инструкции:** [SERVER_DEPLOY_INSTRUCTIONS.md](./SERVER_DEPLOY_INSTRUCTIONS.md) | [Шпаргалка](./DEPLOY_CHEATSHEET.md)
+**📖 Инструкции:** см. [Документация по деплою](./docs/04-testing-deployment.md)
 
 ### 🐍 Вариант 2: Локальный запуск
 
@@ -177,31 +177,23 @@ ENABLE_TUNE_STYLE=false          # ⏳ Stage 6
 - `conversation_history` - Полная история диалогов
 - `quiz_sessions` - Сессии квизов
 
-**Схема:** см. [HANDOFF.md - Database Schema](./HANDOFF.md#-database-schema)
+**Схема:** см. [Архитектура проекта](./docs/01-project-overview.md#база-данных)
 
 ## 📚 Документация
 
-### 🐳 Docker:
-- **[DOCKER_QUICKSTART.md](./DOCKER_QUICKSTART.md)** - быстрый старт с Docker
-- [DOCKER_SETUP_SUMMARY.md](./DOCKER_SETUP_SUMMARY.md) - полная документация
-- [DOCKER_CHECKLIST.md](./DOCKER_CHECKLIST.md) - чек-лист запуска
-- [README_DOCKER.md](./README_DOCKER.md) - подробное руководство
+Полная документация проекта находится в директории [`docs/`](./docs/):
 
-### 🚀 Начни здесь:
-- **[HANDOFF.md](./HANDOFF.md)** - главный документ для разработчиков
+### 📖 Основные документы:
+- **[01-project-overview.md](./docs/01-project-overview.md)** - обзор проекта, архитектура, tech stack
+- **[02-implementation-roadmap.md](./docs/02-implementation-roadmap.md)** - этапы реализации и выполнение
+- **[03-key-features.md](./docs/03-key-features.md)** - ключевые функции и их реализация
+- **[04-testing-deployment.md](./docs/04-testing-deployment.md)** - тестирование и деплой
+- **[05-technical-decisions.md](./docs/05-technical-decisions.md)** - технические решения и нюансы
 
-### Детальные планы:
-- [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) - 6 этапов развития
-- [TESTING_STRATEGY.md](./TESTING_STRATEGY.md) - стратегия тестирования
-- [STAGE_1_COMPLETE.md](./STAGE_1_COMPLETE.md) - что сделано в Stage 1
-
-### Рефакторинг (история):
-- [REFACTORING_SUMMARY.md](./REFACTORING_SUMMARY.md) - что изменилось
-- [WORKFLOW_SUMMARY.md](./WORKFLOW_SUMMARY.md) - процесс разработки
-
-### Testing:
-- [README_TESTING.md](./README_TESTING.md) - как тестировать
-- [REGRESSION_CHECKLIST.md](./soul_bot/REGRESSION_CHECKLIST.md) - ручные тесты
+### 🚀 Быстрый старт:
+1. Начни с [Обзора проекта](./docs/01-project-overview.md)
+2. Изучи [План реализации](./docs/02-implementation-roadmap.md)
+3. Для деплоя см. [Тестирование и деплой](./docs/04-testing-deployment.md)
 
 ## 🛠️ Development Workflow
 
@@ -223,7 +215,7 @@ echo "ENABLE_YOUR_FEATURE=true" >> soul_bot/.env.prod
 git add . && git commit -m "feat: описание" && git push origin dev
 ```
 
-**Подробнее:** [HANDOFF.md - Development Workflow](./HANDOFF.md#-development-workflow)
+**Подробнее:** см. [Документация по разработке](./docs/04-testing-deployment.md#rollout-process)
 
 ## 🔒 Безопасность
 
@@ -239,4 +231,6 @@ git add . && git commit -m "feat: описание" && git push origin dev
 
 ---
 
-**Последнее обновление:** 24 октября 2025  
+**Последнее обновление:** Ноябрь 2025
+
+**Документация:** Все документы консолидированы в [`docs/`](./docs/)  
