@@ -7,6 +7,10 @@ from typing import List, Optional
 
 from .actions import get_default_actions
 from database.repository import user_profile as user_profile_repo
+from bot.services.pattern_context_filter import (
+    get_relevant_patterns_for_chat,
+    detect_topic_from_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,12 +110,57 @@ def _ensure_period(text: str) -> str:
     return f'{stripped}.'
 
 
-def _select_primary_pattern(patterns: List[dict]) -> Optional[dict]:
+def _select_primary_pattern(
+    patterns: List[dict],
+    user_message: str = "",
+    detected_topic: Optional[str] = None
+) -> Optional[dict]:
+    """
+    Select the most relevant pattern for personalization.
+    
+    Strategy:
+    1. Filter patterns by context relevance to user's message topic
+    2. Among relevant patterns, prefer those with:
+       - More occurrences
+       - Higher confidence
+       - Non-empty evidence
+    3. If no relevant patterns, fall back to highest frequency pattern
+    
+    Args:
+        patterns: List of user patterns
+        user_message: Current user message for context filtering
+        detected_topic: Pre-detected topic (optional, will detect if not provided)
+        
+    Returns:
+        Most relevant pattern with evidence, or None
+    """
     if not patterns:
         return None
+    
+    # 🎯 Step 1: Context-aware filtering if user_message provided
+    relevant_patterns = patterns
+    if user_message:
+        relevant_patterns = get_relevant_patterns_for_chat(
+            patterns=patterns,
+            user_message=user_message,
+            detected_topic=detected_topic,
+            max_patterns=5,  # Get top 5 relevant patterns
+        )
+        
+        if relevant_patterns:
+            logger.debug(
+                f"Context filter: {len(relevant_patterns)}/{len(patterns)} patterns relevant to message"
+            )
+        else:
+            # Fallback: use all patterns if none are contextually relevant
+            logger.debug(
+                f"Context filter: no relevant patterns found, using all {len(patterns)} patterns"
+            )
+            relevant_patterns = patterns
 
+    # 🏆 Step 2: Sort by frequency and confidence
     sorted_patterns = sorted(
-        patterns,
+        relevant_patterns,
         key=lambda item: (
             item.get('occurrences', 0),
             item.get('confidence', 0.0)
@@ -119,21 +168,32 @@ def _select_primary_pattern(patterns: List[dict]) -> Optional[dict]:
         reverse=True
     )
 
+    # 📝 Step 3: Return first pattern with evidence
     for pattern in sorted_patterns:
         evidence = _deduplicate_quotes(pattern.get('evidence', []))
         if evidence:
             pattern = dict(pattern)
             pattern['evidence'] = evidence
+            logger.debug(
+                f"Selected pattern: '{pattern.get('title')}' "
+                f"(occurrences={pattern.get('occurrences')}, "
+                f"confidence={pattern.get('confidence'):.2f})"
+            )
             return pattern
 
     return None
 
 
-def _is_personalization_relevant(user_message: str, primary_pattern: dict) -> bool:
+def _is_personalization_relevant(
+    user_message: str,
+    primary_pattern: dict,
+    detected_topic: Optional[str] = None
+) -> bool:
     """
     Проверяет релевантность персонализации к текущему сообщению.
     
     Логика (fast heuristic, < 5ms):
+    0. Check context_weights: if pattern relevance to topic is low → False
     1. Factual question без эмоций → False (персонализация не нужна)
     2. Pattern keywords присутствуют → True (тема релевантна)
     3. Emotional content → True (всегда персонализируем)
@@ -143,6 +203,7 @@ def _is_personalization_relevant(user_message: str, primary_pattern: dict) -> bo
     Args:
         user_message: Текущее сообщение пользователя
         primary_pattern: Главный паттерн для персонализации
+        detected_topic: Pre-detected topic (optional)
         
     Returns:
         True если персонализация релевантна, False если стоит пропустить
@@ -154,8 +215,8 @@ def _is_personalization_relevant(user_message: str, primary_pattern: dict) -> bo
         >>> _is_personalization_relevant("Чувствую тревогу", {...})
         True  # Emotional content
         
-        >>> _is_personalization_relevant("Опять прокрастинирую", {"tags": ["procrastination"]})
-        True  # Pattern keywords present
+        >>> _is_personalization_relevant("У меня нет денег", {"context_weights": {"relationships": 1.0, "money": 0.1}})
+        False  # Pattern is about relationships, but user talks about money
     """
     if not user_message:
         return False
@@ -163,6 +224,24 @@ def _is_personalization_relevant(user_message: str, primary_pattern: dict) -> bo
     message_lower = user_message.lower().strip()
     if not message_lower:
         return False
+    
+    # 🎯 0. Check context_weights: LOW relevance to current topic → skip
+    if primary_pattern:
+        context_weights = primary_pattern.get('context_weights', {})
+        if context_weights:
+            # Detect topic if not provided
+            topic = detected_topic or detect_topic_from_message(user_message)
+            
+            if topic:
+                relevance = context_weights.get(topic, 0.0)
+                
+                # If pattern has VERY LOW relevance to current topic → skip
+                if relevance < 0.3:
+                    logger.debug(
+                        f"Personalization skipped: pattern '{primary_pattern.get('title')}' "
+                        f"has low relevance ({relevance:.2f}) to topic '{topic}'"
+                    )
+                    return False
     
     # 1. Emotional content? → ALWAYS relevant (highest priority)
     emotional_keywords = [
@@ -253,14 +332,26 @@ async def build_personalized_response(
         if isinstance(raw_hints, list):
             active_hints = [hint for hint in raw_hints if isinstance(hint, dict)]
 
-    primary_pattern = _select_primary_pattern(patterns)
+    # 🎯 Detect topic once for both pattern selection and relevance check
+    detected_topic = detect_topic_from_message(user_message) if user_message else None
+    
+    # 🔥 Select pattern using context-aware filtering
+    primary_pattern = _select_primary_pattern(
+        patterns=patterns,
+        user_message=user_message,
+        detected_topic=detected_topic
+    )
 
     if not primary_pattern:
         logger.debug("[%s] personalization skipped: no pattern with evidence", user_id)
         return base_response
     
-    # 🔥 НОВОЕ: Проверяем релевантность персонализации
-    is_relevant = _is_personalization_relevant(user_message, primary_pattern)
+    # 🔥 Check if personalization is relevant to current message
+    is_relevant = _is_personalization_relevant(
+        user_message=user_message,
+        primary_pattern=primary_pattern,
+        detected_topic=detected_topic
+    )
     
     pending_hint = None
     for hint in active_hints:
