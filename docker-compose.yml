@@ -31,6 +31,8 @@ services:
       dockerfile: Dockerfile
     container_name: soulnear_bot
     restart: unless-stopped
+    env_file:
+     - .env.prod
     environment:
       # Database connection (override .env values)
       POSTGRES_HOST: postgres
@@ -49,8 +51,6 @@ services:
       MONEY_ID: ${MONEY_ID:-}
       CONFIDENCE_ID: ${CONFIDENCE_ID:-}
       FEARS_ID: ${FEARS_ID:-}
-      # Bot
-      BOT_TOKEN: ${BOT_TOKEN}
       # Payment
       SHOP_ID: ${SHOP_ID:-476767}
       SECRET_KEY: ${SECRET_KEY:-}
