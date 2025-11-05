@@ -45,8 +45,22 @@ async def main():
     # Wait for database to be ready
     await wait_for_db()
     
-    from database.database import create_tables
+    # Create tables using SQLAlchemy models
+    from database.database import create_tables, db
     await create_tables()
+    logger.info("✅ Database tables created/verified")
+    
+    # Run pending SQL migrations
+    from database.migration_runner import run_migrations
+    await run_migrations(db.engine)
+    logger.info("✅ Migrations applied")
+    
+    # Start database health monitor
+    from database.resilience import DatabaseHealthMonitor
+    health_monitor = DatabaseHealthMonitor(db, check_interval=60)
+    asyncio.create_task(health_monitor.monitor())
+    logger.info("✅ Database health monitor started")
+    
     asyncio.create_task(schedule_())
     #await logger.start()
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())

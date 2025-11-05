@@ -27,13 +27,25 @@ def _build_engine(database_name: str) -> AsyncEngine:
             host=POSTGRES_HOST,
             port=POSTGRES_PORT,
             database=database_name,
-            query={},
+            query={
+                # Connection timeout settings for asyncpg
+                'timeout': '10',  # Connection timeout in seconds
+                'command_timeout': '30',  # Command execution timeout
+            },
         ),
         future=True,
         pool_size=20,
         max_overflow=10,
-        pool_pre_ping=True,
-        pool_recycle=3600,
+        pool_pre_ping=True,  # Test connections before using them
+        pool_recycle=3600,  # Recycle connections after 1 hour
+        pool_timeout=30,  # Wait up to 30s for connection from pool
+        echo=False,  # Set to True for SQL query debugging
+        connect_args={
+            'server_settings': {
+                'application_name': 'soulnear_bot',
+                'jit': 'off',  # Disable JIT for stability
+            },
+        },
     )
 
 
