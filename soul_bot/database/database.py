@@ -27,11 +27,7 @@ def _build_engine(database_name: str) -> AsyncEngine:
             host=POSTGRES_HOST,
             port=POSTGRES_PORT,
             database=database_name,
-            query={
-                # Connection timeout settings for asyncpg
-                'timeout': '10',  # Connection timeout in seconds
-                'command_timeout': '30',  # Command execution timeout
-            },
+            query={},
         ),
         future=True,
         pool_size=20,
@@ -41,6 +37,8 @@ def _build_engine(database_name: str) -> AsyncEngine:
         pool_timeout=30,  # Wait up to 30s for connection from pool
         echo=False,  # Set to True for SQL query debugging
         connect_args={
+            'timeout': 10,  # Connection timeout in seconds (numeric for asyncpg)
+            'command_timeout': 30,  # Command execution timeout (numeric)
             'server_settings': {
                 'application_name': 'soulnear_bot',
                 'jit': 'off',  # Disable JIT for stability
