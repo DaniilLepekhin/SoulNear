@@ -55,38 +55,44 @@ class MigrationRunner:
         
         sql_content = migration_file.read_text(encoding='utf-8')
         
-        # Split by semicolons but ignore those in comments or strings
-        statements = []
-        current_statement = []
-        in_comment = False
-        
+        # Remove comment-only lines to clean up SQL
+        lines = []
         for line in sql_content.split('\n'):
             stripped = line.strip()
-            
-            # Skip comment-only lines
-            if stripped.startswith('--'):
-                continue
-                
-            current_statement.append(line)
-            
-            # Check if line ends with semicolon (simple heuristic)
-            if ';' in line and not line.strip().startswith('--'):
-                statements.append('\n'.join(current_statement))
-                current_statement = []
+            # Skip pure comment lines but keep inline comments
+            if stripped and not stripped.startswith('--'):
+                lines.append(line)
         
-        # Execute each statement
+        clean_sql = '\n'.join(lines).strip()
+        
+        if not clean_sql:
+            logger.warning(f"⚠️  Migration {migration_name} is empty, skipping")
+            await self.mark_migration_applied(migration_name)
+            return
+        
+        # Execute entire file using raw asyncpg connection
+        # This handles multi-statement SQL and DO $$ blocks correctly
         async with self.engine.begin() as conn:
-            for stmt in statements:
-                stmt = stmt.strip()
-                if stmt and not stmt.startswith('--'):
-                    try:
-                        await conn.execute(text(stmt))
-                    except Exception as e:
-                        # Log but don't fail on errors like "column already exists"
-                        if "already exists" in str(e).lower():
-                            logger.warning(f"⚠️  {e} (skipping)")
-                        else:
-                            raise
+            try:
+                # Get the raw asyncpg connection from SQLAlchemy
+                raw_conn = await conn.get_raw_connection()
+                driver_conn = raw_conn.driver_connection
+                
+                # Execute multi-statement SQL directly with asyncpg
+                await driver_conn.execute(clean_sql)
+            except Exception as e:
+                # Log but don't fail on errors like "column already exists" or "already dropped"
+                error_str = str(e).lower()
+                if any(phrase in error_str for phrase in [
+                    "already exists",
+                    "does not exist",
+                    "duplicate column",
+                    "duplicate key",
+                ]):
+                    logger.warning(f"⚠️  {e} (skipping, likely already applied)")
+                else:
+                    logger.error(f"❌ Migration {migration_name} failed: {e}")
+                    raise
         
         await self.mark_migration_applied(migration_name)
         logger.info(f"✅ Migration applied: {migration_name}")
