@@ -4322,3 +4322,397 @@ img.emoji {
     padding: 0;
     box-shadow: none;
 }
+
+/* ==========================================
+   🧠 PATTERNS SCREEN (NEW)
+   ========================================== */
+
+.patterns-screen {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.pattern-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 1px solid #E3F2FD;
+    background: white;
+    border-radius: 20px;
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.filter-btn.active {
+    background: #1976D2;
+    color: white;
+    border-color: #1976D2;
+}
+
+.patterns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pattern-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.pattern-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.pattern-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.pattern-emoji {
+    font-size: 32px;
+}
+
+.pattern-card-header h3 {
+    flex: 1;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.frequency-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.pattern-preview {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.pattern-card-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.confidence-bar {
+    flex: 1;
+    height: 6px;
+    background: #E3F2FD;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4A90E2 0%, #66BB6A 100%);
+    transition: width 0.3s ease;
+}
+
+.confidence-text {
+    font-size: 12px;
+    color: #90A4AE;
+}
+
+.pattern-badge {
+    margin-top: 12px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.contradiction-badge {
+    background: #FFEBEE;
+    color: #EF5350;
+}
+
+.resource-badge {
+    background: #F3E5F5;
+    color: #AB47BC;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    font-size: 72px;
+    margin-bottom: 20px;
+    opacity: 0.3;
+}
+
+.empty-state h3 {
+    font-size: 20px;
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.6;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+/* ==========================================
+   Pattern Detail Screen
+   ========================================== */
+
+.pattern-detail-screen {
+    padding: 20px;
+}
+
+.pattern-detail-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 40px;
+}
+
+.pattern-section {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.pattern-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.pattern-text {
+    font-size: 15px;
+    color: #555;
+    line-height: 1.7;
+}
+
+.pattern-stats-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.stat-pill {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 16px;
+    background: #F5F5F5;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #90A4AE;
+}
+
+.stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Special section styles */
+.alert-section {
+    border-left: 4px solid #EF5350;
+    background: #FFEBEE;
+}
+
+.insight-section {
+    border-left: 4px solid #1976D2;
+    background: #E3F2FD;
+}
+
+.resource-section {
+    border-left: 4px solid #AB47BC;
+    background: #F3E5F5;
+}
+
+.action-section {
+    border-left: 4px solid #66BB6A;
+    background: #E8F5E9;
+}
+
+/* Evidence list */
+.evidence-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.evidence-item {
+    padding: 12px 16px;
+    background: #F9FAFB;
+    border-left: 3px solid #1976D2;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+    font-style: italic;
+    position: relative;
+}
+
+.quote-mark {
+    color: #1976D2;
+    font-size: 18px;
+    font-weight: bold;
+    opacity: 0.5;
+}
+
+/* Context weights */
+.context-weights {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.context-weight-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.topic-name {
+    font-size: 13px;
+    color: #666;
+    min-width: 100px;
+    text-transform: capitalize;
+}
+
+.weight-bar {
+    flex: 1;
+    height: 8px;
+    background: #E3F2FD;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.weight-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4A90E2 0%, #66BB6A 100%);
+    transition: width 0.3s ease;
+}
+
+.weight-percent {
+    font-size: 12px;
+    color: #90A4AE;
+    font-weight: 600;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* ==========================================
+   🎯 AI Insights Card on Main Screen
+   ========================================== */
+
+.ai-insights-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 20px;
+    margin: 20px 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    color: white;
+}
+
+.ai-insights-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+.ai-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.ai-card-icon {
+    font-size: 36px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.ai-card-title {
+    flex: 1;
+}
+
+.ai-card-title h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: white;
+}
+
+.ai-card-title p {
+    font-size: 13px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.ai-card-arrow {
+    font-size: 24px;
+    opacity: 0.6;
+}
+
+.ai-card-stats {
+    display: flex;
+    gap: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ai-stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.ai-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+}
+
+.ai-stat-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+}

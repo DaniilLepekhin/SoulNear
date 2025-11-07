@@ -315,6 +315,32 @@ export const MainScreen = ({ isActive }: MainScreenProps) => {
             ))}
           </div>
         </div>
+
+        {/* AI Insights Card */}
+        <div className="ai-insights-card" onClick={() => setScreen('patterns')}>
+          <div className="ai-card-header">
+            <div className="ai-card-icon">🧠</div>
+            <div className="ai-card-title">
+              <h3>Мои паттерны</h3>
+              <p>AI анализ твоего поведения</p>
+            </div>
+            <div className="ai-card-arrow">→</div>
+          </div>
+          <div className="ai-card-stats">
+            <div className="ai-stat">
+              <span className="ai-stat-value">—</span>
+              <span className="ai-stat-label">паттернов</span>
+            </div>
+            <div className="ai-stat">
+              <span className="ai-stat-value">—</span>
+              <span className="ai-stat-label">инсайтов</span>
+            </div>
+            <div className="ai-stat">
+              <span className="ai-stat-value">—</span>
+              <span className="ai-stat-label">рекомендаций</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Bottom Navigation */}

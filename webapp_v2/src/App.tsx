@@ -16,6 +16,7 @@ import { AnalysisScreen } from './components/screens/AnalysisScreen';
 import { AnalysisChatScreen } from './components/screens/AnalysisChatScreen';
 import { AnalysisVoiceScreen } from './components/screens/AnalysisVoiceScreen';
 import { DreamsChatScreen } from './components/screens/DreamsChatScreen';
+import { PatternsScreen } from './components/screens/PatternsScreen';
 import { FullscreenPlayer } from './components/player/FullscreenPlayer';
 import { MiniPlayer } from './components/player/MiniPlayer';
 
@@ -51,6 +52,7 @@ function App() {
       <AnalysisChatScreen isActive={currentScreen === 'analysisChat'} />
       <AnalysisVoiceScreen isActive={currentScreen === 'analysisVoice'} />
       <DreamsChatScreen isActive={currentScreen === 'dreamsChat'} />
+      <PatternsScreen isActive={currentScreen === 'patterns'} />
 
       {/* Audio Players */}
       {showPlayer && activeTrack && <FullscreenPlayer />}

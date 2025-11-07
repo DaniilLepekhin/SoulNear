@@ -1100,5 +1100,266 @@ async def health_check():
         'database_configured': POSTGRES_PASSWORD != ''
     }), 200
 
+# ==========================================
+# 🧠 AI PATTERNS & INSIGHTS ENDPOINTS (NEW)
+# ==========================================
+
+@app.route('/api/profile/<int:user_id>/patterns', methods=['GET', 'OPTIONS'])
+async def get_user_patterns(user_id: int):
+    """Get user patterns from soul_bot database"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        # Import user_profile from soul_bot
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from database.repository.user_profile import get_or_create as get_user_profile
+
+        # Get user profile with patterns
+        profile = await get_user_profile(user_id)
+        patterns = profile.get('patterns', {}).get('patterns', [])
+
+        logger.info(f"Retrieved {len(patterns)} patterns for user {user_id}")
+        return jsonify({'patterns': patterns}), 200
+
+    except Exception as e:
+        logger.error(f"Error getting patterns for user {user_id}: {e}", exc_info=True)
+        # Return empty patterns instead of error
+        return jsonify({'patterns': []}), 200
+
+@app.route('/api/profile/<int:user_id>/insights', methods=['GET', 'OPTIONS'])
+async def get_user_insights(user_id: int):
+    """Get user insights from soul_bot database"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from database.repository.user_profile import get_or_create as get_user_profile
+
+        profile = await get_user_profile(user_id)
+        insights = profile.get('insights', {}).get('insights', [])
+
+        logger.info(f"Retrieved {len(insights)} insights for user {user_id}")
+        return jsonify({'insights': insights}), 200
+
+    except Exception as e:
+        logger.error(f"Error getting insights for user {user_id}: {e}", exc_info=True)
+        return jsonify({'insights': []}), 200
+
+@app.route('/api/profile/<int:user_id>/emotional-state', methods=['GET', 'OPTIONS'])
+async def get_emotional_state(user_id: int):
+    """Get user emotional state from soul_bot database"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from database.repository.user_profile import get_or_create as get_user_profile
+
+        profile = await get_user_profile(user_id)
+        emotional_state = profile.get('emotional_state', {
+            'current_mood': 'unknown',
+            'stress_level': 'medium',
+            'energy_level': 'medium'
+        })
+
+        logger.info(f"Retrieved emotional state for user {user_id}")
+        return jsonify(emotional_state), 200
+
+    except Exception as e:
+        logger.error(f"Error getting emotional state for user {user_id}: {e}", exc_info=True)
+        return jsonify({
+            'current_mood': 'unknown',
+            'stress_level': 'medium',
+            'energy_level': 'medium'
+        }), 200
+
+@app.route('/api/profile/<int:user_id>', methods=['GET', 'OPTIONS'])
+async def get_full_profile(user_id: int):
+    """Get full user profile with patterns, insights, emotional state"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from database.repository.user_profile import get_or_create as get_user_profile
+
+        profile = await get_user_profile(user_id)
+
+        logger.info(f"Retrieved full profile for user {user_id}")
+        return jsonify(profile), 200
+
+    except Exception as e:
+        logger.error(f"Error getting full profile for user {user_id}: {e}", exc_info=True)
+        return jsonify({
+            'user_id': user_id,
+            'patterns': {'patterns': []},
+            'insights': {'insights': []},
+            'emotional_state': {
+                'current_mood': 'unknown',
+                'stress_level': 'medium',
+                'energy_level': 'medium'
+            }
+        }), 200
+
+# ==========================================
+# 🎯 ADAPTIVE QUIZ ENDPOINTS (NEW)
+# ==========================================
+
+@app.route('/api/quiz/start', methods=['POST', 'OPTIONS'])
+async def start_quiz():
+    """Start a new adaptive quiz session"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        data = await request.get_json()
+        user_id = data.get('user_id')
+        category = data.get('category')
+
+        if not user_id or not category:
+            return jsonify({'status': 'error', 'message': 'Missing user_id or category'}), 400
+
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from bot.services.quiz_service.generator import start_quiz_session
+
+        # Start quiz session
+        session = await start_quiz_session(user_id, category)
+
+        logger.info(f"Started quiz session {session['session_id']} for user {user_id}, category {category}")
+        return jsonify(session), 200
+
+    except Exception as e:
+        logger.error(f"Error starting quiz: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/quiz/<session_id>/question', methods=['GET', 'OPTIONS'])
+async def get_quiz_question(session_id: str):
+    """Get next question for quiz session"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from bot.services.quiz_service.generator import get_next_question
+
+        question = await get_next_question(session_id)
+
+        if not question:
+            return jsonify({'status': 'completed', 'message': 'Quiz completed'}), 200
+
+        return jsonify(question), 200
+
+    except Exception as e:
+        logger.error(f"Error getting quiz question: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/quiz/<session_id>/answer', methods=['POST', 'OPTIONS'])
+async def submit_quiz_answer(session_id: str):
+    """Submit answer to quiz question"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        data = await request.get_json()
+        question_id = data.get('question_id')
+        answer = data.get('answer')
+
+        if not question_id or not answer:
+            return jsonify({'status': 'error', 'message': 'Missing question_id or answer'}), 400
+
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from bot.services.quiz_service.generator import submit_answer
+
+        result = await submit_answer(session_id, question_id, answer)
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Error submitting quiz answer: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/quiz/<session_id>/result', methods=['GET', 'OPTIONS'])
+async def get_quiz_result(session_id: str):
+    """Get final quiz analysis result"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from bot.services.quiz_service.generator import get_quiz_result as get_result
+
+        result = await get_result(session_id)
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Error getting quiz result: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/quiz/active/<int:user_id>', methods=['GET', 'OPTIONS'])
+async def get_active_quizzes(user_id: int):
+    """Get active quiz sessions for user"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    try:
+        import sys
+        import os
+        soul_bot_path = os.path.join(os.path.dirname(__file__), '..', 'soul_bot')
+        if soul_bot_path not in sys.path:
+            sys.path.insert(0, soul_bot_path)
+
+        from bot.services.quiz_service.generator import get_active_sessions
+
+        quizzes = await get_active_sessions(user_id)
+
+        return jsonify({'quizzes': quizzes}), 200
+
+    except Exception as e:
+        logger.error(f"Error getting active quizzes: {e}", exc_info=True)
+        return jsonify({'quizzes': []}), 200
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8888, debug=False)

@@ -185,6 +185,121 @@ class ApiService {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
+
+  // ==========================================
+  // 🧠 AI PATTERNS & INSIGHTS (NEW)
+  // ==========================================
+
+  async getUserProfile(userId: number) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/profile/${userId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getPatterns(userId: number) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/profile/${userId}/patterns`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data: data.patterns || [] };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getInsights(userId: number) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/profile/${userId}/insights`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data: data.insights || [] };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getEmotionalState(userId: number) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/profile/${userId}/emotional-state`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  // ==========================================
+  // 🎯 ADAPTIVE QUIZZES (NEW)
+  // ==========================================
+
+  async startQuiz(userId: number, category: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/quiz/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, category })
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getQuizQuestion(sessionId: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/quiz/${sessionId}/question`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async submitQuizAnswer(sessionId: string, questionId: string, answer: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/quiz/${sessionId}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_id: questionId, answer })
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getQuizResult(sessionId: string) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/quiz/${sessionId}/result`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getActiveQuizzes(userId: number) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/quiz/active/${userId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { success: true, data: data.quizzes || [] };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
 }
 
 export const api = new ApiService();
