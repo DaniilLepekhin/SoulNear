@@ -9,7 +9,11 @@ import type { Pattern } from '../../types';
 
 declare const Telegram: any;
 
-export const PatternsScreen = () => {
+interface PatternsScreenProps {
+  isActive: boolean;
+}
+
+export const PatternsScreen = ({ isActive }: PatternsScreenProps) => {
   const telegram = Telegram?.WebApp;
   const { user, setScreen } = useAppStore();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
@@ -18,8 +22,9 @@ export const PatternsScreen = () => {
   const [filterType, setFilterType] = useState<'all' | 'behavioral' | 'emotional' | 'cognitive'>('all');
 
   useEffect(() => {
+    if (!isActive) return;
     loadPatterns();
-  }, [user]);
+  }, [isActive, user]);
 
   const loadPatterns = async () => {
     if (!user) return;
@@ -73,7 +78,7 @@ export const PatternsScreen = () => {
 
   if (loading) {
     return (
-      <div className="screen">
+      <div className={`screen ${isActive ? 'active' : ''}`}>
         <div className="screen-header">
           <button className="back-button" onClick={handleBack}>
             ← Назад
@@ -90,7 +95,7 @@ export const PatternsScreen = () => {
 
   if (selectedPattern) {
     return (
-      <div className="screen pattern-detail-screen">
+      <div className={`screen pattern-detail-screen ${isActive ? 'active' : ''}`}>
         <div className="screen-header">
           <button className="back-button" onClick={handleBack}>
             ← Назад
@@ -205,7 +210,7 @@ export const PatternsScreen = () => {
   }
 
   return (
-    <div className="screen patterns-screen">
+    <div className={`screen patterns-screen ${isActive ? 'active' : ''}`}>
       <div className="screen-header">
         <button className="back-button" onClick={handleBack}>
           ← Назад
