@@ -32,8 +32,18 @@ def _build_engine(database_name: str) -> AsyncEngine:
         future=True,
         pool_size=20,
         max_overflow=10,
-        pool_pre_ping=True,
-        pool_recycle=3600,
+        pool_pre_ping=True,  # Test connections before using them
+        pool_recycle=3600,  # Recycle connections after 1 hour
+        pool_timeout=30,  # Wait up to 30s for connection from pool
+        echo=False,  # Set to True for SQL query debugging
+        connect_args={
+            'timeout': 10,  # Connection timeout in seconds (numeric for asyncpg)
+            'command_timeout': 30,  # Command execution timeout (numeric)
+            'server_settings': {
+                'application_name': 'soulnear_bot',
+                'jit': 'off',  # Disable JIT for stability
+            },
+        },
     )
 
 

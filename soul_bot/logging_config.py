@@ -58,6 +58,22 @@ def configure_logging() -> None:
                     "handlers": ["file"],
                     "propagate": False,
                 },
+                # Настройка логгеров aiogram и других библиотек
+                "aiogram": {
+                    "level": "INFO",
+                    "handlers": ["console", "file"],
+                    "propagate": False,
+                },
+                "aiogram.event": {
+                    "level": "WARNING",
+                    "handlers": ["console", "file"],
+                    "propagate": False,
+                },
+                "apscheduler": {
+                    "level": "INFO",
+                    "handlers": ["console", "file"],
+                    "propagate": False,
+                },
             },
         }
     )
