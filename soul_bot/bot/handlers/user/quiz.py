@@ -17,6 +17,7 @@ from aiogram import F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.exceptions import TelegramBadRequest
 
 from bot.loader import dp
 from bot.states.states import QuizStates
@@ -70,13 +71,39 @@ async def quiz_command(message: Message):
     )
 
 
+async def _safe_set_text(message: Message, text: str, **kwargs) -> Message:
+    """
+    Edit message text when possible, otherwise send a new message.
+    Returns message that contains the requested text.
+    """
+    if message.text:
+        try:
+            await message.edit_text(text, **kwargs)
+            return message
+        except TelegramBadRequest as exc:  # noqa: BLE001
+            error = str(exc).lower()
+            if "message is not modified" in error:
+                return message
+            if "there is no text in the message to edit" not in error and "message can't be edited" not in error:
+                raise
+
+    new_message = await message.answer(text, **kwargs)
+
+    try:
+        await message.edit_reply_markup(reply_markup=None)
+    except TelegramBadRequest:
+        pass
+
+    return new_message
+
+
 @dp.callback_query(F.data == 'quiz_start')
 async def quiz_start_callback(call: CallbackQuery):
     """
     Кнопка "🧠 Психологический квиз" из главного меню
     """
     if not is_feature_enabled('ENABLE_DYNAMIC_QUIZ'):
-        await call.message.edit_text("⚠️ Квизы временно недоступны")
+        await _safe_set_text(call.message, "⚠️ Квизы временно недоступны")
         await call.answer()
         return
     
@@ -84,7 +111,8 @@ async def quiz_start_callback(call: CallbackQuery):
     active_session = await db_quiz_session.get_active(call.from_user.id)
     if active_session:
         # Resume
-        await call.message.edit_text(
+        await _safe_set_text(
+            call.message,
             "📝 У вас есть незавершённый квиз!\n\n"
             f"Категория: {active_session.category}\n"
             f"Прогресс: {active_session.current_question_index}/{active_session.total_questions}\n\n"
@@ -95,7 +123,8 @@ async def quiz_start_callback(call: CallbackQuery):
         return
     
     # Показываем категории
-    await call.message.edit_text(
+    await _safe_set_text(
+        call.message,
         "🧠 <b>Психологические квизы</b>\n\n"
         "Выберите категорию для прохождения квиза:\n\n"
         "Квиз поможет выявить ваши поведенческие паттерны и даст персональные рекомендации.",
@@ -154,7 +183,8 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
         await _show_current_question(call.message, quiz_session, state)
         
     except Exception as e:
-        await call.message.edit_text(
+        await _safe_set_text(
+            call.message,
             f"⚠️ Ошибка при создании квиза: {e}\n\n"
             "Попробуйте позже или обратитесь в поддержку."
         )
@@ -549,7 +579,8 @@ async def cancel_quiz_callback(call: CallbackQuery, state: FSMContext):
     
     await state.clear()
     
-    await call.message.edit_text(
+    await _safe_set_text(
+        call.message,
         "❌ Квиз отменён.\n\n"
         "Вы можете начать новый в любое время: /quiz"
     )
@@ -608,7 +639,8 @@ async def new_quiz_callback(call: CallbackQuery):
         await db_quiz_session.cancel(active_session.id)
     
     # Показываем категории
-    await call.message.edit_text(
+    await _safe_set_text(
+        call.message,
         "🧠 <b>Выберите категорию квиза:</b>",
         reply_markup=_categories_keyboard(),
         parse_mode='HTML'
