@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: soulnear_postgres
     restart: unless-stopped
     env_file:
@@ -14,7 +14,7 @@ services:
       # ✅ FIX: Mount init script to auto-create database
       - ./docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     ports:
-      - "5432:5432"
+      - "15432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d soul_bot"]
       interval: 10s
@@ -58,7 +58,7 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
     ports:
-      - "8888:8888"
+      - "18888:8888"
     depends_on:
       postgres:
         condition: service_healthy
