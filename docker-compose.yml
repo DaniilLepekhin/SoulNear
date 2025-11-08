@@ -16,7 +16,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d soul_bot"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d soul_bot"]
       interval: 10s
       timeout: 5s
       retries: 5
