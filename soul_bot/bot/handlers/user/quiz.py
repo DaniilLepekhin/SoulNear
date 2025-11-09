@@ -29,6 +29,7 @@ import database.repository.quiz_session as db_quiz_session
 import database.repository.user_profile as db_user_profile
 from bot.keyboards.start import menu as main_menu_keyboard
 from config import is_feature_enabled
+import bot.text as texts
 
 # Initialize adaptive quiz service
 gpt_service = GPTService()
@@ -140,54 +141,96 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
     Начать квиз по выбранной категории
     """
     category = call.data.replace('quiz_category_', '')
+    intro_text = _get_quiz_intro_text(category)
+
+    if not intro_text:
+        await call.answer("⚠️ Квиз временно недоступен", show_alert=True)
+        return
+
+    await state.update_data(selected_quiz_category=category)
+
+    await _safe_set_text(
+        call.message,
+        intro_text,
+        reply_markup=_quiz_confirmation_keyboard(category)
+    )
+
+    await call.answer()
+
+
+# ==========================================
+# ✅ ПОДТВЕРЖДЕНИЕ ПЕРЕД СТАРТОМ
+# ==========================================
+
+@dp.callback_query(F.data.startswith('quiz_confirm_'))
+async def confirm_quiz_start(call: CallbackQuery, state: FSMContext):
+    category = call.data.replace('quiz_confirm_', '')
+
+    await _start_quiz_for_category(call, state, category)
+
+
+@dp.callback_query(F.data == 'quiz_back_to_categories')
+async def quiz_back_to_categories(call: CallbackQuery, state: FSMContext):
+    await state.update_data(selected_quiz_category=None)
+
+    await _safe_set_text(
+        call.message,
+        "🧠 <b>Психологические квизы</b>\n\n"
+        "Выберите категорию для прохождения квиза:\n\n"
+        "Квиз поможет выявить ваши поведенческие паттерны и даст персональные рекомендации.",
+        reply_markup=_categories_keyboard(),
+        parse_mode='HTML'
+    )
+
+    await call.answer()
+
+
+async def _start_quiz_for_category(call: CallbackQuery, state: FSMContext, category: str):
     user_id = call.from_user.id
-    
-    await call.answer("🔄 Генерирую вопросы...")
-    
+
+    await call.answer("🔄 Подготавливаю вопросы...")
+
+    loading_message = await _safe_set_text(
+        call.message,
+        "🔄 Готовлю вопросы...",
+        reply_markup=None
+    )
+
     try:
-        # Получаем профиль (для V2 адаптации, пока не используется)
         profile = await db_user_profile.get_or_create(user_id)
         profile_data = {
             "patterns": profile.patterns.get('patterns', [])
         }
-        
-        # Генерируем вопросы (MVP: без адаптации)
+
         questions = await generator.generate_questions(
             category=category,
             count=3,
-            user_profile=profile_data  # ← параметр готов для V2!
+            user_profile=profile_data
         )
-        
-        # Создаём сессию
+
         quiz_session = await db_quiz_session.create(
             user_id=user_id,
             category=category,
             questions=questions,
             total_questions=generator.TARGET_QUESTION_COUNT,
         )
-        
-        # Сохраняем session_id в FSM
+
         await state.update_data(
+            selected_quiz_category=None,
             quiz_session_id=quiz_session.id,
             last_question_message_id=None
         )
         await state.set_state(QuizStates.waiting_for_answer)
-        
-        # Скрываем клавиатуру категорий
-        try:
-            await call.message.edit_reply_markup(reply_markup=None)
-        except Exception:
-            pass
 
-        # Показываем первый вопрос
-        await _show_current_question(call.message, quiz_session, state)
-        
+        await _show_current_question(loading_message, quiz_session, state)
+
     except Exception as e:
         await _safe_set_text(
-            call.message,
+            loading_message,
             f"⚠️ Ошибка при создании квиза: {e}\n\n"
             "Попробуйте позже или обратитесь в поддержку."
         )
+        await state.update_data(selected_quiz_category=None)
 
 
 # ==========================================
@@ -546,8 +589,9 @@ async def _finish_quiz(message: Message, quiz_session, state: FSMContext):
         
         # Возвращаем главное меню
         await message.answer(
-            "🏠 Главная",
-            reply_markup=main_menu_keyboard
+            texts.menu,
+            reply_markup=main_menu_keyboard,
+            disable_web_page_preview=True
         )
         
     except Exception as e:
@@ -586,8 +630,9 @@ async def cancel_quiz_callback(call: CallbackQuery, state: FSMContext):
     )
 
     await call.message.answer(
-        "🏠 Главное меню",
-        reply_markup=main_menu_keyboard
+        texts.menu,
+        reply_markup=main_menu_keyboard,
+        disable_web_page_preview=True
     )
 
 
@@ -869,6 +914,22 @@ def _categories_keyboard() -> InlineKeyboardMarkup:
         ])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def _quiz_confirmation_keyboard(category: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Готов", callback_data=f"quiz_confirm_{category}")],
+        [InlineKeyboardButton(text="↩️ Назад", callback_data="quiz_back_to_categories")]
+    ])
+
+
+def _get_quiz_intro_text(category: str) -> str | None:
+    mapping = {
+        'relationships': texts.relationships,
+        'money': texts.money,
+        'purpose': texts.purpose,
+    }
+    return mapping.get(category)
 
 
 def _add_emoji_to_option(text: str) -> str:

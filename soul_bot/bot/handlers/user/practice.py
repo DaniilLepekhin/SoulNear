@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 import bot.keyboards.media as kb
+import bot.text as texts
 from bot.functions.other import check_sub
 from bot.loader import dp
 import database.repository.media_category as db_media_category
@@ -21,13 +22,10 @@ async def media_categories_callback(call: CallbackQuery, state: FSMContext):
 
     match category:
         case 'practices':
-            text = ("🧘🏼 Ты внутри практик <b>Soul Near</b>.\n\n"
-                    "Здесь не дают советов — здесь ты <b>вспоминаешь себя</b>.\n\n"
-                    "Выбери, с чем ты хочешь быть сегодня:")
+            text = texts.practice_intro
 
         case 'videos':
-            text = ("Этот раздел содержит видео-практики, с ними тебя познакомят наши учителя. "
-                    "Заручись их поддержкой и отправляйся в путь к балансу тела и души.")
+            text = texts.video_intro
 
     categories = await db_media_category.get_all_by_type(category=category)
     await call.message.answer(text=text,

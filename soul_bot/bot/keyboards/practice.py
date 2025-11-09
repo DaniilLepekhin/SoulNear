@@ -87,5 +87,4 @@ to_practices = InlineKeyboardMarkup(inline_keyboard=[
 
 #Возвратиться в меню
 to_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🧹 Стереть прошлый контекст', callback_data='clear_context')],
     [InlineKeyboardButton(text='↩️ Назад', callback_data='menu')]])
