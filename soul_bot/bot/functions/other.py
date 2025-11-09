@@ -10,6 +10,7 @@ from aiogram.fsm.context import FSMContext
 import database.repository.user as db_user
 from bot.functions.speech import convert_voice, transcribe_audio
 from bot.keyboards.premium import sub_menu
+from bot.keyboards.start import start
 from bot.loader import bot
 import uuid
 from aiogram.enums import ChatAction
@@ -86,12 +87,15 @@ async def check_user_info(message: Message, state: FSMContext):
         return False
 
     if user.real_name is None:
-        m = await message.answer('Перед тем как мы начнем, расскажи немного о себе.\n'
-                                 'Какое у тебя имя?')
+        current_state = await state.get_state()
+        if current_state == Update_user_info.real_name.state:
+            return False
 
-        await state.set_state(Update_user_info.real_name)
-        await state.update_data(is_profile=False,
-                                message_id = m.message_id)
+        await state.update_data(is_profile=False)
+        await message.answer(texts.greet,
+                             reply_markup=start,
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')
         return False
 
     return True

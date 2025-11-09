@@ -12,7 +12,7 @@ from bot.keyboards.profile import (
     tone_menu, personality_menu, length_menu,
     build_style_settings_menu_v2
 )
-from bot.keyboards.start import age_question, back, menu, quiz_offer
+from bot.keyboards.start import age_question, back, menu
 from bot.loader import dp, bot
 import bot.text as texts
 import database.repository.user as db_user
@@ -22,6 +22,10 @@ from config import is_feature_enabled
 from bot.services.text_formatting import (
     localize_pattern_title,
     safe_shorten,
+)
+from bot.services.quiz_ui import (
+    build_quiz_entry_keyboard,
+    get_quiz_intro_text,
 )
 
 
@@ -563,9 +567,10 @@ async def update_user_gender(call: CallbackQuery, state: FSMContext):
     if data['is_profile']:
         await profile_callback(call, state)
     else:
-        await call.message.answer(text=texts.quiz_offer,
-                                  reply_markup=quiz_offer,
-                                  disable_web_page_preview=True)
+        await call.message.answer(text=texts.menu,
+                                  reply_markup=menu,
+                                  disable_web_page_preview=True,
+                                  parse_mode='HTML')
         await call.answer()
         return
 

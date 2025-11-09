@@ -17,14 +17,44 @@ from bot.keyboards.premium import sub_menu
 from bot.loader import dp, bot
 from bot.states.states import get_prompt, Update_user_info
 from bot.keyboards.start import menu as menu_keyboard, start
+from bot.services.quiz_ui import (
+    build_quiz_entry_keyboard,
+    get_quiz_intro_text,
+)
 import database.repository.user as db_user
 import database.repository.ads as db_ads
 
+QUIZ_DEEPLINK_PREFIX = 'quiz_'
+@dp.callback_query(F.data == 'start_accept')
+async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    prompt = await callback.message.answer('Перед тем как мы начнём, расскажи немного о себе.\n'
+                                           'Как тебя зовут?')
+
+    await state.set_state(Update_user_info.real_name)
+    await state.update_data(is_profile=False,
+                            message_id=prompt.message_id)
+
+
 @dp.message(CommandStart())
-async def start_message(message: Message):
+async def start_message(message: Message, state: FSMContext):
+    await state.clear()
+
     user_id = message.from_user.id
 
-    link = None if message.text == '/start' else message.text.split()[1]
+    parts = (message.text or '').split()
+    link = parts[1] if len(parts) > 1 else None
+
+    if link and link.startswith(QUIZ_DEEPLINK_PREFIX):
+        candidate = link[len(QUIZ_DEEPLINK_PREFIX):]
+        if get_quiz_intro_text(candidate):
+            await state.update_data(pending_quiz_category=candidate)
 
     if link:
         if not link.isdigit():
@@ -51,26 +81,70 @@ async def start_message(message: Message):
                 await bot.send_message(chat_id=int(link),
                                        text='🎉 +3 дня к подписки за приведенного друга!')
 
-    await message.answer(text=texts.greet,
-                         reply_markup=start,
-                         disable_web_page_preview=True)
+    data = await state.get_data()
+    pending_category = data.get('pending_quiz_category')
+
+    if pending_category:
+        intro_text = get_quiz_intro_text(pending_category)
+        if intro_text:
+            await message.answer(
+                intro_text,
+                parse_mode='HTML'
+            )
+            await _start_quiz_for_category(message, state, pending_category)
+            return
+        await state.update_data(pending_quiz_category=None)
+
+    await message.answer(text=texts.quiz_entry,
+                         reply_markup=build_quiz_entry_keyboard(),
+                         disable_web_page_preview=True,
+                         parse_mode='HTML')
 
 
 @dp.message(Command('menu'))
 async def menu_message(message: Message, state: FSMContext):
+    if await _maybe_send_pending_quiz(message, state):
+        try:
+            await message.delete()
+        except:
+            pass
+        return
+
+    if not await check_user_info(message=message, state=state):
+        return
+
     try:
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
-                             disable_web_page_preview=True)
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')
     except Exception as e:
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
-                             disable_web_page_preview=True)
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')
     
     try:
         await message.delete()
     except:
         pass
+
+
+async def _maybe_send_pending_quiz(message: Message, state: FSMContext) -> bool:
+    data = await state.get_data()
+    pending_category = data.get('pending_quiz_category')
+
+    if pending_category:
+        intro_text = get_quiz_intro_text(pending_category)
+        if intro_text:
+            await state.update_data(pending_quiz_category=None)
+            await message.answer(
+                intro_text,
+                parse_mode='HTML'
+            )
+            return True
+
+    return False
 
 
 @dp.message(Command('deletecontext'))
@@ -146,26 +220,35 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
 
     if not await check_user_info(message=callback.message, state=state):
+        await callback.answer()
+        return
+
+    if await _maybe_send_pending_quiz(callback.message, state):
+        await callback.answer()
         return
 
     try:
         await callback.message.answer(text=texts.menu,
                                       reply_markup=menu_keyboard,
-                                      disable_web_page_preview=True)
+                                      disable_web_page_preview=True,
+                                      parse_mode='HTML')
     except Exception as e:
         print(f"Ошибка при отправке видео: {e}")
         await callback.message.answer(text=texts.menu,
                                       reply_markup=menu_keyboard,
-                                      disable_web_page_preview=True)
+                                      disable_web_page_preview=True,
+                                      parse_mode='HTML')
 
 
 async def menu_message_not_delete(message: Message):
     try:
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
-                             disable_web_page_preview=True)
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')
     except Exception as e:
         print(f"Ошибка при отправке видео: {e}")
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
-                             disable_web_page_preview=True)
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')

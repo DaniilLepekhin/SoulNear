@@ -7,7 +7,7 @@ _QUIZ_CATEGORY_BUTTONS = [
 ]
 
 start = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='✅ Принять и продолжить', callback_data='menu')]
+    [InlineKeyboardButton(text='✅ Принять и продолжить', callback_data='start_accept')]
 ])
 
 menu = InlineKeyboardMarkup(inline_keyboard=[
@@ -27,11 +27,4 @@ back = InlineKeyboardMarkup(inline_keyboard=[
 age_question = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🙈 Не важно', callback_data='age_skip')],
     [InlineKeyboardButton(text='↩️ Назад', callback_data='menu')]
-])
-
-quiz_offer = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text=label, callback_data=f'quiz_category_{category}')]
-    for category, label in _QUIZ_CATEGORY_BUTTONS
-] + [
-    [InlineKeyboardButton(text='🏠 Главное меню', callback_data='menu')]
 ])
