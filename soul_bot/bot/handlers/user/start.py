@@ -19,12 +19,6 @@ from bot.states.states import get_prompt, Update_user_info
 from bot.keyboards.start import menu as menu_keyboard, start
 import database.repository.user as db_user
 import database.repository.ads as db_ads
-from config import TEST
-
-# MENU_VIDEO - file_id для видео меню (если доступен)
-# Если видео недоступно, бот отправит текст вместо видео
-MENU_VIDEO = 'BAACAgIAAxkBAAI6cGg4w8Vk5fnwf7A-9jUr3Q6WmfGOAAJ6dAACEmXISc7N8yQYdufxNgQ'
-
 
 @dp.message(CommandStart())
 async def start_message(message: Message):
@@ -65,17 +59,13 @@ async def start_message(message: Message):
 @dp.message(Command('menu'))
 async def menu_message(message: Message, state: FSMContext):
     try:
-        if TEST:
-            await message.answer(text=texts.menu,
-                                 reply_markup=menu_keyboard)
-        else:
-            await message.answer_video(video=MENU_VIDEO,
-                                       caption=texts.menu,
-                                       reply_markup=menu_keyboard)
-    except Exception as e:
-        # Если видео недоступно, отправляем просто текст
         await message.answer(text=texts.menu,
-                             reply_markup=menu_keyboard)
+                             reply_markup=menu_keyboard,
+                             disable_web_page_preview=True)
+    except Exception as e:
+        await message.answer(text=texts.menu,
+                             reply_markup=menu_keyboard,
+                             disable_web_page_preview=True)
     
     try:
         await message.delete()
@@ -159,31 +149,23 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
         return
 
     try:
-        if TEST:
-            await callback.message.answer(text=texts.menu,
-                                          reply_markup=menu_keyboard)
-        else:
-            await callback.message.answer_video(video=MENU_VIDEO,
-                                                caption=texts.menu,
-                                                reply_markup=menu_keyboard)
+        await callback.message.answer(text=texts.menu,
+                                      reply_markup=menu_keyboard,
+                                      disable_web_page_preview=True)
     except Exception as e:
-        # Если видео недоступно (wrong file identifier), отправляем просто текст
         print(f"Ошибка при отправке видео: {e}")
         await callback.message.answer(text=texts.menu,
-                                      reply_markup=menu_keyboard)
+                                      reply_markup=menu_keyboard,
+                                      disable_web_page_preview=True)
 
 
 async def menu_message_not_delete(message: Message):
     try:
-        if TEST:
-            await message.answer(text=texts.menu,
-                                 reply_markup=menu_keyboard)
-        else:
-            await message.answer_video(video=MENU_VIDEO,
-                                       caption=texts.menu,
-                                       reply_markup=menu_keyboard)
+        await message.answer(text=texts.menu,
+                             reply_markup=menu_keyboard,
+                             disable_web_page_preview=True)
     except Exception as e:
-        # Если видео недоступно, отправляем просто текст
         print(f"Ошибка при отправке видео: {e}")
         await message.answer(text=texts.menu,
-                             reply_markup=menu_keyboard)
+                             reply_markup=menu_keyboard,
+                             disable_web_page_preview=True)

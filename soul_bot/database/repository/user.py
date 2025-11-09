@@ -1,5 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
+from typing import Optional
+
 from sqlalchemy import select, update, func
 from database.database import db
 from database.models.user import User
@@ -156,7 +158,10 @@ async def refresh_requests():
         await session.commit()  # ⚠️ FIX: Commit изменений в БД!
 
 
-async def update_info(user_id: int, real_name: str, age: int, gender: bool) -> None:
+async def update_info(user_id: int,
+                      real_name: str,
+                      age: Optional[int],
+                      gender: Optional[bool]) -> None:
     async with db() as session:
         await session.execute(update(User).
                               values(real_name=real_name,

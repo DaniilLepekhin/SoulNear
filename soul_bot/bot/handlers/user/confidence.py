@@ -29,7 +29,7 @@ async def confidence(callback: CallbackQuery, state: FSMContext):
         await conversation_history.clear(user_id=user_id, assistant_type='confidence')
 
         await callback.message.answer(
-            texts.money,
+            texts.purpose,
             reply_markup=keyboards.to_menu,
             parse_mode='html',
             protect_content=True

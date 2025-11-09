@@ -12,6 +12,7 @@ profile_menu = InlineKeyboardMarkup(inline_keyboard=[
 gender_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='👩 Женский', callback_data='gender 0')],
     [InlineKeyboardButton(text='🧔‍♂️ Мужской', callback_data='gender 1')],
+    [InlineKeyboardButton(text='😶 Не важно', callback_data='gender none')],
     [InlineKeyboardButton(text='↩️ Назад', callback_data='menu')]
 ])
 
