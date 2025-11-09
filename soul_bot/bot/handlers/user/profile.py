@@ -12,8 +12,9 @@ from bot.keyboards.profile import (
     tone_menu, personality_menu, length_menu,
     build_style_settings_menu_v2
 )
-from bot.keyboards.start import back, menu
+from bot.keyboards.start import age_question, back, menu, quiz_offer
 from bot.loader import dp, bot
+import bot.text as texts
 import database.repository.user as db_user
 import database.repository.user_profile as db_user_profile
 from bot.states.states import Update_user_info
@@ -451,6 +452,23 @@ async def update_user_info_start(call: CallbackQuery, state: FSMContext):
                             message_id=m.message_id)
 
 
+async def _delete_prompt_message(chat_id: int, message_id: int | None):
+    if not message_id:
+        return
+
+    try:
+        await bot.delete_message(chat_id=chat_id,
+                                 message_id=message_id)
+    except Exception:
+        pass
+
+
+async def _prompt_gender(message: Message, state: FSMContext):
+    gender_message = await message.answer(text='Твой пол?',
+                                          reply_markup=gender_menu)
+    await state.update_data(message_id=gender_message.message_id)
+
+
 @dp.message(Update_user_info.real_name)
 async def update_user_real_name(message: Message, state: FSMContext):
     real_name = message.text
@@ -462,11 +480,11 @@ async def update_user_real_name(message: Message, state: FSMContext):
 
     data = await state.get_data()
 
-    await bot.delete_message(chat_id=message.chat.id,
-                             message_id=data['message_id'])
+    await _delete_prompt_message(chat_id=message.chat.id,
+                                 message_id=data.get('message_id'))
 
     m = await message.answer(text='Сколько тебе полных лет? ',
-                             reply_markup=back)
+                             reply_markup=age_question)
 
     await state.update_data(real_name=real_name,
                             message_id=m.message_id)
@@ -476,39 +494,82 @@ async def update_user_real_name(message: Message, state: FSMContext):
 
 @dp.message(Update_user_info.age)
 async def update_user_age(message: Message, state: FSMContext):
-    age = int(message.text)
     await message.delete()
 
+    raw_value = (message.text or '').strip()
+    if not raw_value.isdigit():
+        await message.answer('Возраст должен быть числом от 0 до 100 или нажми «Не важно».')
+        return
+
+    age = int(raw_value)
     if age < 0 or age > 100:
+        await message.answer('Возраст должен быть числом от 0 до 100 или нажми «Не важно».')
         return
 
     data = await state.get_data()
-
-    await bot.delete_message(chat_id=message.chat.id,
-                             message_id=data['message_id'])
+    await _delete_prompt_message(chat_id=message.chat.id,
+                                 message_id=data.get('message_id'))
 
     await state.update_data(age=age)
-    await message.answer(text='Твой пол?',
-                         reply_markup=gender_menu)
+    await _prompt_gender(message, state)
+
+
+@dp.callback_query(Update_user_info.age, F.data == 'age_skip')
+async def skip_user_age(call: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+
+    await _delete_prompt_message(chat_id=call.message.chat.id,
+                                 message_id=data.get('message_id'))
+    await state.update_data(age=None)
+
+    await _prompt_gender(call.message, state)
+    await call.answer('Возраст скрыт.')
 
 
 @dp.callback_query(F.data.startswith('gender'))
 async def update_user_gender(call: CallbackQuery, state: FSMContext):
-    gender = bool(int(call.data.split()[1]))
     data = await state.get_data()
+
+    parts = call.data.split()
+    if len(parts) != 2:
+        await call.answer('Выбери вариант из списка.', show_alert=True)
+        return
+
+    gender_value: bool | None
+    match parts[1]:
+        case '0':
+            gender_value = False
+        case '1':
+            gender_value = True
+        case 'none':
+            gender_value = None
+        case _:
+            await call.answer('Выбери вариант из списка.', show_alert=True)
+            return
+
+    try:
+        await call.message.delete()
+    except Exception:
+        pass
 
     await db_user.update_info(user_id=call.from_user.id,
                               real_name=data['real_name'],
-                              age=data['age'],
-                              gender=gender)
+                              age=data.get('age'),
+                              gender=gender_value)
     
-    # ⚠️ FIX: Очищаем state ПЕРЕД menu_callback, чтобы избежать race condition
+    # ⚠️ FIX: Очищаем state перед переходом к следующему экрану, чтобы избежать race-condition
     await state.clear()
     
     if data['is_profile']:
         await profile_callback(call, state)
     else:
-        await menu_callback(call, state)
+        await call.message.answer(text=texts.quiz_offer,
+                                  reply_markup=quiz_offer,
+                                  disable_web_page_preview=True)
+        await call.answer()
+        return
+
+    await call.answer()
 
 
 # ==========================================
