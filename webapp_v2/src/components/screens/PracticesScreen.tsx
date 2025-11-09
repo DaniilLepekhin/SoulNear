@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { api } from '../../services/api';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
+import { useVideoPlayer } from '../../hooks/useVideoPlayer';
 import type { Track } from '../../types';
 
 interface PracticesScreenProps {
@@ -11,7 +12,17 @@ interface PracticesScreenProps {
 export const PracticesScreen = ({ isActive }: PracticesScreenProps) => {
   const setScreen = useAppStore((state) => state.setScreen);
   const [practicesData, setPracticesData] = useState<{ practices: any[]; music?: any[]; videos?: any[] } | null>(null);
-  const { playTrack } = useAudioPlayer();
+  const { playTrack: playAudioTrack } = useAudioPlayer();
+  const { playTrack: playVideoTrack } = useVideoPlayer();
+
+  // Helper function to play track based on mediaType
+  const playTrack = (track: Track) => {
+    if (track.mediaType === 'video') {
+      playVideoTrack(track);
+    } else {
+      playAudioTrack(track);
+    }
+  };
 
   useEffect(() => {
     loadPractices();
@@ -187,7 +198,8 @@ export const PracticesScreen = ({ isActive }: PracticesScreenProps) => {
                           media_id: item.media_id || String(idx),
                           name: item.name,
                           url: item.url,
-                          category: 'Йога'
+                          category: 'Йога',
+                          mediaType: 'video'  // 🎬 Yoga videos are video content
                         };
                         playTrack(track);
                       }
@@ -239,7 +251,8 @@ export const PracticesScreen = ({ isActive }: PracticesScreenProps) => {
                     name: track.name,
                     url: track.url,
                     duration: track.duration,
-                    category: 'Музыка'
+                    category: 'Музыка',
+                    mediaType: 'audio'  // 🎵 Music tracks are audio content
                   };
                   playTrack(audioTrack);
                 }}>

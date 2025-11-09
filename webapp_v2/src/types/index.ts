@@ -89,6 +89,7 @@ export interface Track {
   duration?: string;
   url?: string;
   category?: string;
+  mediaType?: 'audio' | 'video';  // 🎬 Distinguish between audio and video content
 }
 
 // ==========================================

@@ -18,6 +18,7 @@ import { AnalysisVoiceScreen } from './components/screens/AnalysisVoiceScreen';
 import { DreamsChatScreen } from './components/screens/DreamsChatScreen';
 import { PatternsScreen } from './components/screens/PatternsScreen';
 import { FullscreenPlayer } from './components/player/FullscreenPlayer';
+import { VideoPlayer } from './components/player/VideoPlayer';
 import { MiniPlayer } from './components/player/MiniPlayer';
 
 function App() {
@@ -54,9 +55,11 @@ function App() {
       <DreamsChatScreen isActive={currentScreen === 'dreamsChat'} />
       <PatternsScreen isActive={currentScreen === 'patterns'} />
 
-      {/* Audio Players */}
-      {showPlayer && activeTrack && <FullscreenPlayer />}
-      {!showPlayer && activeTrack && <MiniPlayer />}
+      {/* Media Players */}
+      {showPlayer && activeTrack && (
+        activeTrack.mediaType === 'video' ? <VideoPlayer /> : <FullscreenPlayer />
+      )}
+      {!showPlayer && activeTrack && activeTrack.mediaType !== 'video' && <MiniPlayer />}
     </>
   );
 }
