@@ -12,6 +12,12 @@
 - Динамические system prompts
 - Feature flag `USE_CHAT_COMPLETION`
 
+**Артефакты:**
+- Добавлены модели SQLAlchemy и репозитории для `user_profiles`, `conversation_history`, `quiz_sessions`.
+- Автоматический раннер миграций (`database/migration_runner.py`) и слой устойчивости (`database/resilience.py`).
+- Health monitor проверяет состояние БД каждые 60 секунд и восстанавливает соединения.
+- Декоратор `@with_db_retry` применяется к репозиториям, исключая повторные аварии при кратковременных сбоях.
+
 **Результат:** Стабильная работа, время ответа < 3 сек
 
 ---
@@ -27,6 +33,13 @@
 - 4 длины: ultra_brief, brief, medium, detailed
 - Применение настроек в system prompt
 - Post-processing для соблюдения длины
+
+**Детали реализации:**
+- Inline-клавиатуры: `style_settings_menu`, `tone_menu`, `personality_menu`, `length_menu` (файл `bot/keyboards/profile.py`).
+- Handlers: набор callback-функций в `handlers/user/profile.py` и команда `/settings` в `handlers/user/start.py`.
+- В `.env.*` добавлен флаг `ENABLE_STYLE_SETTINGS` (включён на TEST, выключен на PROD до релиза).
+- Smoke-тесты `TestStyleSettingsFeature` покрывают клавиатуры, репозиторий и интеграцию с OpenAI сервисом.
+- Manual QA чеклист описан в `04-testing-deployment.md` (раздел «Manual QA: настройки стиля»).
 
 **Особенности:**
 - Инструкции в промпте для GPT

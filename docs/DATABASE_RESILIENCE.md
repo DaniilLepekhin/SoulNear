@@ -138,6 +138,42 @@ make restart-bot
 - Testing configuration changes
 - Quick recovery
 
+## Incident Response Playbook
+
+When the bot fails with `relation "aiogram_states" does not exist` or similar missing-table errors:
+
+1. **Redeploy with recovery-aware scripts**
+   ```bash
+   git pull origin dev
+   ./scripts/safe_redeploy.sh
+   ```
+   The redeploy script recreates missing tables, runs migrations, and starts the health monitor.
+2. **Confirm startup messages**
+   ```bash
+   make logs-bot | head -50
+   ```
+   Ensure all four success markers appear:
+   - `✅ Database connection successful!`
+   - `✅ Database tables created/verified`
+   - `✅ Applied X new migration(s)` (or `All migrations up to date`)
+   - `✅ Database health monitor started`
+3. **Smoke-test the bot** in Telegram. If responses are back and logs stay clean, recovery succeeded.
+
+## Diagnostics Checklist (Run After Recovery)
+
+Once the bot is back online, investigate the root cause so the failure does not repeat:
+
+| Area | Commands | What to look for |
+|------|----------|------------------|
+| PostgreSQL logs | `make logs-db \| tail -200` | `FATAL`, `PANIC`, `no space left on device`, `recovery` loops |
+| Container stability | `docker ps -a \| grep postgres`<br>`docker inspect soulnear_postgres \| grep RestartCount` | Unexpected restarts or high restart count |
+| Volume health | `docker volume ls \| grep postgres`<br>`docker volume inspect soulnear_postgres_data` | Missing volume or invalid mountpoint |
+| Disk space | `df -h` | `/var/lib/docker` or root partition &gt; 90% |
+| Memory pressure | `dmesg \| grep -i oom \| tail -20`<br>`free -h`<br>`docker stats --no-stream` | OOM killer events or exhausted memory |
+| System events | `journalctl -xe \| tail -100`<br>`journalctl -u docker \| tail -50` | Host or Docker daemon restarts |
+
+If any category shows anomalies, resolve them (cleanup disk, adjust memory limits, recreate corrupted volume, etc.) and document the fix.
+
 ## Monitoring & Debugging
 
 ### Check if services are running
@@ -220,6 +256,25 @@ If bot still crashes:
 2. Check disk I/O: `docker stats`
 3. Increase pool size in `database/database.py` if needed
 4. Check for long-running queries in PostgreSQL logs
+
+### Healthcheck regression (November 2025)
+
+**Symptom:** PostgreSQL logs spammed `FATAL: role "root" does not exist`, healthcheck reported `unhealthy`, and the database restarted every few hours.
+
+**Root cause:** The Docker healthcheck used `pg_isready -d soul_bot` without specifying `-U postgres`, so Docker probed as `root` every 10 seconds and exhausted PostgreSQL.
+
+**Fix (already merged):**
+
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -U postgres -d soul_bot"]
+```
+
+**Verify after deploying the fix:**
+
+1. `make logs-db` — ensure the `FATAL: role "root" does not exist` messages disappear.
+2. `docker ps | grep postgres` — status should read `Up … (healthy)`.
+3. Monitor for 24 hours: `make logs-bot | grep -i "database.*does not exist"` should stay empty.
 
 ## Advanced: Manual Migration
 
@@ -360,4 +415,12 @@ POSTGRES_DB=soul_bot
 - Health monitor → Problems detected early, automatic recovery
 
 **Result:** Bot should be nearly bulletproof against database issues.
+
+## Long-Term Monitoring Recommendations
+
+- Enable PostgreSQL query logging via `POSTGRES_INITDB_ARGS` and ship logs to `./postgres_logs`.
+- Add hourly disk and memory snapshots with cron (`df -h`, `free -h`) so spikes are spotted early.
+- Configure external uptime monitoring (UptimeRobot, Better Uptime) against `/health`.
+- Rotate logs (`logrotate`) so recovery history stays available for at least a week.
+- Schedule daily backups: `0 2 * * * cd /path/to/SoulNear && make backup`.
 
