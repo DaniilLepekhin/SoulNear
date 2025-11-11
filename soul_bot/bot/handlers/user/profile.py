@@ -560,6 +560,8 @@ async def update_user_gender(call: CallbackQuery, state: FSMContext):
                               real_name=data['real_name'],
                               age=data.get('age'),
                               gender=gender_value)
+
+    pending_quiz_category = data.get('pending_quiz_category')
     
     # ⚠️ FIX: Очищаем state перед переходом к следующему экрану, чтобы избежать race-condition
     await state.clear()
@@ -567,6 +569,11 @@ async def update_user_gender(call: CallbackQuery, state: FSMContext):
     if data['is_profile']:
         await profile_callback(call, state)
     else:
+        if pending_quiz_category:
+            intro_text = get_quiz_intro_text(pending_quiz_category)
+            if intro_text:
+                await call.message.answer(intro_text, parse_mode='HTML')
+
         await call.message.answer(text=texts.menu,
                                   reply_markup=menu,
                                   disable_web_page_preview=True,

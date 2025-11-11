@@ -17,14 +17,34 @@ from bot.keyboards.premium import sub_menu
 from bot.loader import dp, bot
 from bot.states.states import get_prompt, Update_user_info
 from bot.keyboards.start import menu as menu_keyboard, start
-from bot.services.quiz_ui import (
-    build_quiz_entry_keyboard,
-    get_quiz_intro_text,
-)
+from bot.services.quiz_ui import get_quiz_intro_text
 import database.repository.user as db_user
 import database.repository.ads as db_ads
 
-QUIZ_DEEPLINK_PREFIX = 'quiz_'
+LEGACY_QUIZ_DEEPLINK_PREFIX = 'quiz_'
+QUIZ_DEEPLINK_ALIASES = {
+    'analysis_relationships_ads': 'relationships',
+    'analysis_money_ads': 'money',
+    'analysis_purpose_ads': 'purpose',
+}
+
+
+def _resolve_quiz_deeplink(raw_link: str | None) -> str | None:
+    if not raw_link:
+        return None
+
+    normalized = raw_link.strip()
+    category = QUIZ_DEEPLINK_ALIASES.get(normalized)
+    if category:
+        return category
+
+    if normalized.startswith(LEGACY_QUIZ_DEEPLINK_PREFIX):
+        candidate = normalized[len(LEGACY_QUIZ_DEEPLINK_PREFIX):]
+        if get_quiz_intro_text(candidate):
+            return candidate
+
+    return None
+
 @dp.callback_query(F.data == 'start_accept')
 async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
@@ -34,8 +54,19 @@ async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
 
-    prompt = await callback.message.answer('Перед тем как мы начнём, расскажи немного о себе.\n'
-                                           'Как тебя зовут?')
+    user = await db_user.get(user_id=callback.from_user.id)
+    if user and user.real_name:
+        await _maybe_send_pending_quiz(callback.message, state)
+
+        await callback.message.answer(text=texts.menu,
+                                      reply_markup=menu_keyboard,
+                                      disable_web_page_preview=True,
+                                      parse_mode='HTML')
+        return
+
+    prompt = await callback.message.answer(
+        'Перед тем как мы начнём, расскажи немного о себе.\nКак тебя зовут?'
+    )
 
     await state.set_state(Update_user_info.real_name)
     await state.update_data(is_profile=False,
@@ -48,19 +79,18 @@ async def start_message(message: Message, state: FSMContext):
 
     user_id = message.from_user.id
 
-    parts = (message.text or '').split()
-    link = parts[1] if len(parts) > 1 else None
+    parts = (message.text or '').split(maxsplit=1)
+    link = parts[1].strip() if len(parts) > 1 else None
 
-    if link and link.startswith(QUIZ_DEEPLINK_PREFIX):
-        candidate = link[len(QUIZ_DEEPLINK_PREFIX):]
-        if get_quiz_intro_text(candidate):
-            await state.update_data(pending_quiz_category=candidate)
+    pending_category = _resolve_quiz_deeplink(link)
+    if pending_category:
+        await state.update_data(pending_quiz_category=pending_category)
 
-    if link:
-        if not link.isdigit():
-            ref = await db_ads.get_by_link(link=link)
-            if ref:
-                await db_ads.increment_views(ad_id=ref.id)
+        await message.answer(f"Получен аргумент запуска: {link}")
+    if link and not link.isdigit():
+        ref = await db_ads.get_by_link(link=link)
+        if ref:
+            await db_ads.increment_views(ad_id=ref.id)
 
     if not await db_user.is_exist(user_id=user_id):
 
@@ -81,22 +111,8 @@ async def start_message(message: Message, state: FSMContext):
                 await bot.send_message(chat_id=int(link),
                                        text='🎉 +3 дня к подписки за приведенного друга!')
 
-    data = await state.get_data()
-    pending_category = data.get('pending_quiz_category')
-
-    if pending_category:
-        intro_text = get_quiz_intro_text(pending_category)
-        if intro_text:
-            await message.answer(
-                intro_text,
-                parse_mode='HTML'
-            )
-            await _start_quiz_for_category(message, state, pending_category)
-            return
-        await state.update_data(pending_quiz_category=None)
-
-    await message.answer(text=texts.quiz_entry,
-                         reply_markup=build_quiz_entry_keyboard(),
+    await message.answer(text=texts.greet,
+                         reply_markup=start,
                          disable_web_page_preview=True,
                          parse_mode='HTML')
 
