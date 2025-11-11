@@ -468,8 +468,14 @@ async def _delete_prompt_message(chat_id: int, message_id: int | None):
 
 
 async def _prompt_gender(message: Message, state: FSMContext):
-    gender_message = await message.answer(text='Твой пол?',
-                                          reply_markup=gender_menu)
+    gender_message = await message.answer(
+        text=(
+            "📍 <b>Шаг 3 из 3 — Пол</b>\n\n"
+            "<i>Выбери, как мне удобнее к тебе обращаться.</i>"
+        ),
+        reply_markup=gender_menu,
+        parse_mode='HTML',
+    )
     await state.update_data(message_id=gender_message.message_id)
 
 
@@ -487,8 +493,14 @@ async def update_user_real_name(message: Message, state: FSMContext):
     await _delete_prompt_message(chat_id=message.chat.id,
                                  message_id=data.get('message_id'))
 
-    m = await message.answer(text='Сколько тебе полных лет? ',
-                             reply_markup=age_question)
+    m = await message.answer(
+        text=(
+            "📍 <b>Шаг 2 из 3 — Возраст</b>\n\n"
+            "<i>Сколько тебе полных лет? Можешь нажать «Не важно», если не хочешь делиться.</i>"
+        ),
+        reply_markup=age_question,
+        parse_mode='HTML',
+    )
 
     await state.update_data(real_name=real_name,
                             message_id=m.message_id)

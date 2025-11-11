@@ -9,6 +9,7 @@ Flow:
 3. Проходит 8–12 вопросов диалогового квиза (FSM state: waiting_for_answer)
 4. Получает результаты + обновление профиля
 """
+import html
 import logging
 import os
 import uuid
@@ -221,10 +222,13 @@ async def _start_quiz_for_category(call: CallbackQuery, state: FSMContext, categ
         await _show_current_question(call.message, quiz_session, state)
 
     except Exception as e:
+        error_text = html.escape(str(e))
         await _safe_set_text(
             call.message,
-            f"⚠️ Ошибка при создании квиза: {e}\n\n"
-            "Попробуйте позже или обратитесь в поддержку."
+            f"⚠️ Ошибка при создании квиза.\n\n"
+            f"<code>{error_text}</code>\n\n"
+            "Попробуйте позже или обратитесь в поддержку.",
+            parse_mode='HTML'
         )
         await state.update_data(selected_quiz_category=None)
 
@@ -238,7 +242,10 @@ async def launch_quiz_for_category_from_message(
     Запускает квиз по категории, используя обычное сообщение вместо callback.
     Возвращает идентификатор созданной quiz-сессии или None.
     """
-    proxy_call = SimpleNamespace(message=message, from_user=message.from_user)
+    proxy_call = SimpleNamespace(
+        message=message,
+        from_user=SimpleNamespace(id=message.chat.id),
+    )
     await _start_quiz_for_category(proxy_call, state, category)
     data = await state.get_data()
     return data.get('quiz_session_id')

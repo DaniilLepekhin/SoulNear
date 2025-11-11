@@ -11,7 +11,7 @@ start = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='💬 ChatSoulNear', callback_data='support')],
+    [InlineKeyboardButton(text='💬 Чат с Soul Near', callback_data='support')],
     [InlineKeyboardButton(text='🌙 Сны', callback_data='soulsleep')],
     [InlineKeyboardButton(text='🧩 Паттерны', callback_data='analysis')],
     [

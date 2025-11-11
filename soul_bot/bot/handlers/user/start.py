@@ -5,8 +5,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     Message,
-    FSInputFile,
-    CallbackQuery
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
 )
 
 import bot.text as texts
@@ -63,11 +64,59 @@ async def finalize_deeplink_event(state: FSMContext, quiz_session_id: int | None
 async def launch_deeplink_quiz(message: Message, state: FSMContext, category: str) -> int | None:
     intro_text = get_quiz_intro_text(category)
     if intro_text:
-        await message.answer(intro_text, parse_mode='HTML')
+        display_text = (
+            f"{intro_text}\n\n"
+            "<b>Нажми «Начать», чтобы перейти к вопросам.</b>"
+        )
+    else:
+        display_text = (
+            "<b>🧠 Квиз готов</b>\n"
+            "<i>Нажми «Начать», чтобы перейти к вопросам.</i>"
+        )
 
-    quiz_session_id = await launch_quiz_for_category_from_message(message, state, category)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text='▶️ Начать',
+                    callback_data=f'deeplink_quiz_start:{category}',
+                )
+            ]
+        ]
+    )
+
+    sent = await message.answer(
+        display_text,
+        reply_markup=keyboard,
+        disable_web_page_preview=True,
+        parse_mode='HTML',
+    )
+
+    await state.update_data(
+        pending_quiz_category=category,
+    )
+
+    return sent.message_id
+
+
+@dp.callback_query(F.data.startswith('deeplink_quiz_start:'))
+async def deeplink_quiz_start_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+
+    parts = callback.data.split(':', 1)
+    if len(parts) != 2 or not parts[1]:
+        await callback.message.answer("⚠️ Не удалось определить квиз.")
+        return
+
+    category = parts[1]
+
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
+    quiz_session_id = await launch_quiz_for_category_from_message(callback.message, state, category)
     await finalize_deeplink_event(state, quiz_session_id)
-    return quiz_session_id
 
 @dp.callback_query(F.data == 'start_accept')
 async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
@@ -93,7 +142,10 @@ async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
         return
 
     prompt = await callback.message.answer(
-        'Перед тем как мы начнём, расскажи немного о себе.\nКак тебя зовут?'
+        "Перед тем как мы начнём, расскажи немного о себе.\n\n"
+        "📍 <b>Шаг 1 из 3 — Имя</b>\n\n"
+        "<i>Напиши, как мне к тебе обращаться.</i>",
+        parse_mode='HTML',
     )
 
     await state.set_state(Update_user_info.real_name)
@@ -113,10 +165,6 @@ async def start_message(message: Message, state: FSMContext):
     pending_category = _resolve_quiz_deeplink(link)
     if pending_category:
         await state.update_data(pending_quiz_category=pending_category)
-
-        await message.answer(f"Получен аргумент запуска: {link}")
-    elif link and not link.isdigit():
-        await message.answer(f"Получен аргумент запуска: {link}")
     if link and not link.isdigit():
         ref = await db_ads.get_by_link(link=link)
         if ref:
