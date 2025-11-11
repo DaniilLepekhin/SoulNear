@@ -1,15 +1,15 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     Message,
-    FSInputFile,
-    CallbackQuery
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
 )
 
-import bot.functions.Pictures as Pictures
 import bot.text as texts
 from bot.functions.other import check_user_info
 from database.repository import conversation_history
@@ -17,20 +17,158 @@ from bot.keyboards.premium import sub_menu
 from bot.loader import dp, bot
 from bot.states.states import get_prompt, Update_user_info
 from bot.keyboards.start import menu as menu_keyboard, start
+from bot.services.quiz_ui import get_quiz_intro_text
+from bot.handlers.user.quiz import launch_quiz_for_category_from_message
 import database.repository.user as db_user
 import database.repository.ads as db_ads
+import database.repository.deeplink_event as db_deeplink_event
+
+LEGACY_QUIZ_DEEPLINK_PREFIX = 'quiz_'
+QUIZ_DEEPLINK_ALIASES = {
+    'analysis_relationships_ads': 'relationships',
+    'analysis_money_ads': 'money',
+    'analysis_purpose_ads': 'purpose',
+}
+
+
+def _resolve_quiz_deeplink(raw_link: str | None) -> str | None:
+    if not raw_link:
+        return None
+
+    normalized = raw_link.strip()
+    category = QUIZ_DEEPLINK_ALIASES.get(normalized)
+    if category:
+        return category
+
+    if normalized.startswith(LEGACY_QUIZ_DEEPLINK_PREFIX):
+        candidate = normalized[len(LEGACY_QUIZ_DEEPLINK_PREFIX):]
+        if get_quiz_intro_text(candidate):
+            return candidate
+
+    return None
+
+
+async def finalize_deeplink_event(state: FSMContext, quiz_session_id: int | None) -> None:
+    if not quiz_session_id:
+        return
+
+    data = await state.get_data()
+    event_id = data.get('deeplink_event_id')
+    if not event_id:
+        return
+
+    await db_deeplink_event.attach_quiz(event_id, quiz_session_id)
+    await state.update_data(deeplink_event_id=None)
+
+
+async def launch_deeplink_quiz(message: Message, state: FSMContext, category: str) -> int | None:
+    intro_text = get_quiz_intro_text(category)
+    if intro_text:
+        display_text = (
+            f"{intro_text}\n\n"
+            "<b>Нажми «Начать», чтобы перейти к вопросам.</b>"
+        )
+    else:
+        display_text = (
+            "<b>🧠 Квиз готов</b>\n"
+            "<i>Нажми «Начать», чтобы перейти к вопросам.</i>"
+        )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text='▶️ Начать',
+                    callback_data=f'deeplink_quiz_start:{category}',
+                )
+            ]
+        ]
+    )
+
+    sent = await message.answer(
+        display_text,
+        reply_markup=keyboard,
+        disable_web_page_preview=True,
+        parse_mode='HTML',
+    )
+
+    await state.update_data(
+        pending_quiz_category=category,
+    )
+
+    return sent.message_id
+
+
+@dp.callback_query(F.data.startswith('deeplink_quiz_start:'))
+async def deeplink_quiz_start_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+
+    parts = callback.data.split(':', 1)
+    if len(parts) != 2 or not parts[1]:
+        await callback.message.answer("⚠️ Не удалось определить квиз.")
+        return
+
+    category = parts[1]
+
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
+    quiz_session_id = await launch_quiz_for_category_from_message(callback.message, state, category)
+    await finalize_deeplink_event(state, quiz_session_id)
+
+@dp.callback_query(F.data == 'start_accept')
+async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    data = await state.get_data()
+    pending_category = data.get('pending_quiz_category')
+
+    user = await db_user.get(user_id=callback.from_user.id)
+    if user and user.real_name:
+        if pending_category:
+            await launch_deeplink_quiz(callback.message, state, pending_category)
+        else:
+            await callback.message.answer(text=texts.menu,
+                                          reply_markup=menu_keyboard,
+                                          disable_web_page_preview=True,
+                                          parse_mode='HTML')
+        return
+
+    prompt = await callback.message.answer(
+        "Перед тем как мы начнём, расскажи немного о себе.\n\n"
+        "📍 <b>Шаг 1 из 3 — Имя</b>\n\n"
+        "<i>Напиши, как мне к тебе обращаться.</i>",
+        parse_mode='HTML',
+    )
+
+    await state.set_state(Update_user_info.real_name)
+    await state.update_data(is_profile=False,
+                            message_id=prompt.message_id)
+
 
 @dp.message(CommandStart())
-async def start_message(message: Message):
+async def start_message(message: Message, state: FSMContext):
+    await state.clear()
+
     user_id = message.from_user.id
 
-    link = None if message.text == '/start' else message.text.split()[1]
+    parts = (message.text or '').split(maxsplit=1)
+    link = parts[1].strip() if len(parts) > 1 else None
 
-    if link:
-        if not link.isdigit():
-            ref = await db_ads.get_by_link(link=link)
-            if ref:
-                await db_ads.increment_views(ad_id=ref.id)
+    pending_category = _resolve_quiz_deeplink(link)
+    if pending_category:
+        await state.update_data(pending_quiz_category=pending_category)
+    if link and not link.isdigit():
+        ref = await db_ads.get_by_link(link=link)
+        if ref:
+            await db_ads.increment_views(ad_id=ref.id)
 
     if not await db_user.is_exist(user_id=user_id):
 
@@ -51,26 +189,59 @@ async def start_message(message: Message):
                 await bot.send_message(chat_id=int(link),
                                        text='🎉 +3 дня к подписки за приведенного друга!')
 
+    if pending_category:
+        raw_link = link or pending_category
+        event_id = await db_deeplink_event.create(
+            user_id=user_id,
+            raw_link=raw_link,
+            resolved_category=pending_category,
+        )
+        await state.update_data(deeplink_event_id=event_id)
+
     await message.answer(text=texts.greet,
                          reply_markup=start,
-                         disable_web_page_preview=True)
+                         disable_web_page_preview=True,
+                         parse_mode='HTML')
 
 
 @dp.message(Command('menu'))
 async def menu_message(message: Message, state: FSMContext):
+    if await _maybe_send_pending_quiz(message, state):
+        try:
+            await message.delete()
+        except:
+            pass
+        return
+
+    if not await check_user_info(message=message, state=state):
+        return
+
     try:
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
-                             disable_web_page_preview=True)
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')
     except Exception as e:
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
-                             disable_web_page_preview=True)
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')
     
     try:
         await message.delete()
     except:
         pass
+
+
+async def _maybe_send_pending_quiz(message: Message, state: FSMContext) -> bool:
+    data = await state.get_data()
+    pending_category = data.get('pending_quiz_category')
+
+    if not pending_category:
+        return False
+
+    await launch_deeplink_quiz(message, state, pending_category)
+    return True
 
 
 @dp.message(Command('deletecontext'))
@@ -146,26 +317,35 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
 
     if not await check_user_info(message=callback.message, state=state):
+        await callback.answer()
+        return
+
+    if await _maybe_send_pending_quiz(callback.message, state):
+        await callback.answer()
         return
 
     try:
         await callback.message.answer(text=texts.menu,
                                       reply_markup=menu_keyboard,
-                                      disable_web_page_preview=True)
+                                      disable_web_page_preview=True,
+                                      parse_mode='HTML')
     except Exception as e:
         print(f"Ошибка при отправке видео: {e}")
         await callback.message.answer(text=texts.menu,
                                       reply_markup=menu_keyboard,
-                                      disable_web_page_preview=True)
+                                      disable_web_page_preview=True,
+                                      parse_mode='HTML')
 
 
 async def menu_message_not_delete(message: Message):
     try:
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
-                             disable_web_page_preview=True)
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')
     except Exception as e:
         print(f"Ошибка при отправке видео: {e}")
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
-                             disable_web_page_preview=True)
+                             disable_web_page_preview=True,
+                             parse_mode='HTML')

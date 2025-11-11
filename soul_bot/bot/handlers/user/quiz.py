@@ -9,6 +9,7 @@ Flow:
 3. Проходит 8–12 вопросов диалогового квиза (FSM state: waiting_for_answer)
 4. Получает результаты + обновление профиля
 """
+import html
 import logging
 import os
 import uuid
@@ -18,6 +19,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest
+from types import SimpleNamespace
 
 from bot.loader import dp
 from bot.states.states import QuizStates
@@ -27,9 +29,14 @@ from bot.services.ai.gpt_service import GPTService
 from bot.functions.speech import convert_voice, transcribe_audio
 import database.repository.quiz_session as db_quiz_session
 import database.repository.user_profile as db_user_profile
-from bot.keyboards.start import menu as main_menu_keyboard
+from bot.keyboards.start import menu as main_menu_keyboard, start
 from config import is_feature_enabled
 import bot.text as texts
+from bot.services.quiz_ui import (
+    build_quiz_menu_keyboard,
+)
+from bot.functions.other import check_user_info
+import database.repository.user as db_user
 
 # Initialize adaptive quiz service
 gpt_service = GPTService()
@@ -141,60 +148,49 @@ async def start_quiz_callback(call: CallbackQuery, state: FSMContext):
     Начать квиз по выбранной категории
     """
     category = call.data.replace('quiz_category_', '')
-    intro_text = _get_quiz_intro_text(category)
-
-    if not intro_text:
-        await call.answer("⚠️ Квиз временно недоступен", show_alert=True)
-        return
-
-    await state.update_data(selected_quiz_category=category)
-
-    await _safe_set_text(
-        call.message,
-        intro_text,
-        reply_markup=_quiz_confirmation_keyboard(category)
-    )
-
-    await call.answer()
-
-
-# ==========================================
-# ✅ ПОДТВЕРЖДЕНИЕ ПЕРЕД СТАРТОМ
-# ==========================================
-
-@dp.callback_query(F.data.startswith('quiz_confirm_'))
-async def confirm_quiz_start(call: CallbackQuery, state: FSMContext):
-    category = call.data.replace('quiz_confirm_', '')
-
     await _start_quiz_for_category(call, state, category)
 
 
-@dp.callback_query(F.data == 'quiz_back_to_categories')
-async def quiz_back_to_categories(call: CallbackQuery, state: FSMContext):
-    await state.update_data(selected_quiz_category=None)
+@dp.callback_query(F.data == 'quiz_go_menu')
+async def quiz_go_menu_callback(call: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    session_id = data.get('quiz_session_id')
+    if session_id:
+        await db_quiz_session.cancel(session_id)
 
-    await _safe_set_text(
-        call.message,
-        "🧠 <b>Психологические квизы</b>\n\n"
-        "Выберите категорию для прохождения квиза:\n\n"
-        "Квиз поможет выявить ваши поведенческие паттерны и даст персональные рекомендации.",
-        reply_markup=_categories_keyboard(),
-        parse_mode='HTML'
-    )
+    await state.clear()
+
+    try:
+        await call.message.delete()
+    except Exception:
+        pass
+
+    if not await check_user_info(message=call.message, state=state):
+        await call.answer()
+        return
+
+    user = await db_user.get(call.from_user.id)
+
+    if user and user.real_name:
+        await call.message.answer(
+            texts.menu,
+            reply_markup=main_menu_keyboard,
+            disable_web_page_preview=True,
+            parse_mode='HTML'
+        )
+    else:
+        await call.message.answer(
+            texts.greet,
+            reply_markup=start,
+            disable_web_page_preview=True,
+            parse_mode='HTML'
+        )
 
     await call.answer()
 
 
 async def _start_quiz_for_category(call: CallbackQuery, state: FSMContext, category: str):
     user_id = call.from_user.id
-
-    await call.answer("🔄 Подготавливаю вопросы...")
-
-    loading_message = await _safe_set_text(
-        call.message,
-        "🔄 Готовлю вопросы...",
-        reply_markup=None
-    )
 
     try:
         profile = await db_user_profile.get_or_create(user_id)
@@ -217,20 +213,42 @@ async def _start_quiz_for_category(call: CallbackQuery, state: FSMContext, categ
 
         await state.update_data(
             selected_quiz_category=None,
+            pending_quiz_category=None,
             quiz_session_id=quiz_session.id,
             last_question_message_id=None
         )
         await state.set_state(QuizStates.waiting_for_answer)
 
-        await _show_current_question(loading_message, quiz_session, state)
+        await _show_current_question(call.message, quiz_session, state)
 
     except Exception as e:
+        error_text = html.escape(str(e))
         await _safe_set_text(
-            loading_message,
-            f"⚠️ Ошибка при создании квиза: {e}\n\n"
-            "Попробуйте позже или обратитесь в поддержку."
+            call.message,
+            f"⚠️ Ошибка при создании квиза.\n\n"
+            f"<code>{error_text}</code>\n\n"
+            "Попробуйте позже или обратитесь в поддержку.",
+            parse_mode='HTML'
         )
         await state.update_data(selected_quiz_category=None)
+
+
+async def launch_quiz_for_category_from_message(
+    message: Message,
+    state: FSMContext,
+    category: str,
+) -> int | None:
+    """
+    Запускает квиз по категории, используя обычное сообщение вместо callback.
+    Возвращает идентификатор созданной quiz-сессии или None.
+    """
+    proxy_call = SimpleNamespace(
+        message=message,
+        from_user=SimpleNamespace(id=message.chat.id),
+    )
+    await _start_quiz_for_category(proxy_call, state, category)
+    data = await state.get_data()
+    return data.get('quiz_session_id')
 
 
 # ==========================================
@@ -516,7 +534,7 @@ async def _show_current_question(
     
     # Добавляем кнопку отмены
     keyboard.inline_keyboard.append([
-        InlineKeyboardButton(text="❌ Отменить квиз", callback_data="quiz_cancel")
+        InlineKeyboardButton(text="🏠 Выйти в меню", callback_data="quiz_go_menu")
     ])
     
     try:
@@ -590,7 +608,7 @@ async def _finish_quiz(message: Message, quiz_session, state: FSMContext):
         # Возвращаем главное меню
         await message.answer(
             texts.menu,
-            reply_markup=main_menu_keyboard,
+            reply_markup=build_quiz_menu_keyboard(),
             disable_web_page_preview=True
         )
         
@@ -604,36 +622,6 @@ async def _finish_quiz(message: Message, quiz_session, state: FSMContext):
     finally:
         # Очищаем FSM
         await state.clear()
-
-
-# ==========================================
-# ❌ ОТМЕНА КВИЗА
-# ==========================================
-
-@dp.callback_query(F.data == 'quiz_cancel')
-async def cancel_quiz_callback(call: CallbackQuery, state: FSMContext):
-    """
-    Отменить квиз
-    """
-    data = await state.get_data()
-    session_id = data.get('quiz_session_id')
-    
-    if session_id:
-        await db_quiz_session.cancel(session_id)
-    
-    await state.clear()
-    
-    await _safe_set_text(
-        call.message,
-        "❌ Квиз отменён.\n\n"
-        "Вы можете начать новый в любое время: /quiz"
-    )
-
-    await call.message.answer(
-        texts.menu,
-        reply_markup=main_menu_keyboard,
-        disable_web_page_preview=True
-    )
 
 
 # ==========================================
@@ -914,22 +902,6 @@ def _categories_keyboard() -> InlineKeyboardMarkup:
         ])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
-def _quiz_confirmation_keyboard(category: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Готов", callback_data=f"quiz_confirm_{category}")],
-        [InlineKeyboardButton(text="↩️ Назад", callback_data="quiz_back_to_categories")]
-    ])
-
-
-def _get_quiz_intro_text(category: str) -> str | None:
-    mapping = {
-        'relationships': texts.relationships,
-        'money': texts.money,
-        'purpose': texts.purpose,
-    }
-    return mapping.get(category)
 
 
 def _add_emoji_to_option(text: str) -> str:

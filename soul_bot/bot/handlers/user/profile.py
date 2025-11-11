@@ -6,13 +6,13 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from bot.handlers.user.start import menu_callback
+from bot.handlers.user.start import menu_callback, launch_deeplink_quiz
 from bot.keyboards.profile import (
     profile_menu, gender_menu, style_settings_menu,
     tone_menu, personality_menu, length_menu,
     build_style_settings_menu_v2
 )
-from bot.keyboards.start import age_question, back, menu, quiz_offer
+from bot.keyboards.start import age_question, back, menu
 from bot.loader import dp, bot
 import bot.text as texts
 import database.repository.user as db_user
@@ -22,6 +22,10 @@ from config import is_feature_enabled
 from bot.services.text_formatting import (
     localize_pattern_title,
     safe_shorten,
+)
+from bot.services.quiz_ui import (
+    build_quiz_entry_keyboard,
+    get_quiz_intro_text,
 )
 
 
@@ -464,8 +468,14 @@ async def _delete_prompt_message(chat_id: int, message_id: int | None):
 
 
 async def _prompt_gender(message: Message, state: FSMContext):
-    gender_message = await message.answer(text='Твой пол?',
-                                          reply_markup=gender_menu)
+    gender_message = await message.answer(
+        text=(
+            "📍 <b>Шаг 3 из 3 — Пол</b>\n\n"
+            "<i>Выбери, как мне удобнее к тебе обращаться.</i>"
+        ),
+        reply_markup=gender_menu,
+        parse_mode='HTML',
+    )
     await state.update_data(message_id=gender_message.message_id)
 
 
@@ -483,8 +493,14 @@ async def update_user_real_name(message: Message, state: FSMContext):
     await _delete_prompt_message(chat_id=message.chat.id,
                                  message_id=data.get('message_id'))
 
-    m = await message.answer(text='Сколько тебе полных лет? ',
-                             reply_markup=age_question)
+    m = await message.answer(
+        text=(
+            "📍 <b>Шаг 2 из 3 — Возраст</b>\n\n"
+            "<i>Сколько тебе полных лет? Можешь нажать «Не важно», если не хочешь делиться.</i>"
+        ),
+        reply_markup=age_question,
+        parse_mode='HTML',
+    )
 
     await state.update_data(real_name=real_name,
                             message_id=m.message_id)
@@ -556,18 +572,25 @@ async def update_user_gender(call: CallbackQuery, state: FSMContext):
                               real_name=data['real_name'],
                               age=data.get('age'),
                               gender=gender_value)
-    
-    # ⚠️ FIX: Очищаем state перед переходом к следующему экрану, чтобы избежать race-condition
-    await state.clear()
-    
+
+    pending_quiz_category = data.get('pending_quiz_category')
+
     if data['is_profile']:
+        # ⚠️ FIX: Очищаем state перед переходом к следующему экрану, чтобы избежать race-condition
+        await state.clear()
         await profile_callback(call, state)
     else:
-        await call.message.answer(text=texts.quiz_offer,
-                                  reply_markup=quiz_offer,
-                                  disable_web_page_preview=True)
-        await call.answer()
-        return
+        if pending_quiz_category:
+            await launch_deeplink_quiz(call.message, state, pending_quiz_category)
+            await call.answer()
+            return
+
+        await state.clear()
+
+        await call.message.answer(text=texts.menu,
+                                  reply_markup=menu,
+                                  disable_web_page_preview=True,
+                                  parse_mode='HTML')
 
     await call.answer()
 

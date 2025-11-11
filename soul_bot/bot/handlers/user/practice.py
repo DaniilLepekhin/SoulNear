@@ -29,7 +29,8 @@ async def media_categories_callback(call: CallbackQuery, state: FSMContext):
 
     categories = await db_media_category.get_all_by_type(category=category)
     await call.message.answer(text=text,
-                              reply_markup=kb.categories_menu(categories=categories))
+                              reply_markup=kb.categories_menu(categories=categories),
+                              parse_mode='HTML')
 
 
 @dp.callback_query(F.data.startswith('media_category'))

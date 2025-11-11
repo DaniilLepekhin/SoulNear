@@ -19,11 +19,35 @@
 Создан: 2025-10-31
 """
 
-import re
 import logging
-from typing import Optional
+import re
+from typing import Iterable, Optional
 
 logger = logging.getLogger(__name__)
+
+_SENTENCE_BOUNDARY_REGEX = re.compile(r'(?<=[.!?])\s+(?=[A-ZА-ЯЁ])')
+_MULTISPACE_REGEX = re.compile(r'[ \t]+')
+_LABEL_PATTERN = re.compile(
+    r'(?im)^(?P<prefix>[ \t•\-]*)\b(?P<label>'
+    r'Важно|Итого|Шаг|Вопрос|Суть|Ресурс|Практика|Наблюдение|Финал|Вывод'
+    r')\b\s*:(?P<rest>[^\n]*)'
+)
+_KEYWORD_PHRASES_MEDIUM = [
+    'цикл избегания',
+    'скрытый мотив',
+    'точка роста',
+    'блокирующая установка',
+    'опорный ресурс',
+    'вектор',
+    'паттерн',
+    'ресурс',
+]
+_KEYWORD_PHRASES_DETAILED = _KEYWORD_PHRASES_MEDIUM + ['повторяющаяся петля', 'динамика', 'контраст']
+_LEVEL_SETTINGS = {
+    'minimal': {'max_words': 45, 'max_sentences': 2},
+    'medium': {'max_words': 60, 'max_sentences': 2},
+    'detailed': {'max_words': 80, 'max_sentences': 3},
+}
 
 
 def format_bot_message(
@@ -55,11 +79,6 @@ def format_bot_message(
     
     word_count = len(text.split())
     
-    # Для основного чата Soul Near сохраняем свободную форму (без автосписков)
-    if assistant_type == 'helper':
-        logger.debug("Formatting skipped for helper assistant to preserve free-form tone")
-        return text
-    
     # Проверяем learning preferences
     if learning_preferences:
         doesnt_work = learning_preferences.get('doesnt_work', [])
@@ -74,8 +93,8 @@ def format_bot_message(
     # ULTRA BRIEF (< 50 words): NO FORMATTING
     # ==========================================
     if word_count < 50:
-        logger.debug(f"Formatting: ultra brief ({word_count} words), no formatting")
-        return text
+        logger.debug(f"Formatting: ultra brief ({word_count} words), light formatting")
+        return _structure_text(text, level='minimal')
     
     # ==========================================
     # BRIEF (50-100 words): MINIMAL FORMATTING
@@ -125,7 +144,7 @@ def _apply_minimal_formatting(text: str) -> str:
             flags=re.IGNORECASE | re.MULTILINE
         )
     
-    return text
+    return _structure_text(text, level='minimal')
 
 
 def _apply_medium_formatting(text: str) -> str:
@@ -170,7 +189,8 @@ def _apply_medium_formatting(text: str) -> str:
         if len(parts[0].split()) == 1 and len(parts[0]) < 15:
             lines[0] = f"<b>{parts[0]}</b>,{parts[1]}"
     
-    return '\n'.join(lines)
+    formatted = '\n'.join(lines)
+    return _structure_text(formatted, level='medium')
 
 
 def _apply_detailed_formatting(text: str) -> str:
@@ -244,9 +264,191 @@ def _apply_detailed_formatting(text: str) -> str:
             formatted,
             flags=re.IGNORECASE
         )
-    
-    return formatted
+    return _structure_text(formatted, level='detailed')
 
 
 __all__ = ['format_bot_message']
+
+
+def _structure_text(text: str, *, level: str) -> str:
+    normalized = _normalize_text(text)
+    
+    paragraphs = _split_paragraphs(normalized)
+    settings = _LEVEL_SETTINGS.get(level, _LEVEL_SETTINGS['medium'])
+    expanded: list[str] = []
+    for block in paragraphs:
+        expanded.extend(
+            _split_long_paragraph(
+                block,
+                max_words=settings['max_words'],
+                max_sentences=settings['max_sentences']
+            )
+        )
+    
+    highlighted = [_apply_paragraph_highlights(block, level=level) for block in expanded]
+    highlighted = _highlight_final_question(highlighted)
+    
+    return "\n\n".join(part for part in highlighted if part).strip()
+
+
+def _normalize_text(text: str) -> str:
+    cleaned = text.replace('\r\n', '\n').strip()
+    cleaned = _MULTISPACE_REGEX.sub(' ', cleaned)
+    cleaned = re.sub(r'\n[ \t]+', '\n', cleaned)
+    return cleaned
+
+
+def _split_paragraphs(text: str) -> list[str]:
+    raw_blocks = [block.strip() for block in text.split('\n\n') if block.strip()]
+    if raw_blocks:
+        return raw_blocks
+    return [text.strip()] if text.strip() else []
+
+
+def _split_long_paragraph(
+    paragraph: str,
+    *,
+    max_words: int,
+    max_sentences: int
+) -> list[str]:
+    if not paragraph:
+        return []
+    
+    if _looks_like_list(paragraph):
+        return [paragraph.strip()]
+    
+    sentences = _split_sentences(paragraph)
+    if not sentences:
+        return [paragraph.strip()]
+    
+    buckets: list[str] = []
+    buffer: list[str] = []
+    word_counter = 0
+    sentence_counter = 0
+    
+    for sentence in sentences:
+        sentence_words = len(sentence.split())
+        buffer.append(sentence)
+        word_counter += sentence_words
+        sentence_counter += 1
+        
+        if word_counter >= max_words or sentence_counter >= max_sentences:
+            buckets.append(' '.join(buffer).strip())
+            buffer = []
+            word_counter = 0
+            sentence_counter = 0
+    
+    if buffer:
+        buckets.append(' '.join(buffer).strip())
+    
+    return buckets or [paragraph.strip()]
+
+
+def _split_sentences(paragraph: str) -> list[str]:
+    if not paragraph:
+        return []
+    sentences = _SENTENCE_BOUNDARY_REGEX.split(paragraph)
+    return [sentence.strip() for sentence in sentences if sentence.strip()]
+
+
+def _looks_like_list(paragraph: str) -> bool:
+    lines = [line.strip() for line in paragraph.split('\n') if line.strip()]
+    if not lines:
+        return False
+    
+    bullet_lines = sum(
+        1
+        for line in lines
+        if re.match(r'^([•\-–—]|(\d+\.))\s', line)
+    )
+    return bullet_lines >= max(1, len(lines) // 2)
+
+
+def _apply_paragraph_highlights(paragraph: str, *, level: str) -> str:
+    if not paragraph:
+        return paragraph
+    
+    updated = _italicize_quotes(paragraph)
+    
+    if level in ('medium', 'detailed'):
+        updated = _highlight_labels(updated)
+        updated = _highlight_keywords(updated, phrases=_KEYWORD_PHRASES_MEDIUM)
+    
+    if level == 'detailed':
+        updated = _highlight_keywords(updated, phrases=_KEYWORD_PHRASES_DETAILED)
+    
+    return updated
+
+
+def _italicize_quotes(text: str) -> str:
+    text = re.sub(
+        r'(?<!<i>)«([^»]+)»(?!</i>)',
+        r'<i>«\1»</i>',
+        text
+    )
+    text = re.sub(
+        r'(?<!<i>)"([^"]+)"(?!</i>)',
+        r'<i>"\1"</i>',
+        text
+    )
+    text = re.sub(
+        r"(?<!<i>)'([^']+)'(?!</i>)",
+        r"<i>'\1'</i>",
+        text
+    )
+    return text
+
+
+def _highlight_labels(text: str) -> str:
+    def _replace(match: re.Match) -> str:
+        prefix = match.group('prefix')
+        label = match.group('label')
+        rest = match.group('rest')
+        if '<b>' in match.group(0):
+            return match.group(0)
+        return f"{prefix}<b>{label}:</b>{rest}"
+    
+    return _LABEL_PATTERN.sub(_replace, text)
+
+
+def _highlight_keywords(text: str, *, phrases: Iterable[str]) -> str:
+    updated = text
+    for phrase in phrases:
+        updated = _bold_phrase(updated, phrase)
+    return updated
+
+
+def _bold_phrase(text: str, phrase: str) -> str:
+    if not phrase or not text:
+        return text
+    
+    if re.search(rf'<b>[^<]*{re.escape(phrase)}[^<]*</b>', text, flags=re.IGNORECASE):
+        return text
+    
+    return re.sub(
+        rf'(?i)\b({re.escape(phrase)})\b',
+        lambda match: f"<b>{match.group(1)}</b>",
+        text,
+        count=1
+    )
+
+
+def _highlight_final_question(paragraphs: list[str]) -> list[str]:
+    if not paragraphs:
+        return paragraphs
+    
+    last = paragraphs[-1]
+    sentences = _split_sentences(last)
+    if not sentences:
+        return paragraphs
+    
+    final_sentence = sentences[-1]
+    if not final_sentence.endswith('?'):
+        return paragraphs
+    
+    if '<b>' not in final_sentence:
+        sentences[-1] = f"<b>{final_sentence}</b>"
+        paragraphs[-1] = ' '.join(sentences).strip()
+    
+    return paragraphs
 
