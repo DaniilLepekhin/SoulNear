@@ -18,6 +18,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest
+from types import SimpleNamespace
 
 from bot.loader import dp
 from bot.states.states import QuizStates
@@ -226,6 +227,21 @@ async def _start_quiz_for_category(call: CallbackQuery, state: FSMContext, categ
             "Попробуйте позже или обратитесь в поддержку."
         )
         await state.update_data(selected_quiz_category=None)
+
+
+async def launch_quiz_for_category_from_message(
+    message: Message,
+    state: FSMContext,
+    category: str,
+) -> int | None:
+    """
+    Запускает квиз по категории, используя обычное сообщение вместо callback.
+    Возвращает идентификатор созданной quiz-сессии или None.
+    """
+    proxy_call = SimpleNamespace(message=message, from_user=message.from_user)
+    await _start_quiz_for_category(proxy_call, state, category)
+    data = await state.get_data()
+    return data.get('quiz_session_id')
 
 
 # ==========================================

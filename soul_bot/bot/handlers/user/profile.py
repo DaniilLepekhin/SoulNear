@@ -6,7 +6,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from bot.handlers.user.start import menu_callback
+from bot.handlers.user.start import menu_callback, launch_deeplink_quiz
 from bot.keyboards.profile import (
     profile_menu, gender_menu, style_settings_menu,
     tone_menu, personality_menu, length_menu,
@@ -562,24 +562,23 @@ async def update_user_gender(call: CallbackQuery, state: FSMContext):
                               gender=gender_value)
 
     pending_quiz_category = data.get('pending_quiz_category')
-    
-    # ⚠️ FIX: Очищаем state перед переходом к следующему экрану, чтобы избежать race-condition
-    await state.clear()
-    
+
     if data['is_profile']:
+        # ⚠️ FIX: Очищаем state перед переходом к следующему экрану, чтобы избежать race-condition
+        await state.clear()
         await profile_callback(call, state)
     else:
         if pending_quiz_category:
-            intro_text = get_quiz_intro_text(pending_quiz_category)
-            if intro_text:
-                await call.message.answer(intro_text, parse_mode='HTML')
+            await launch_deeplink_quiz(call.message, state, pending_quiz_category)
+            await call.answer()
+            return
+
+        await state.clear()
 
         await call.message.answer(text=texts.menu,
                                   reply_markup=menu,
                                   disable_web_page_preview=True,
                                   parse_mode='HTML')
-        await call.answer()
-        return
 
     await call.answer()
 

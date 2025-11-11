@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart
@@ -9,7 +9,6 @@ from aiogram.types import (
     CallbackQuery
 )
 
-import bot.functions.Pictures as Pictures
 import bot.text as texts
 from bot.functions.other import check_user_info
 from database.repository import conversation_history
@@ -18,8 +17,10 @@ from bot.loader import dp, bot
 from bot.states.states import get_prompt, Update_user_info
 from bot.keyboards.start import menu as menu_keyboard, start
 from bot.services.quiz_ui import get_quiz_intro_text
+from bot.handlers.user.quiz import launch_quiz_for_category_from_message
 import database.repository.user as db_user
 import database.repository.ads as db_ads
+import database.repository.deeplink_event as db_deeplink_event
 
 LEGACY_QUIZ_DEEPLINK_PREFIX = 'quiz_'
 QUIZ_DEEPLINK_ALIASES = {
@@ -45,6 +46,29 @@ def _resolve_quiz_deeplink(raw_link: str | None) -> str | None:
 
     return None
 
+
+async def finalize_deeplink_event(state: FSMContext, quiz_session_id: int | None) -> None:
+    if not quiz_session_id:
+        return
+
+    data = await state.get_data()
+    event_id = data.get('deeplink_event_id')
+    if not event_id:
+        return
+
+    await db_deeplink_event.attach_quiz(event_id, quiz_session_id)
+    await state.update_data(deeplink_event_id=None)
+
+
+async def launch_deeplink_quiz(message: Message, state: FSMContext, category: str) -> int | None:
+    intro_text = get_quiz_intro_text(category)
+    if intro_text:
+        await message.answer(intro_text, parse_mode='HTML')
+
+    quiz_session_id = await launch_quiz_for_category_from_message(message, state, category)
+    await finalize_deeplink_event(state, quiz_session_id)
+    return quiz_session_id
+
 @dp.callback_query(F.data == 'start_accept')
 async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
@@ -54,14 +78,18 @@ async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
 
+    data = await state.get_data()
+    pending_category = data.get('pending_quiz_category')
+
     user = await db_user.get(user_id=callback.from_user.id)
     if user and user.real_name:
-        await _maybe_send_pending_quiz(callback.message, state)
-
-        await callback.message.answer(text=texts.menu,
-                                      reply_markup=menu_keyboard,
-                                      disable_web_page_preview=True,
-                                      parse_mode='HTML')
+        if pending_category:
+            await launch_deeplink_quiz(callback.message, state, pending_category)
+        else:
+            await callback.message.answer(text=texts.menu,
+                                          reply_markup=menu_keyboard,
+                                          disable_web_page_preview=True,
+                                          parse_mode='HTML')
         return
 
     prompt = await callback.message.answer(
@@ -87,6 +115,8 @@ async def start_message(message: Message, state: FSMContext):
         await state.update_data(pending_quiz_category=pending_category)
 
         await message.answer(f"Получен аргумент запуска: {link}")
+    elif link and not link.isdigit():
+        await message.answer(f"Получен аргумент запуска: {link}")
     if link and not link.isdigit():
         ref = await db_ads.get_by_link(link=link)
         if ref:
@@ -110,6 +140,15 @@ async def start_message(message: Message, state: FSMContext):
                                               days=3)
                 await bot.send_message(chat_id=int(link),
                                        text='🎉 +3 дня к подписки за приведенного друга!')
+
+    if pending_category:
+        raw_link = link or pending_category
+        event_id = await db_deeplink_event.create(
+            user_id=user_id,
+            raw_link=raw_link,
+            resolved_category=pending_category,
+        )
+        await state.update_data(deeplink_event_id=event_id)
 
     await message.answer(text=texts.greet,
                          reply_markup=start,
@@ -150,17 +189,11 @@ async def _maybe_send_pending_quiz(message: Message, state: FSMContext) -> bool:
     data = await state.get_data()
     pending_category = data.get('pending_quiz_category')
 
-    if pending_category:
-        intro_text = get_quiz_intro_text(pending_category)
-        if intro_text:
-            await state.update_data(pending_quiz_category=None)
-            await message.answer(
-                intro_text,
-                parse_mode='HTML'
-            )
-            return True
+    if not pending_category:
+        return False
 
-    return False
+    await launch_deeplink_quiz(message, state, pending_category)
+    return True
 
 
 @dp.message(Command('deletecontext'))
