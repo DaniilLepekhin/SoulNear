@@ -11,11 +11,13 @@ start = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='💬 Chat', callback_data='support')],
-    [InlineKeyboardButton(text='🌙 Dream', callback_data='soulsleep')],
-    [InlineKeyboardButton(text='🧩 Analysis', callback_data='analysis')],
-    [InlineKeyboardButton(text='🪷 Practice', callback_data='media_categories practices')],
-    [InlineKeyboardButton(text='🎥 Video', callback_data='media_categories videos')],
+    [InlineKeyboardButton(text='💬 ChatSoulNear', callback_data='support')],
+    [InlineKeyboardButton(text='🌙 Сны', callback_data='soulsleep')],
+    [InlineKeyboardButton(text='🧩 Паттерны', callback_data='analysis')],
+    [
+        InlineKeyboardButton(text='🪷 Практики', callback_data='media_categories practices'),
+        InlineKeyboardButton(text='🎥 Видео', callback_data='media_categories videos'),
+    ],
     [InlineKeyboardButton(text='⚙️ Профиль', callback_data='profile')],
     [InlineKeyboardButton(text='❓ FAQ', url='https://telegra.ph/FAQ-dlya-bota-SOULnear-10-22')]
 ])
