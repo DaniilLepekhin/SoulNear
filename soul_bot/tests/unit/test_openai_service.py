@@ -56,11 +56,15 @@ def test_render_dialogue_state_section_question_phase():
     assert "Следующий шаг" in section
 
 
-def test_formatting_skips_helper_style():
-    """format_bot_message не должен трогать свободный стиль helper."""
+def test_formatting_structures_helper_response():
+    """format_bot_message дробит ответ helper на абзацы и выделяет финальный вопрос."""
     from bot.services.formatting import format_bot_message
 
-    original_text = "Ты сам сказал об этом вчера. Давай сейчас честно: что тебя держит?"
+    original_text = (
+        "Ты сам сказал об этом вчера. Давай сейчас честно: что тебя держит?"
+        " Когда ты это проговариваешь, слышится цикл избегания — делаешь шаг и тут же откатываешься."
+        " Попробуй назвать один ресурс, который готов поддержать. Что ты выбираешь сделать прямо сейчас?"
+    )
     formatted = format_bot_message(
         text=original_text,
         message_length_preference='brief',
@@ -68,7 +72,10 @@ def test_formatting_skips_helper_style():
         assistant_type='helper'
     )
 
-    assert formatted == original_text
+    assert formatted.count('\n\n') >= 1
+    assert formatted.strip().endswith('</b>')
+    assert 'Что ты выбираешь сделать прямо сейчас?' in formatted
+    assert '<b>' in formatted and '</b>' in formatted
 
 
 def test_format_response_with_headers_keeps_html():
