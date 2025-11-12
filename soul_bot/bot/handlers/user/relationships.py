@@ -26,7 +26,7 @@ async def relationships(callback: CallbackQuery, state: FSMContext):
         await state.set_state(get_prompt.relationships_prompt)
 
         # Очищаем контекст для relationships ассистента
-        await conversation_history.clear(user_id=user_id, assistant_type='relationships')
+        await conversation_history.clear_history(user_id=user_id, assistant_type='relationships')
 
         await callback.message.answer(
             texts.relationships,

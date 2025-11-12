@@ -26,7 +26,7 @@ async def confidence(callback: CallbackQuery, state: FSMContext):
         await state.set_state(get_prompt.confidence_prompt)
 
         # Очищаем контекст для confidence ассистента
-        await conversation_history.clear(user_id=user_id, assistant_type='confidence')
+        await conversation_history.clear_history(user_id=user_id, assistant_type='confidence')
 
         await callback.message.answer(
             texts.purpose,

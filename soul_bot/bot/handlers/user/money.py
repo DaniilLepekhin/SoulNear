@@ -26,7 +26,7 @@ async def money(callback: CallbackQuery, state: FSMContext):
         await state.set_state(get_prompt.money_prompt)
 
         # Очищаем контекст для money ассистента
-        await conversation_history.clear(user_id=user_id, assistant_type='money')
+        await conversation_history.clear_history(user_id=user_id, assistant_type='money')
 
         await callback.message.answer(
             texts.money,

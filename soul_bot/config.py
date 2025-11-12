@@ -55,8 +55,8 @@ POSTGRES_DB = os.getenv('POSTGRES_DB')
 if not POSTGRES_DB:
     raise ValueError(f"POSTGRES_DB не найден в {env_file}!")
 
-# Admins
-ADMINS = [580613548, 946195257, 73744901, 389209990]
+# Admins. TODO: move to .env
+ADMINS = [580613548, 946195257, 73744901, 389209990, 60972166]
 
 # Опциональные ключи (для расширенных фич)
 ELEVEN_LABS_KEY = os.getenv('ELEVEN_LABS_KEY')
