@@ -352,7 +352,22 @@ async def handle_text_answer(message: Message, state: FSMContext):
     """
     Обработка текстового ответа (для type=text вопросов)
     """
-    answer_value = message.text
+    answer_value = (message.text or "").strip()
+
+    if answer_value.startswith("/"):
+        command = answer_value.split()[0].lower()
+
+        await state.clear()
+
+        from bot.handlers.user.start import start_message, menu_message  # local import to avoid circular deps
+
+        if command in {"/start", "/restart"}:
+            await start_message(message, state)
+        elif command in {"/menu", "/main", "/me"}:
+            await menu_message(message, state)
+        else:
+            await message.answer("⚠️ Эта команда недоступна во время квиза. Используй /menu или /start.")
+        return
     
     # Получаем session_id
     data = await state.get_data()
