@@ -73,9 +73,10 @@ def test_formatting_structures_helper_response():
     )
 
     assert formatted.count('\n\n') >= 1
-    assert formatted.strip().endswith('</b>')
+    assert not formatted.strip().endswith('</b>')
     assert 'Что ты выбираешь сделать прямо сейчас?' in formatted
-    assert '<b>' in formatted and '</b>' in formatted
+    assert formatted.count('<b>') <= 2
+    assert formatted.count('</b>') == formatted.count('<b>')
 
 
 def test_format_response_with_headers_keeps_html():

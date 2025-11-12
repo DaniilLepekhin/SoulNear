@@ -48,6 +48,10 @@ _LEVEL_SETTINGS = {
     'medium': {'max_words': 60, 'max_sentences': 2},
     'detailed': {'max_words': 80, 'max_sentences': 3},
 }
+_QUESTION_FOCUS_REGEX = re.compile(
+    r'\b(что именно|что именно ты|что именно вы|что именно сейчас|что именно|что|как|зачем|почему|когда|куда|где|кто|какой|какая|какое|который)\b',
+    flags=re.IGNORECASE
+)
 
 
 def format_bot_message(
@@ -94,7 +98,7 @@ def format_bot_message(
     # ==========================================
     if word_count < 50:
         logger.debug(f"Formatting: ultra brief ({word_count} words), light formatting")
-        return _structure_text(text, level='minimal')
+        return _structure_text(text, level='minimal', word_count=word_count)
     
     # ==========================================
     # BRIEF (50-100 words): MINIMAL FORMATTING
@@ -144,7 +148,7 @@ def _apply_minimal_formatting(text: str) -> str:
             flags=re.IGNORECASE | re.MULTILINE
         )
     
-    return _structure_text(text, level='minimal')
+    return _structure_text(text, level='minimal', word_count=len(text.split()))
 
 
 def _apply_medium_formatting(text: str) -> str:
@@ -190,7 +194,7 @@ def _apply_medium_formatting(text: str) -> str:
             lines[0] = f"<b>{parts[0]}</b>,{parts[1]}"
     
     formatted = '\n'.join(lines)
-    return _structure_text(formatted, level='medium')
+    return _structure_text(formatted, level='medium', word_count=len(formatted.split()))
 
 
 def _apply_detailed_formatting(text: str) -> str:
@@ -264,14 +268,15 @@ def _apply_detailed_formatting(text: str) -> str:
             formatted,
             flags=re.IGNORECASE
         )
-    return _structure_text(formatted, level='detailed')
+    return _structure_text(formatted, level='detailed', word_count=len(formatted.split()))
 
 
 __all__ = ['format_bot_message']
 
 
-def _structure_text(text: str, *, level: str) -> str:
+def _structure_text(text: str, *, level: str, word_count: int | None = None) -> str:
     normalized = _normalize_text(text)
+    total_words = word_count if word_count is not None else len(normalized.split())
     
     paragraphs = _split_paragraphs(normalized)
     settings = _LEVEL_SETTINGS.get(level, _LEVEL_SETTINGS['medium'])
@@ -286,7 +291,12 @@ def _structure_text(text: str, *, level: str) -> str:
         )
     
     highlighted = [_apply_paragraph_highlights(block, level=level) for block in expanded]
-    highlighted = _highlight_final_question(highlighted)
+    
+    allow_question_focus = level in ('medium', 'detailed') and total_words >= 120
+    highlighted = _highlight_final_question(
+        highlighted,
+        enable_focus=allow_question_focus
+    )
     
     return "\n\n".join(part for part in highlighted if part).strip()
 
@@ -433,7 +443,11 @@ def _bold_phrase(text: str, phrase: str) -> str:
     )
 
 
-def _highlight_final_question(paragraphs: list[str]) -> list[str]:
+def _highlight_final_question(
+    paragraphs: list[str],
+    *,
+    enable_focus: bool
+) -> list[str]:
     if not paragraphs:
         return paragraphs
     
@@ -446,9 +460,31 @@ def _highlight_final_question(paragraphs: list[str]) -> list[str]:
     if not final_sentence.endswith('?'):
         return paragraphs
     
-    if '<b>' not in final_sentence:
-        sentences[-1] = f"<b>{final_sentence}</b>"
+    if not enable_focus:
+        return paragraphs
+    
+    if '<b>' in final_sentence:
         paragraphs[-1] = ' '.join(sentences).strip()
+        return paragraphs
+    
+    focus = _QUESTION_FOCUS_REGEX.search(final_sentence)
+    if focus:
+        word = focus.group(0)
+        sentences[-1] = (
+            final_sentence[:focus.start()]
+            + f"<b>{word}</b>"
+            + final_sentence[focus.end():]
+        )
+        paragraphs[-1] = ' '.join(sentences).strip()
+        return paragraphs
+    
+    # Fallback: highlight last meaningful word (but not whole sentence)
+    tokens = final_sentence.rstrip(' ?').split()
+    if len(tokens) >= 2:
+        target = tokens[-1]
+        if target and '<b>' not in target:
+            sentences[-1] = final_sentence.rsplit(target, 1)[0] + f"<b>{target}</b>?"
+            paragraphs[-1] = ' '.join(sentences).strip()
     
     return paragraphs
 
