@@ -347,32 +347,32 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
         await _show_current_question(call.message, quiz_session, state, status_msg)
 
 
-@dp.message(QuizStates.waiting_for_answer, F.text)
+@dp.message(QuizStates.waiting_for_answer, Command('start', 'menu'))
+async def handle_quiz_exit_command(message: Message, state: FSMContext):
+    """
+    Обработка команд /start и /menu во время прохождения квиза - выход из квиза
+    """
+    data = await state.get_data()
+    session_id = data.get('quiz_session_id')
+
+    if session_id:
+        # Помечаем квиз как отменённый
+        quiz_session = await db_quiz_session.get(session_id)
+        if quiz_session and quiz_session.status == 'in_progress':
+            await db_quiz_session.update_status(session_id, 'cancelled')
+
+    await state.clear()
+    await message.answer(
+        "✅ Квиз прерван. Вы можете продолжить его позже через /quiz",
+        reply_markup=main_menu_keyboard
+    )
+
+
+@dp.message(QuizStates.waiting_for_answer, F.text & ~Command())
 async def handle_text_answer(message: Message, state: FSMContext):
     """
     Обработка текстового ответа (для type=text вопросов)
     """
-    # Проверяем, является ли сообщение командой
-    if message.text and message.text.startswith('/'):
-        # Если это команда /start или /menu - очищаем состояние квиза и завершаем сессию
-        if message.text in ['/start', '/menu']:
-            data = await state.get_data()
-            session_id = data.get('quiz_session_id')
-
-            if session_id:
-                # Помечаем квиз как отменённый
-                quiz_session = await db_quiz_session.get(session_id)
-                if quiz_session and quiz_session.status == 'in_progress':
-                    await db_quiz_session.update_status(session_id, 'cancelled')
-
-            await state.clear()
-            await message.answer(
-                "✅ Квиз прерван. Вы можете продолжить его позже через /quiz",
-                reply_markup=main_menu_keyboard
-            )
-        # Пропускаем обработку - команда будет обработана соответствующим хэндлером
-        return
-
     answer_value = message.text
 
     # Получаем session_id
