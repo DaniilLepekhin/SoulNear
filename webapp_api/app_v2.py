@@ -23,7 +23,7 @@ import asyncio
 # Add soul_bot to path to import shared code
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'soul_bot'))
 
-from database.database import DatabaseManager
+from database.database import db as database_manager
 from database.repository import conversation_history, user_profile
 import database.repository.user as db_user
 import database.repository.media as db_media
@@ -75,8 +75,7 @@ POSTGRES_DB = os.getenv('POSTGRES_DB', 'soul_bot')
 async def startup():
     """Initialize database connection"""
     logger.info("🚀 Starting WebApp API v2...")
-    db_manager = DatabaseManager()
-    await db_manager.ensure_ready()
+    await database_manager.ensure_ready()
     logger.info("✅ Database connection established")
 
 
