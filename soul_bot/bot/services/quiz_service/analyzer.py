@@ -57,23 +57,31 @@ async def analyze_quiz_results(
         answers = _extract_answers(quiz_session)
         
         # 2. Генерируем паттерны через GPT-4 (модуль)
-        new_patterns = await _generate_patterns_from_quiz(answers, category)
+        generated_patterns = await _generate_patterns_from_quiz(answers, category)
         
-        # 3. Переиспользуем pattern_analyzer из Stage 3!
-        await _update_profile_with_patterns(user_id, new_patterns)
+        # 3. Локальная дедупликация перед сохранением
+        deduplicated_patterns = _deduplicate_patterns(generated_patterns)
         
-        # 4. Генерируем рекомендации (модуль)
-        recommendations = await _generate_recommendations(new_patterns, category)
+        # 4. Переиспользуем pattern_analyzer из Stage 3 и получаем финальные паттерны
+        finalized_patterns = await _update_profile_with_patterns(
+            user_id,
+            deduplicated_patterns
+        )
+        # Используем финальные паттерны из профиля, если они есть, иначе fallback на дедуплицированные
+        patterns_for_output = finalized_patterns if finalized_patterns else deduplicated_patterns
+        
+        # 5. Генерируем рекомендации (модуль)
+        recommendations = await _generate_recommendations(patterns_for_output, category)
         
         # 5. Формируем результат
         result = {
-            "new_patterns": new_patterns,
+            "new_patterns": patterns_for_output,
             "recommendations": recommendations,
             "confidence": _calculate_confidence(answers),
             "category": category
         }
         
-        logger.info(f"Quiz analysis complete for user {user_id}: {len(new_patterns)} patterns")
+        logger.info(f"Quiz analysis complete for user {user_id}: {len(patterns_for_output)} patterns")
         
         return result
         
@@ -238,7 +246,7 @@ async def _generate_patterns_from_quiz(
 # 💾 МОДУЛЬ: ОБНОВЛЕНИЕ ПРОФИЛЯ
 # ==========================================
 
-async def _update_profile_with_patterns(user_id: int, new_patterns: list[dict]):
+async def _update_profile_with_patterns(user_id: int, new_patterns: list[dict]) -> list[dict]:
     """
     Обновить профиль пользователя с новыми паттернами
     
@@ -252,13 +260,59 @@ async def _update_profile_with_patterns(user_id: int, new_patterns: list[dict]):
     profile = await db_user_profile.get_or_create(user_id)
     existing_patterns = profile.patterns.get('patterns', [])
     
+    # Фиксируем сигнатуры новых паттернов (до мерджа)
+    target_signatures = {
+        _pattern_signature(pattern)
+        for pattern in new_patterns
+        if isinstance(pattern, dict)
+    }
+    
     # Используем _add_patterns_with_dedup из pattern_analyzer
     # (он автоматически добавит embeddings и проверит дубликаты!)
     from bot.services.pattern_analyzer import _add_patterns_with_dedup
     
     await _add_patterns_with_dedup(user_id, new_patterns, existing_patterns)
     
-    logger.info(f"Profile updated with {len(new_patterns)} patterns from quiz")
+    # Получаем обновлённый профиль и финальные версии паттернов
+    updated_profile = await db_user_profile.get_or_create(user_id)
+    updated_patterns = updated_profile.patterns.get('patterns', [])
+    
+    if not updated_patterns:
+        return []
+    
+    if target_signatures:
+        finalized = [
+            pattern
+            for pattern in updated_patterns
+            if _pattern_signature(pattern) in target_signatures
+        ]
+        if finalized:
+            logger.info(
+                "Profile updated with %s final patterns from quiz (dedup applied)",
+                len(finalized)
+            )
+            return finalized
+    
+    # Fallback: возвращаем самые свежие по last_detected
+    sorted_patterns = sorted(
+        updated_patterns,
+        key=lambda p: p.get('last_detected') or "",
+        reverse=True
+    )
+    
+    if not new_patterns:
+        logger.info(
+            "Profile update requested with empty pattern set; returning no patterns"
+        )
+        return []
+    
+    logger.info(
+        "Profile updated with %s patterns from quiz (fallback ordering)",
+        len(sorted_patterns)
+    )
+    
+    limit = max(1, len(new_patterns))
+    return sorted_patterns[:limit]
 
 
 # ==========================================
@@ -422,7 +476,7 @@ async def format_results_for_telegram(
         'stress': 'стресс',
     }
     category_label = category_labels.get(str(category_code).lower(), str(category_code))
-    patterns = results.get('new_patterns') or []
+    patterns = _deduplicate_patterns(results.get('new_patterns') or [])
     recommendations = results.get('recommendations') or []
 
     topic_emoji = get_topic_emoji(category_code, "💬")
@@ -495,4 +549,70 @@ async def format_results_for_telegram(
     sections.append("🤍 Выбери один шаг и напиши, как пойдёт. Я помогу отследить изменения.")
 
     return "\n\n".join([line for line in sections if line and line.strip()])
+
+
+# ==========================================
+# 🔁 УТИЛИТЫ ДЛЯ ДЕДУПЛИКАЦИИ
+# ==========================================
+
+def _normalize_signature_value(value: str | None) -> str:
+    if not value:
+        return ""
+    normalized = " ".join(str(value).strip().split())
+    return normalized.lower()
+
+
+def _pattern_signature(pattern: dict) -> str:
+    """
+    Генерирует сигнатуру паттерна для дедупликации.
+    
+    Приоритет: ключевые поля (contradiction, hidden_dynamic, blocked_resource) важнее title.
+    Если ключевые поля совпадают, но title разный - это все равно дубликат.
+    """
+    if not isinstance(pattern, dict):
+        return ""
+    
+    # Ключевые поля для определения дубликата (приоритет выше title)
+    key_fields = {
+        "contradiction": _normalize_signature_value(pattern.get("contradiction")),
+        "hidden_dynamic": _normalize_signature_value(pattern.get("hidden_dynamic")),
+        "blocked_resource": _normalize_signature_value(pattern.get("blocked_resource")),
+    }
+    
+    # Если ключевые поля заполнены, используем ТОЛЬКО их как основу сигнатуры
+    # (title, description, evidence игнорируются - они могут отличаться у дубликатов)
+    if any(key_fields.values()):
+        signature_payload = key_fields
+    else:
+        # Fallback: если ключевых полей нет, используем title
+        signature_payload = {
+            "title": _normalize_signature_value(pattern.get("title")),
+        }
+    
+    return json.dumps(signature_payload, ensure_ascii=True, sort_keys=True)
+
+
+def _deduplicate_patterns(patterns: list[dict]) -> list[dict]:
+    if not patterns:
+        return []
+    
+    unique_patterns: list[dict] = []
+    seen_signatures: set[str] = set()
+    
+    for pattern in patterns:
+        if not isinstance(pattern, dict):
+            continue
+        
+        signature = _pattern_signature(pattern)
+        if signature in seen_signatures:
+            logger.debug(
+                "Skipping duplicate pattern during quiz analysis: %s",
+                pattern.get("title")
+            )
+            continue
+        
+        seen_signatures.add(signature)
+        unique_patterns.append(pattern)
+    
+    return unique_patterns
 
