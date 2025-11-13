@@ -36,9 +36,14 @@ from bot.services.openai_service import get_chat_completion
 # Load environment variables
 load_dotenv()
 
-app = Quart(__name__)
-app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
-app = cors(app, allow_origin="*", allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"])
+# Create Quart app
+def create_app():
+    app = Quart(__name__)
+    # Enable CORS
+    cors(app, allow_origin="*", allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"])
+    return app
+
+app = create_app()
 
 # Setup logging
 logging.basicConfig(
