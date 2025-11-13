@@ -35,10 +35,17 @@ from bot.services.openai_service import get_chat_completion
 # Load environment variables
 load_dotenv()
 
-app = Quart(__name__)
+# Create app with explicit config to avoid PROVIDE_AUTOMATIC_OPTIONS error
+import flask.config
+original_init = flask.config.Config.__init__
 
-# Fix for PROVIDE_AUTOMATIC_OPTIONS config issue
-app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
+def patched_init(self, *args, **kwargs):
+    original_init(self, *args, **kwargs)
+    self.setdefault('PROVIDE_AUTOMATIC_OPTIONS', True)
+
+flask.config.Config.__init__ = patched_init
+
+app = Quart(__name__)
 
 # CORS headers for all responses
 @app.after_request
