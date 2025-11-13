@@ -148,16 +148,17 @@ export const VideoPlayer = () => {
 
   return (
     <div className="video-player-fullscreen">
-      {/* Video element */}
-      <video
-        ref={videoRef}
-        className="video-element"
-        playsInline
-        onClick={togglePlayPause}
-      />
+      <div className="video-container">
+        {/* Video element */}
+        <video
+          ref={videoRef}
+          className="video-element"
+          playsInline
+          onClick={togglePlayPause}
+        />
 
-      {/* Controls overlay */}
-      <div className={`video-controls-overlay ${showControls ? 'visible' : ''}`}>
+        {/* Controls overlay */}
+        <div className={`video-controls-overlay ${showControls ? 'visible' : ''}`}>
         {/* Header */}
         <div className="video-header">
           <button
@@ -233,6 +234,7 @@ export const VideoPlayer = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

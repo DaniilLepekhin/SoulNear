@@ -102,7 +102,7 @@ export const useAudioPlayer = () => {
       audio.src = '';
       audio.load();
     };
-  }, [activeTrack?.url, activeTrack?.name, setDuration, setIsPlaying]);
+  }, [activeTrack?.url, setDuration, setIsPlaying]); // Removed activeTrack?.name - only URL matters for audio element
 
   // Sleep timer - check every second
   useEffect(() => {
