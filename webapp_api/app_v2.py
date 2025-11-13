@@ -344,35 +344,73 @@ async def get_emotional_state(user_id: int):
 
 @app.route('/practices', methods=['GET'])
 async def get_practices():
-    """Get all practices organized by categories"""
+    """Get all practices organized by categories
+
+    Frontend expects:
+    {
+        practices: [{name: "Category", items: [...]}],  // Audio meditations
+        videos: [{name: "🧘 Йога", items: [...]}],      // Video content
+        music: [{name: "Track", url: "...", ...}]       // Music tracks (flat array)
+    }
+    """
     try:
         # Get all practice categories (same pattern as bot)
         categories = await db_media_category.get_all_by_type(category='practices')
 
-        # Transform to expected format
-        practices = {}
+        # Organize by type: practices (audio), videos, music
+        practices_list = []
+        videos_list = []
+        music_list = []
+
         for category in categories:
             # Get all media for this category
             medias = await db_media.get_all_by_category(category_id=category.id)
 
-            media_list = []
+            if not medias:
+                continue
+
+            media_items = []
             for media in medias:
-                media_list.append({
+                item = {
                     'id': media.id,
                     'name': media.name,
                     'text': media.text,
                     'media_type': media.media_type,
                     'media_id': media.media_id,
+                    'url': media.file_url,  # Frontend expects 'url' not 'file_url'
                     'file_url': media.file_url,
                     'destination': media.destination,
                     'position': media.position
-                })
+                }
+                media_items.append(item)
 
-            practices[category.name] = media_list
+            # Categorize based on category name or media type
+            category_name = category.name.lower()
+
+            # Check if it's yoga videos
+            if 'йога' in category_name or category.media_type == 'video':
+                videos_list.append({
+                    'name': category.name,
+                    'items': media_items
+                })
+            # Check if it's music (hang drum, etc)
+            elif 'музык' in category_name or 'ханг' in category_name:
+                # Music is flat array, not categorized
+                music_list.extend(media_items)
+            else:
+                # Everything else is meditation practices
+                practices_list.append({
+                    'name': category.name,
+                    'items': media_items
+                })
 
         return jsonify({
             'status': 'success',
-            'data': practices
+            'data': {
+                'practices': practices_list,
+                'videos': videos_list,
+                'music': music_list
+            }
         })
 
     except Exception as e:
