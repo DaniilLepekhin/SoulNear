@@ -347,34 +347,28 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
         await _show_current_question(call.message, quiz_session, state, status_msg)
 
 
-@dp.message(QuizStates.waiting_for_answer, Command('start', 'menu'))
-async def handle_quiz_exit_command(message: Message, state: FSMContext):
-    """
-    Обработка команд /start и /menu во время прохождения квиза - выход из квиза
-    """
-    data = await state.get_data()
-    session_id = data.get('quiz_session_id')
-
-    if session_id:
-        # Помечаем квиз как отменённый
-        quiz_session = await db_quiz_session.get(session_id)
-        if quiz_session and quiz_session.status == 'in_progress':
-            await db_quiz_session.update_status(session_id, 'cancelled')
-
-    await state.clear()
-    await message.answer(
-        "✅ Квиз прерван. Вы можете продолжить его позже через /quiz",
-        reply_markup=main_menu_keyboard
-    )
-
-
-@dp.message(QuizStates.waiting_for_answer, F.text & ~Command())
+@dp.message(QuizStates.waiting_for_answer, F.text)
 async def handle_text_answer(message: Message, state: FSMContext):
     """
     Обработка текстового ответа (для type=text вопросов)
     """
-    answer_value = message.text
+    answer_value = (message.text or "").strip()
 
+    if answer_value.startswith("/"):
+        command = answer_value.split()[0].lower()
+
+        await state.clear()
+
+        from bot.handlers.user.start import start_message, menu_message  # local import to avoid circular deps
+
+        if command in {"/start", "/restart"}:
+            await start_message(message, state)
+        elif command in {"/menu", "/main", "/me"}:
+            await menu_message(message, state)
+        else:
+            await message.answer("⚠️ Эта команда недоступна во время квиза. Используй /menu или /start.")
+        return
+    
     # Получаем session_id
     data = await state.get_data()
     session_id = data.get('quiz_session_id')

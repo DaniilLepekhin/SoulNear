@@ -21,6 +21,7 @@ from utils.date_helpers import add_months
 
 from bot.functions.ChatGPT import get_assistant_response, generate_audio, analyse_photo
 from bot.states.states import Update_user_info
+from config import ADMINS
 
 
 async def send_error(function, error):
@@ -102,6 +103,9 @@ async def check_user_info(message: Message, state: FSMContext):
 
 
 async def check_sub(user_id: int):
+    if user_id in ADMINS:
+        return True
+
     user = await db_user.get(user_id=user_id)
     
     # ✅ FIX: Check if user exists
@@ -120,6 +124,9 @@ async def check_sub(user_id: int):
 
 
 async def check_sub_assistant(user_id: int, assistant: str) -> bool:
+    if user_id in ADMINS:
+        return True
+
     user = await db_user.get(user_id=user_id)
     
     # ✅ FIX: Check if user exists
@@ -129,19 +136,17 @@ async def check_sub_assistant(user_id: int, assistant: str) -> bool:
     sub = user.sub_date >= datetime.now()
 
     if not sub:
+        fallback_attr = {
+            'helper': 'helper_requests',
+            'sleeper': 'sleeper_requests',
+            'assistant': 'assistant_requests',
+            'relationships': 'assistant_requests',
+            'money': 'assistant_requests',
+            'confidence': 'assistant_requests',
+        }.get(assistant)
 
-        match assistant:
-            case 'helper':
-                if user.helper_requests > 0:
-                    sub = True
-
-            case 'sleeper':
-                if user.sleeper_requests > 0:
-                    sub = True
-
-            case 'assistant':
-                if user.assistant_requests > 0:
-                    sub = True
+        if fallback_attr and getattr(user, fallback_attr, 0) > 0:
+            sub = True
 
     if not sub:
         await bot.send_message(chat_id=user_id,

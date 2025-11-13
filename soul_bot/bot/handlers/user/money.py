@@ -6,8 +6,8 @@ from bot.functions.other import check_sub_assistant, voice_answer, text_answer
 from bot.handlers.user.start import menu_message_not_delete
 from bot.loader import dp
 from bot.states.states import get_prompt
-import bot.keyboards.practice as keyboards
 from database.repository import conversation_history
+from bot.keyboards.analysis import build_quiz_ready_keyboard
 
 
 # Чат ассистентом по деньгам
@@ -26,11 +26,11 @@ async def money(callback: CallbackQuery, state: FSMContext):
         await state.set_state(get_prompt.money_prompt)
 
         # Очищаем контекст для money ассистента
-        await conversation_history.clear(user_id=user_id, assistant_type='money')
+        await conversation_history.clear_history(user_id=user_id, assistant_type='money')
 
         await callback.message.answer(
             texts.money,
-            reply_markup=keyboards.to_menu,
+            reply_markup=build_quiz_ready_keyboard('money'),
             parse_mode='html',
             protect_content=True
         )
