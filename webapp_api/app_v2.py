@@ -354,18 +354,24 @@ async def get_practices():
     }
     """
     try:
-        # Get all practice categories (same pattern as bot)
-        categories = await db_media_category.get_all_by_type(category='practices')
+        # Get all categories: practices, videos, and potentially music
+        practices_categories = await db_media_category.get_all_by_type(category='practices')
+        videos_categories = await db_media_category.get_all_by_type(category='videos')
+
+        # Try to get music categories if they exist
+        try:
+            music_categories = await db_media_category.get_all_by_type(category='music')
+        except:
+            music_categories = []
 
         # Organize by type: practices (audio), videos, music
         practices_list = []
         videos_list = []
         music_list = []
 
-        for category in categories:
-            # Get all media for this category
+        # Process practices categories
+        for category in practices_categories:
             medias = await db_media.get_all_by_category(category_id=category.id)
-
             if not medias:
                 continue
 
@@ -377,32 +383,90 @@ async def get_practices():
                     'text': media.text,
                     'media_type': media.media_type,
                     'media_id': media.media_id,
-                    'url': media.file_url,  # Frontend expects 'url' not 'file_url'
+                    'url': media.file_url,
                     'file_url': media.file_url,
                     'destination': media.destination,
                     'position': media.position
                 }
                 media_items.append(item)
 
-            # Categorize based on category name or media type
+            # Check if this is music based on category name
             category_name = category.name.lower()
-
-            # Check if it's yoga videos
-            if 'йога' in category_name or category.media_type == 'video':
-                videos_list.append({
-                    'name': category.name,
-                    'items': media_items
-                })
-            # Check if it's music (hang drum, etc)
-            elif 'музык' in category_name or 'ханг' in category_name:
-                # Music is flat array, not categorized
+            if 'музык' in category_name or 'ханг' in category_name:
                 music_list.extend(media_items)
             else:
-                # Everything else is meditation practices
                 practices_list.append({
                     'name': category.name,
                     'items': media_items
                 })
+
+        # Process video categories (yoga, etc)
+        for category in videos_categories:
+            medias = await db_media.get_all_by_category(category_id=category.id)
+            if not medias:
+                continue
+
+            media_items = []
+            for media in medias:
+                item = {
+                    'id': media.id,
+                    'name': media.name,
+                    'text': media.text,
+                    'media_type': media.media_type,
+                    'media_id': media.media_id,
+                    'url': media.file_url,
+                    'file_url': media.file_url,
+                    'destination': media.destination,
+                    'position': media.position
+                }
+                media_items.append(item)
+
+            videos_list.append({
+                'name': category.name,
+                'items': media_items
+            })
+
+        # Process music categories if they exist
+        for category in music_categories:
+            medias = await db_media.get_all_by_category(category_id=category.id)
+            if medias:
+                for media in medias:
+                    item = {
+                        'id': media.id,
+                        'name': media.name,
+                        'text': media.text,
+                        'media_type': media.media_type,
+                        'media_id': media.media_id,
+                        'url': media.file_url,
+                        'file_url': media.file_url,
+                        'destination': media.destination,
+                        'position': media.position
+                    }
+                    music_list.append(item)
+
+        # Add hardcoded hang music tracks (from bot sounds.py)
+        # TODO: Move this to database later
+        hang_music = [
+            {"name": "Macadamia", "media_id": "CQACAgIAAxkBAAIaWme6IHocOTKeWabBMRFMAo30j0RxAAIUcQACMpLRSTh0TJb9ws2pNgQ", "duration": "3:47", "media_type": "audio"},
+            {"name": "New Horizons", "media_id": "CQACAgIAAxkBAAIaXGe6IJtFfe3ZnHnTn72SEbEHtJ_kAAIZcQACMpLRSQm3SlOEcP70NgQ", "duration": "2:21", "media_type": "audio"},
+            {"name": "Sunny Way", "media_id": "CQACAgIAAxkBAAIaXme6ILRQFjmomRTaU3S_LweBO4KcAAIbcQACMpLRScrLXVN5ihmENgQ", "duration": "5:23", "media_type": "audio"},
+            {"name": "Seven Wonders", "media_id": "CQACAgIAAxkBAAIaYGe6IMFSka-PeboFTY749cTdqO1YAAIdcQACMpLRSTfG0XkQqWr5NgQ", "duration": "3:05", "media_type": "audio"},
+            {"name": "The Flow", "media_id": "CQACAgIAAxkBAAIaYme6INjiJa78R71Tgilz1cHoVNE5AAIecQACMpLRSZnku-mQlkNgNgQ", "duration": "5:18", "media_type": "audio"},
+            {"name": "Immersion", "media_id": "CQACAgIAAxkBAAIaZGe6IO62dHDYLfZ6ApYx5JAO5IB6AAIfcQACMpLRSU0Hq8D0hVztNgQ", "duration": "3:46", "media_type": "audio"},
+            {"name": "Spring", "media_id": "CQACAgIAAxkBAAIaZme6IPo_U0KLRwhniaCdH6PHbdq1AAIgcQACMpLRSRyrUTuiVBMDNgQ", "duration": "3:32", "media_type": "audio"},
+            {"name": "Rainbow", "media_id": "CQACAgIAAxkBAAIaaGe6IQkaE72Z22xs5phmwjNnD-OfAAIjcQACMpLRSXmo6_o-tdlNNgQ", "duration": "4:33", "media_type": "audio"},
+            {"name": "Blissful", "media_id": "CQACAgIAAxkBAAIaame6IRhI9YHGUNDzGXdyYXjTlOBfAAIlcQACMpLRSdMBcbkGn_SqNgQ", "duration": "5:14", "media_type": "audio"},
+            {"name": "Ocean Inside", "media_id": "CQACAgIAAxkBAAIabGe6IR--hH94dPduMd_xOVWwW9HiAAImcQACMpLRSUS6P8YcBJJWNgQ", "duration": "2:32", "media_type": "audio"},
+            {"name": "Gravity", "media_id": "CQACAgIAAxkBAAIabme6ITnuagYXIOA-x5dEkW1BqOtxAAIqcQACMpLRSXiK8U0F0yHjNgQ", "duration": "3:06", "media_type": "audio"},
+            {"name": "Cappadocia", "media_id": "CQACAgIAAxkBAAIacGe6IU0FqF8GNMKuUAxzCEFcsCSEAAIucQACMpLRSYay1XS2zvn7NgQ", "duration": "4:06", "media_type": "audio"},
+            {"name": "Reggae", "media_id": "CQACAgIAAxkBAAIacme6IWWKZbY-7FQG6aQ3p0QS2LWiAAIxcQACMpLRSYlpu2L73SnvNgQ", "duration": "3:12", "media_type": "audio"},
+            {"name": "Macadamia Remix", "media_id": "CQACAgIAAxkBAAIadGe6IXuMKffmitJKgPE4YjVuCql9AAI0cQACMpLRSXqbQKD9N4c9NgQ", "duration": "4:31", "media_type": "audio"},
+            {"name": "Sunny Way Remix", "media_id": "CQACAgIAAxkBAAIadme6IYc32RhDe3f-n1eaeYAccwj9AAI2cQACMpLRSXwwwGBfYacZNgQ", "duration": "5:12", "media_type": "audio"},
+            {"name": "Breath of Spring Remix", "media_id": "CQACAgIAAxkBAAIaeGe6IY5EARlEtekD_9KAxuK1iEcGAAI3cQACMpLRSVTbvohBGOngNgQ", "duration": "3:31", "media_type": "audio"},
+            {"name": "Ocean Inside Remix", "media_id": "CQACAgIAAxkBAAIaeme6IaGK7nwa_UEJ3HxRIzkwr_NHAAI6cQACMpLRSXm8c2FvvzFSNgQ", "duration": "5:11", "media_type": "audio"},
+            {"name": "J. Remix", "media_id": "CQACAgIAAxkBAAIafGe6Iax5rwOE8jZe_8IIPcRPoSHrAAI8cQACMpLRSd60kiEAAcn2UTYE", "duration": "3:46", "media_type": "audio"},
+        ]
+        music_list.extend(hang_music)
 
         return jsonify({
             'status': 'success',
