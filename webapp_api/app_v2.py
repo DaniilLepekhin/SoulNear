@@ -240,13 +240,17 @@ async def get_user(user_id: int):
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
+        # Check if user has active premium (sub_date > now)
+        from datetime import datetime
+        has_premium = user.sub_date and user.sub_date > datetime.now()
+
         return jsonify({
             'status': 'success',
             'data': {
                 'user_id': user.user_id,
                 'name': user.name,
                 'username': user.username,
-                'premium': user.premium,
+                'premium': has_premium,
                 'sub_date': user.sub_date.isoformat() if user.sub_date else None
             }
         })
