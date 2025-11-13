@@ -44,11 +44,11 @@ services:
     networks:
       - soulnear_network
 
-  # WebApp API
+  # WebApp API v2 (ChatCompletion-based)
   api:
     build:
-      context: ./webapp_api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: webapp_api/Dockerfile
     container_name: soulnear_api
     restart: unless-stopped
     env_file:
@@ -58,10 +58,14 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
     ports:
-      - "18888:8888"
+      - "18001:8001"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      # Mount soul_bot for shared code
+      - ./soul_bot:/app/soul_bot:ro
+      - ./webapp_api:/app/webapp_api:ro
     networks:
       - soulnear_network
 
