@@ -12,7 +12,6 @@ Key features:
 - Quiz integration
 """
 from quart import Quart, request, jsonify
-from quart_cors import cors
 import os
 import sys
 import logging
@@ -36,14 +35,15 @@ from bot.services.openai_service import get_chat_completion
 # Load environment variables
 load_dotenv()
 
-# Create Quart app
-def create_app():
-    app = Quart(__name__)
-    # Enable CORS
-    cors(app, allow_origin="*", allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"])
-    return app
+app = Quart(__name__)
 
-app = create_app()
+# CORS headers for all responses
+@app.after_request
+async def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
 
 # Setup logging
 logging.basicConfig(
