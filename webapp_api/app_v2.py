@@ -37,6 +37,9 @@ load_dotenv()
 
 app = Quart(__name__)
 
+# Fix for PROVIDE_AUTOMATIC_OPTIONS config issue
+app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
+
 # CORS headers for all responses
 @app.after_request
 async def add_cors_headers(response):
