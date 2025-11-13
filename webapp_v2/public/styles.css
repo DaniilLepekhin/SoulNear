@@ -4340,7 +4340,8 @@ img.emoji {
     padding-bottom: 10px;
 }
 
-.filter-btn {
+/* Pattern screen specific filter buttons - use scoped selector */
+.patterns-screen .filter-btn {
     padding: 8px 16px;
     border: 1px solid #E3F2FD;
     background: white;
@@ -4351,7 +4352,7 @@ img.emoji {
     transition: all 0.2s ease;
 }
 
-.filter-btn.active {
+.patterns-screen .filter-btn.active {
     background: #1976D2;
     color: white;
     border-color: #1976D2;
