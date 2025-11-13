@@ -342,14 +342,17 @@ async def get_emotional_state(user_id: int):
 async def get_practices():
     """Get all practices organized by categories"""
     try:
-        # Get all categories with media
-        categories = await db_media_category.get_all_with_media()
+        # Get all practice categories (same pattern as bot)
+        categories = await db_media_category.get_all_by_type(category='practices')
 
         # Transform to expected format
         practices = {}
         for category in categories:
+            # Get all media for this category
+            medias = await db_media.get_all_by_category(category_id=category.id)
+
             media_list = []
-            for media in category.get('medias', []):
+            for media in medias:
                 media_list.append({
                     'id': media.id,
                     'name': media.name,
@@ -361,7 +364,7 @@ async def get_practices():
                     'position': media.position
                 })
 
-            practices[category['name']] = media_list
+            practices[category.name] = media_list
 
         return jsonify({
             'status': 'success',
