@@ -37,7 +37,8 @@ from bot.services.openai_service import get_chat_completion
 load_dotenv()
 
 app = Quart(__name__)
-cors(app, allow_origin="*", allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"])
+app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
+app = cors(app, allow_origin="*", allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"])
 
 # Setup logging
 logging.basicConfig(
