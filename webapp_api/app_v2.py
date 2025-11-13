@@ -93,7 +93,7 @@ async def health_check():
 # 💬 CHAT ENDPOINTS
 # ==========================================
 
-@app.route('/api/chat', methods=['POST'])
+@app.route('/chat', methods=['POST'])
 async def chat():
     """
     Send message and get AI response
@@ -132,7 +132,7 @@ async def chat():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/chat/history/<int:user_id>', methods=['GET'])
+@app.route('/chat/history/<int:user_id>', methods=['GET'])
 async def get_chat_history(user_id: int):
     """
     Get chat history for user
@@ -164,7 +164,7 @@ async def get_chat_history(user_id: int):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/chat/save', methods=['POST'])
+@app.route('/chat/save', methods=['POST'])
 async def save_chat_message():
     """
     Save chat message to history
@@ -199,7 +199,7 @@ async def save_chat_message():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/chat/clear', methods=['POST'])
+@app.route('/chat/clear', methods=['POST'])
 async def clear_chat_history():
     """
     Clear chat history for user
@@ -231,7 +231,7 @@ async def clear_chat_history():
 # 👤 USER & PROFILE ENDPOINTS
 # ==========================================
 
-@app.route('/api/user/<int:user_id>', methods=['GET'])
+@app.route('/user/<int:user_id>', methods=['GET'])
 async def get_user(user_id: int):
     """Get user information"""
     try:
@@ -256,7 +256,7 @@ async def get_user(user_id: int):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/profile/<int:user_id>', methods=['GET'])
+@app.route('/profile/<int:user_id>', methods=['GET'])
 async def get_profile(user_id: int):
     """Get user profile with patterns, insights, and preferences"""
     try:
@@ -286,7 +286,7 @@ async def get_profile(user_id: int):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/profile/<int:user_id>/patterns', methods=['GET'])
+@app.route('/profile/<int:user_id>/patterns', methods=['GET'])
 async def get_patterns(user_id: int):
     """Get user patterns"""
     try:
@@ -302,7 +302,7 @@ async def get_patterns(user_id: int):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/profile/<int:user_id>/insights', methods=['GET'])
+@app.route('/profile/<int:user_id>/insights', methods=['GET'])
 async def get_insights(user_id: int):
     """Get user insights"""
     try:
@@ -318,7 +318,7 @@ async def get_insights(user_id: int):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/profile/<int:user_id>/emotional-state', methods=['GET'])
+@app.route('/profile/<int:user_id>/emotional-state', methods=['GET'])
 async def get_emotional_state(user_id: int):
     """Get user emotional state"""
     try:
@@ -338,7 +338,7 @@ async def get_emotional_state(user_id: int):
 # 🧘 PRACTICES ENDPOINTS
 # ==========================================
 
-@app.route('/api/practices', methods=['GET'])
+@app.route('/practices', methods=['GET'])
 async def get_practices():
     """Get all practices organized by categories"""
     try:
@@ -377,7 +377,7 @@ async def get_practices():
 # 🎯 MOOD TRACKING (for compatibility)
 # ==========================================
 
-@app.route('/api/mood/save', methods=['POST'])
+@app.route('/mood/save', methods=['POST'])
 async def save_mood():
     """Save user mood (stored in emotional_state in profile)"""
     try:
@@ -411,7 +411,7 @@ async def save_mood():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/mood/history/<int:user_id>', methods=['GET'])
+@app.route('/mood/history/<int:user_id>', methods=['GET'])
 async def get_mood_history(user_id: int):
     """Get mood history (from emotional_state)"""
     try:
