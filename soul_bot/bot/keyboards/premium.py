@@ -12,7 +12,7 @@ sub_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='3 месяца — 2 999 ₽', callback_data='pay 1')],
     [InlineKeyboardButton(text='6 месяцев — 5 555 ₽', callback_data='pay 2')],
     [InlineKeyboardButton(text='12 месяцев — 11 111 ₽', callback_data='pay 3')],
-    [InlineKeyboardButton(text='↩️ Назад', callback_data='menu')]
+    [InlineKeyboardButton(text='🏠 Главное меню', callback_data='menu')]
 ])
 
 

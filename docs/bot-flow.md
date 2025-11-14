@@ -69,8 +69,10 @@ flowchart LR
     quizCategories --> quizRunning
     quizRunning(("FSM: QuizStates.waiting_for_answer"))
     quizRunning --> quizRunning
-    quizRunning --> quizResults["Results + build_quiz_menu_keyboard"]
-    quizResults --> menu
+    quizRunning --> quizResults["Quiz results shown"]
+    quizResults --> quizComplete["Flow end"]
+    quizResults -->|нет подписки| paywall["Плашка подписки (sub_menu)"]
+    paywall --> menu
 
     webapp --> menu
 ```

@@ -20,6 +20,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest
 from types import SimpleNamespace
+from datetime import datetime
 
 from bot.loader import dp
 from bot.states.states import QuizStates
@@ -32,11 +33,9 @@ import database.repository.user_profile as db_user_profile
 from bot.keyboards.start import menu as main_menu_keyboard, start
 from config import is_feature_enabled
 import bot.text as texts
-from bot.services.quiz_ui import (
-    build_quiz_menu_keyboard,
-)
 from bot.functions.other import check_user_info
 import database.repository.user as db_user
+from bot.keyboards.premium import sub_menu
 
 # Initialize adaptive quiz service
 gpt_service = GPTService()
@@ -619,13 +618,14 @@ async def _finish_quiz(message: Message, quiz_session, state: FSMContext):
             text=formatted_text,
             parse_mode='HTML'
         )
-        
-        # Возвращаем главное меню
-        await message.answer(
-            texts.menu,
-            reply_markup=build_quiz_menu_keyboard(),
-            disable_web_page_preview=True
-        )
+
+        user = await db_user.get(user_id)
+        if user and user.sub_date < datetime.now():
+            await message.answer(
+                texts.limit_content_text,
+                reply_markup=sub_menu,
+                parse_mode='html'
+            )
         
     except Exception as e:
         await status_msg.delete()
