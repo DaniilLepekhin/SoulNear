@@ -8,6 +8,7 @@ from bot.loader import dp
 from bot.states.states import get_prompt
 from database.repository import conversation_history
 from bot.keyboards.analysis import build_quiz_ready_keyboard
+from bot.handlers.user.helper import _check_and_decrease_free_messages
 
 
 # Чат ассистентом по самооценке
@@ -38,6 +39,10 @@ async def confidence(callback: CallbackQuery, state: FSMContext):
 
 @dp.message(F.voice, get_prompt.confidence_prompt)
 async def confidence_voice(message: Message, state: FSMContext):
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await voice_answer(message, assistant='confidence')
 
     try:
@@ -57,6 +62,10 @@ async def confidence_voice(message: Message, state: FSMContext):
 # Приём сигнала "Готово" и обработка 10 вопросов-ответов*
 @dp.message(get_prompt.confidence_prompt)
 async def confidence_text(message: Message, state: FSMContext):
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await text_answer(message, assistant='confidence')
 
     try:

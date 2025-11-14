@@ -6,6 +6,7 @@ from bot.functions.other import check_sub_assistant, voice_answer, text_answer
 from bot.loader import dp
 from bot.states.states import get_prompt
 import bot.keyboards.practice as keyboards
+from bot.handlers.user.helper import _check_and_decrease_free_messages
 
 
 @dp.callback_query(F.data == 'soulsleep')
@@ -31,10 +32,18 @@ async def soulsleep(callback: CallbackQuery, state: FSMContext):
 # Прием промпта (гс)
 @dp.message(F.voice, get_prompt.soulsleep_prompt)
 async def soulsleep_voice(message: Message, state: FSMContext):
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await voice_answer(message=message, assistant='sleeper')
 
 
 # Приём промпта (текст)
 @dp.message(get_prompt.soulsleep_prompt)
 async def soulsleep_text(message: Message, state: FSMContext):
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await text_answer(message=message, assistant='sleeper')

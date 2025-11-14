@@ -22,6 +22,7 @@ from bot.handlers.user.quiz import launch_quiz_for_category_from_message
 import database.repository.user as db_user
 import database.repository.ads as db_ads
 import database.repository.deeplink_event as db_deeplink_event
+from config import ADMINS
 
 LEGACY_QUIZ_DEEPLINK_PREFIX = 'quiz_'
 QUIZ_DEEPLINK_ALIASES = {
@@ -29,6 +30,28 @@ QUIZ_DEEPLINK_ALIASES = {
     'analysis_money_ads': 'money',
     'analysis_purpose_ads': 'purpose',
 }
+
+
+async def send_menu_with_video(message: Message):
+    """Send main menu with video from public channel"""
+    video_file_id = "BAACAgIAAxkBAAJfJWkWtqGD6TzSH15gz5k25qNfe9MpAAJ4igACpV-wSJePx5AcgfxyNgQ"
+
+    try:
+        await message.answer_video(
+            video=video_file_id,
+            caption=texts.menu,
+            reply_markup=menu_keyboard,
+            parse_mode='HTML'
+        )
+    except Exception as e:
+        print(f"Error sending menu with video: {e}")
+        # Fallback to text-only menu
+        await message.answer(
+            text=texts.menu,
+            reply_markup=menu_keyboard,
+            disable_web_page_preview=True,
+            parse_mode='HTML'
+        )
 
 
 def _resolve_quiz_deeplink(raw_link: str | None) -> str | None:
@@ -135,10 +158,7 @@ async def start_accept_callback(callback: CallbackQuery, state: FSMContext):
         if pending_category:
             await launch_deeplink_quiz(callback.message, state, pending_category)
         else:
-            await callback.message.answer(text=texts.menu,
-                                          reply_markup=menu_keyboard,
-                                          disable_web_page_preview=True,
-                                          parse_mode='HTML')
+            await send_menu_with_video(callback.message)
         return
 
     prompt = await callback.message.answer(
@@ -216,17 +236,8 @@ async def menu_message(message: Message, state: FSMContext):
     if not await check_user_info(message=message, state=state):
         return
 
-    try:
-        await message.answer(text=texts.menu,
-                             reply_markup=menu_keyboard,
-                             disable_web_page_preview=True,
-                             parse_mode='HTML')
-    except Exception as e:
-        await message.answer(text=texts.menu,
-                             reply_markup=menu_keyboard,
-                             disable_web_page_preview=True,
-                             parse_mode='HTML')
-    
+    await send_menu_with_video(message)
+
     try:
         await message.delete()
     except:
@@ -324,28 +335,49 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    try:
-        await callback.message.answer(text=texts.menu,
-                                      reply_markup=menu_keyboard,
-                                      disable_web_page_preview=True,
-                                      parse_mode='HTML')
-    except Exception as e:
-        print(f"Ошибка при отправке видео: {e}")
-        await callback.message.answer(text=texts.menu,
-                                      reply_markup=menu_keyboard,
-                                      disable_web_page_preview=True,
-                                      parse_mode='HTML')
+    await send_menu_with_video(callback.message)
 
 
 async def menu_message_not_delete(message: Message):
-    try:
-        await message.answer(text=texts.menu,
-                             reply_markup=menu_keyboard,
-                             disable_web_page_preview=True,
-                             parse_mode='HTML')
-    except Exception as e:
-        print(f"Ошибка при отправке видео: {e}")
-        await message.answer(text=texts.menu,
-                             reply_markup=menu_keyboard,
-                             disable_web_page_preview=True,
-                             parse_mode='HTML')
+    await send_menu_with_video(message)
+
+
+# Тестовая команда для быстрого тестирования цепочки (только для админов)
+@dp.message(Command('test_gift'))
+async def test_gift_command(message: Message):
+    """Тестирование предложения подарка"""
+    user_id = message.from_user.id
+    if user_id not in ADMINS:
+        return
+
+    # Сброс флагов для теста
+    await db_user.update(
+        user_id=user_id,
+        free_messages_offered=False,
+        free_messages_activated=False,
+        free_messages_count=0
+    )
+
+    # Импортируем функцию
+    from bot.handlers.user.quiz import _offer_free_messages_or_menu
+
+    await _offer_free_messages_or_menu(message, user_id)
+
+
+@dp.message(Command('test_subscription'))
+async def test_subscription_command(message: Message):
+    """Тестирование оффера подписки"""
+    user_id = message.from_user.id
+    if user_id not in ADMINS:
+        return
+
+    # Установить флаг активации для теста
+    await db_user.update(
+        user_id=user_id,
+        free_messages_activated=True
+    )
+
+    # Импортируем функцию
+    from bot.handlers.user.quiz import _offer_free_messages_or_menu
+
+    await _offer_free_messages_or_menu(message, user_id)

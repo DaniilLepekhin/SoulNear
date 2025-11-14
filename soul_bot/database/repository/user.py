@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update as sql_update, func
 from database.database import db
 from database.models.user import User
 from utils.date_helpers import add_months  # ← Fixed circular import!
@@ -85,7 +85,7 @@ async def update_active(user_id: int) -> None:
         asyncio.get_event_loop().create_task(db_statistic_day.increment('return_users'))
 
     async with db() as session:
-        await session.execute(update(User).
+        await session.execute(sql_update(User).
                               where(User.user_id == user_id).
                               values(active_date=datetime.now(),
                                      block_date=None))
@@ -110,7 +110,7 @@ async def update_sub_date(user_id: int,
     sub_date = sub_date + timedelta(days=days)
 
     async with db() as session:
-        await session.execute(update(User).
+        await session.execute(sql_update(User).
                               where(User.user_id == user_id).
                               values(sub_date=sub_date))
         await session.commit()
@@ -120,7 +120,7 @@ async def block(user_id: int) -> None:
     asyncio.get_event_loop().create_task(db_statistic_day.increment('block_users'))
 
     async with db() as session:
-        await session.execute(update(User).
+        await session.execute(sql_update(User).
                               where(User.user_id == user_id).
                               values(block_date=datetime.now()))
         await session.commit()
@@ -130,17 +130,17 @@ async def decrement_requests(user_id: int, assistant: str):
     execute = ''
     match assistant:
         case 'helper':
-            execute = update(User). \
+            execute = sql_update(User). \
                 where(User.user_id == user_id). \
                 values(helper_requests=User.helper_requests - 1)
 
         case 'sleeper':
-            execute = update(User). \
+            execute = sql_update(User). \
                 where(User.user_id == user_id). \
                 values(sleeper_requests=User.sleeper_requests - 1)
 
         case 'assistant':
-            execute = update(User). \
+            execute = sql_update(User). \
                 where(User.user_id == user_id). \
                 values(assistant_requests=User.assistant_requests - 1)
 
@@ -151,7 +151,7 @@ async def decrement_requests(user_id: int, assistant: str):
 
 async def refresh_requests():
     async with db() as session:
-        await session.execute(update(User).
+        await session.execute(sql_update(User).
                               values(helper_requests=10,
                                      sleeper_requests=3,
                                      assistant_requests=11))
@@ -163,9 +163,41 @@ async def update_info(user_id: int,
                       age: Optional[int],
                       gender: Optional[bool]) -> None:
     async with db() as session:
-        await session.execute(update(User).
+        await session.execute(sql_update(User).
                               values(real_name=real_name,
                                      age=age,
                                      gender=gender).
                               where(User.user_id == user_id))
         await session.commit()  # ⚠️ FIX: Commit изменений в БД!
+
+
+async def update(user_id: int, **kwargs) -> None:
+    """
+    Universal update method for any user fields.
+    Usage: await db_user.update(user_id=123, field1=value1, field2=value2)
+    """
+    async with db() as session:
+        await session.execute(
+            sql_update(User).
+            where(User.user_id == user_id).
+            values(**kwargs)
+        )
+        await session.commit()
+
+
+async def get_all_for_retention() -> list[User]:
+    """
+    Получить всех пользователей которым нужно отправить retention сообщения.
+    Условия: free_messages_activated=True, free_messages_count=0, нет подписки
+    """
+    from datetime import datetime
+    async with db() as session:
+        result = await session.execute(
+            select(User).where(
+                User.free_messages_activated == True,
+                User.free_messages_count == 0,
+                User.sub_date < datetime.now(),
+                User.last_retention_message < 15  # Не больше 15 сообщений
+            )
+        )
+        return result.scalars().all()

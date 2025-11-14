@@ -1,5 +1,5 @@
 from aiogram import F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 import bot.text as texts
 from bot.functions.other import check_sub_assistant, voice_answer, text_answer, photo_answer, check_user_info
@@ -7,6 +7,67 @@ from bot.loader import dp
 from bot.states.states import get_prompt, Update_user_info
 from database.repository import conversation_history
 import bot.keyboards.practice as keyboards
+import database.repository.user as db_user
+from datetime import datetime
+
+
+async def _check_and_decrease_free_messages(message: Message) -> bool:
+    """
+    Проверить и уменьшить счётчик бесплатных сообщений.
+    Возвращает True если можно продолжить, False если лимит исчерпан.
+    """
+    user_id = message.from_user.id
+    user = await db_user.get(user_id)
+
+    # Если нет бесплатных сообщений или есть подписка - пропускаем
+    if user.free_messages_count <= 0 or user.sub_date >= datetime.now():
+        return True
+
+    # Уменьшить счетчик
+    new_count = user.free_messages_count - 1
+    await db_user.update(user_id=user_id, free_messages_count=new_count)
+
+    # Предупреждение на последнем сообщении
+    if new_count == 1:
+        await message.answer(
+            "⚠️ <b>У тебя осталось одно сообщение.</b>\n\n"
+            "<i>Если хочешь продолжить без лимитов — можно открыть полную версию.</i>",
+            parse_mode='HTML'
+        )
+
+    # Оффер после окончания
+    elif new_count == 0:
+        await _offer_subscription(message)
+        return False  # НЕ обрабатывать сообщение
+
+    return True
+
+
+async def _offer_subscription(message: Message):
+    """Предложить подписку после окончания бесплатных сообщений"""
+    from bot.keyboards.premium import sub_menu
+
+    await message.answer(
+        "<b>Твои 5 бесплатных сообщений закончились</b> 💫\n\n"
+        "<i>Если хочется глубже или просто иметь место, где тебя слышат — полная версия открыта.</i>\n\n"
+        "Там безлимитные диалоги, разборы и практики.",
+        reply_markup=sub_menu,
+        parse_mode='HTML'
+    )
+
+    # Запустить retention
+    await _schedule_retention_start(message.from_user.id)
+
+
+async def _schedule_retention_start(user_id: int):
+    """Запланировать начало retention цепочки"""
+    # Устанавливаем начальное состояние для retention
+    await db_user.update(
+        user_id=user_id,
+        last_retention_message=0,
+        last_retention_sent=None,
+        retention_paused=False
+    )
 
 
 # Чат с ChatGPT
@@ -56,6 +117,10 @@ async def handle_photo(message: Message, state: FSMContext):
     if not await check_user_info(message=message, state=state):
         return
 
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await photo_answer(message)
 
 
@@ -64,6 +129,11 @@ async def handle_photo(message: Message, state: FSMContext):
 async def handle_voice(message: Message, state: FSMContext):
     if not await check_user_info(message=message, state=state):
         return
+
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await voice_answer(message=message, assistant='helper')
 
 
@@ -72,6 +142,11 @@ async def handle_voice(message: Message, state: FSMContext):
 async def handle_text(message: Message, state: FSMContext):
     if not await check_user_info(message=message, state=state):
         return
+
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await text_answer(message=message, assistant='helper')
 
 

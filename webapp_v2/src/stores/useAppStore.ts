@@ -40,6 +40,7 @@ interface AppState {
   activeTrack: Track | null;
   isPlaying: boolean;
   duration: number;
+  currentTime: number;
   showPlayer: boolean;
   sleepTimer: number | null; // Minutes until auto-stop (null = disabled)
   sleepTimerStartTime: number | null; // Timestamp when timer was set
@@ -64,6 +65,7 @@ interface AppState {
   setActiveTrack: (track: Track | null) => void;
   setIsPlaying: (isPlaying: boolean) => void;
   setDuration: (duration: number) => void;
+  setCurrentTime: (time: number) => void;
   setShowPlayer: (show: boolean) => void;
   setSleepTimer: (minutes: number | null) => void;
 }
@@ -92,6 +94,7 @@ export const useAppStore = create<AppState>((set) => ({
   activeTrack: null,
   isPlaying: false,
   duration: 0,
+  currentTime: 0,
   showPlayer: false,
   sleepTimer: null,
   sleepTimerStartTime: null,
@@ -159,6 +162,7 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveTrack: (track) => set({ activeTrack: track }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setDuration: (duration) => set({ duration }),
+  setCurrentTime: (time) => set({ currentTime: time }),
   setShowPlayer: (show) => set({ showPlayer: show }),
   setSleepTimer: (minutes) => set({
     sleepTimer: minutes,

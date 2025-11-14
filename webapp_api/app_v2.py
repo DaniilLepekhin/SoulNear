@@ -375,7 +375,10 @@ async def get_practices():
             if not medias:
                 continue
 
-            media_items = []
+            # Separate by media type
+            audio_items = []
+            video_items = []
+
             for media in medias:
                 item = {
                     'id': media.id,
@@ -388,17 +391,31 @@ async def get_practices():
                     'destination': media.destination,
                     'position': media.position
                 }
-                media_items.append(item)
+
+                # Separate video content into videos list
+                if media.media_type == 'video':
+                    video_items.append(item)
+                else:
+                    audio_items.append(item)
 
             # Check if this is music based on category name
             category_name = category.name.lower()
             if 'музык' in category_name or 'ханг' in category_name:
-                music_list.extend(media_items)
+                music_list.extend(audio_items)
             else:
-                practices_list.append({
-                    'name': category.name,
-                    'items': media_items
-                })
+                # Only add if there are audio items
+                if audio_items:
+                    practices_list.append({
+                        'name': category.name,
+                        'items': audio_items
+                    })
+
+                # Add video items to videos list as separate category
+                if video_items:
+                    videos_list.append({
+                        'name': category.name,
+                        'items': video_items
+                    })
 
         # Process video categories (yoga, etc)
         for category in videos_categories:

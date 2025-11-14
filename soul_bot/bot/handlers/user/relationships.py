@@ -39,6 +39,10 @@ async def relationships(callback: CallbackQuery, state: FSMContext):
 # Прием промпта (гс)
 @dp.message(F.voice, get_prompt.relationships_prompt)
 async def relationships_voice(message: Message, state: FSMContext):
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await voice_answer(message, assistant='relationships')
 
     try:
@@ -58,6 +62,10 @@ async def relationships_voice(message: Message, state: FSMContext):
 # Приём сигнала "Готово" и обработка 10 вопросов-ответов*
 @dp.message(get_prompt.relationships_prompt)
 async def relationships_text(message: Message, state: FSMContext):
+    # Проверить и уменьшить счётчик бесплатных сообщений
+    if not await _check_and_decrease_free_messages(message):
+        return
+
     await text_answer(message, assistant='relationships')
 
     try:

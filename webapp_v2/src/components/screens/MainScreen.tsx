@@ -316,8 +316,8 @@ export const MainScreen = ({ isActive }: MainScreenProps) => {
           </div>
         </div>
 
-        {/* AI Insights Card */}
-        <div className="ai-insights-card" onClick={() => setScreen('patterns')}>
+        {/* AI Insights Card - Temporarily hidden */}
+        {/* <div className="ai-insights-card" onClick={() => setScreen('patterns')}>
           <div className="ai-card-header">
             <div className="ai-card-icon">🧠</div>
             <div className="ai-card-title">
@@ -340,7 +340,7 @@ export const MainScreen = ({ isActive }: MainScreenProps) => {
               <span className="ai-stat-label">рекомендаций</span>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Bottom Navigation */}

@@ -14,12 +14,14 @@ export const useAudioPlayer = () => {
     activeTrack,
     isPlaying,
     duration,
+    currentTime,
     showPlayer,
     sleepTimer,
     sleepTimerStartTime,
     setActiveTrack,
     setIsPlaying,
     setDuration,
+    setCurrentTime,
     setShowPlayer,
     setSleepTimer,
   } = useAppStore();
@@ -64,6 +66,9 @@ export const useAudioPlayer = () => {
 
     console.log('Creating new audio element for:', activeTrack.name);
 
+    // Reset current time when loading new track
+    setCurrentTime(0);
+
     // Create new audio element
     const audio = new Audio(activeTrack.url);
     audioRef.current = audio;
@@ -78,6 +83,7 @@ export const useAudioPlayer = () => {
       console.log('Audio ended');
       setIsPlaying(false);
       audio.currentTime = 0;
+      setCurrentTime(0);
     };
 
     const handleError = (e: ErrorEvent) => {
@@ -102,7 +108,7 @@ export const useAudioPlayer = () => {
       audio.src = '';
       audio.load();
     };
-  }, [activeTrack?.url, setDuration, setIsPlaying]); // Removed activeTrack?.name - only URL matters for audio element
+  }, [activeTrack?.url, setDuration, setCurrentTime, setIsPlaying]);
 
   // Sleep timer - check every second
   useEffect(() => {
@@ -167,9 +173,10 @@ export const useAudioPlayer = () => {
 
   const playTrack = useCallback((track: Track) => {
     setActiveTrack(track);
+    setCurrentTime(0);
     setShowPlayer(true);
     setIsPlaying(true);
-  }, [setActiveTrack, setShowPlayer, setIsPlaying]);
+  }, [setActiveTrack, setCurrentTime, setShowPlayer, setIsPlaying]);
 
   const togglePlayPause = useCallback(() => {
     setIsPlaying(!isPlaying);
@@ -194,13 +201,15 @@ export const useAudioPlayer = () => {
     setActiveTrack(null);
     setIsPlaying(false);
     setDuration(0);
+    setCurrentTime(0);
     setShowPlayer(false);
-  }, [setActiveTrack, setIsPlaying, setDuration, setShowPlayer]);
+  }, [setActiveTrack, setIsPlaying, setDuration, setCurrentTime, setShowPlayer]);
 
   return {
     activeTrack,
     isPlaying,
     duration,
+    currentTime,
     showPlayer,
     sleepTimer,
     playTrack,
@@ -209,6 +218,7 @@ export const useAudioPlayer = () => {
     closePlayer,
     stopAndClose,
     setShowPlayer,
+    setCurrentTime,
     setSleepTimer,
     getCurrentTime,
     getSleepTimerRemaining,

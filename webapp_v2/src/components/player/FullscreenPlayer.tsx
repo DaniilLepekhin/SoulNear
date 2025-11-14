@@ -11,16 +11,17 @@ export const FullscreenPlayer = () => {
     activeTrack,
     isPlaying,
     duration,
+    currentTime,
     sleepTimer,
     togglePlayPause,
     seek,
     closePlayer,
+    setCurrentTime,
     setSleepTimer,
     getSleepTimerRemaining,
     audioRef,
   } = useAudioPlayer();
 
-  const [currentTime, setCurrentTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(0);
   const [showTimerMenu, setShowTimerMenu] = useState(false);
@@ -47,7 +48,7 @@ export const FullscreenPlayer = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isDragging, audioRef]);
+  }, [isDragging, audioRef, setCurrentTime]);
 
   // Handle Escape key
   useEffect(() => {

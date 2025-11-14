@@ -2,7 +2,7 @@
 // Mini Player Component
 // ==========================================
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import './MiniPlayer.css';
 
@@ -11,13 +11,14 @@ export const MiniPlayer = () => {
     activeTrack,
     isPlaying,
     duration,
+    currentTime,
     togglePlayPause,
     stopAndClose,
     setShowPlayer,
+    setCurrentTime,
     audioRef,
   } = useAudioPlayer();
 
-  const [currentTime, setCurrentTime] = useState(0);
   const animationFrameRef = useRef<number>(0);
 
   // Update current time smoothly using requestAnimationFrame
@@ -36,7 +37,7 @@ export const MiniPlayer = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [audioRef]);
+  }, [audioRef, setCurrentTime]);
 
   if (!activeTrack) return null;
 

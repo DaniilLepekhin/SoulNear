@@ -128,10 +128,14 @@ async def check_sub_assistant(user_id: int, assistant: str) -> bool:
         return True
 
     user = await db_user.get(user_id=user_id)
-    
+
     # ✅ FIX: Check if user exists
     if user is None:
         return False
+
+    # ✅ NEW: Check free messages for helper assistant
+    if assistant == 'helper' and user.free_messages_count > 0:
+        return True
 
     sub = user.sub_date >= datetime.now()
 

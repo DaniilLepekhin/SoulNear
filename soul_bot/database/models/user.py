@@ -27,3 +27,13 @@ class User(Base):
     real_name: Mapped[str] = mapped_column(VARCHAR(length=32), nullable=True)
     age: Mapped[int] = mapped_column(nullable=True)
     gender: Mapped[bool] = mapped_column(nullable=True) # True - муж, False - жен
+
+    # Free messages gift system
+    free_messages_count: Mapped[int] = mapped_column(default=0)
+    free_messages_offered: Mapped[bool] = mapped_column(default=False)
+    free_messages_activated: Mapped[bool] = mapped_column(default=False)
+
+    # Retention system
+    last_retention_message: Mapped[int] = mapped_column(default=0)
+    last_retention_sent: Mapped[datetime] = mapped_column(nullable=True)
+    retention_paused: Mapped[bool] = mapped_column(default=False)
