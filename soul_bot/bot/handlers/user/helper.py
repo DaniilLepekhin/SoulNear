@@ -1,3 +1,4 @@
+import logging
 from aiogram import F
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
@@ -7,6 +8,9 @@ from bot.loader import dp
 from bot.states.states import get_prompt, Update_user_info
 from database.repository import conversation_history
 import bot.keyboards.practice as keyboards
+from bot.services.error_notifier import report_exception
+
+logger = logging.getLogger(__name__)
 
 
 # Чат с ChatGPT
@@ -17,7 +21,7 @@ async def support(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
     except Exception as e:
-        print(f"Ошибка при удалении сообщения: {e}")
+        logger.warning("Failed to delete helper menu message for user %s: %s", callback.from_user.id, e)
         await callback.answer()
 
     user_id = callback.from_user.id
@@ -41,7 +45,13 @@ async def clear_context(callback: CallbackQuery, state: FSMContext):
         await conversation_history.clear_history(user_id, 'helper')
     except Exception as exc:  # pragma: no cover - defensive
         await callback.answer("Не удалось очистить контекст 😔", show_alert=True)
-        print(f"Ошибка при очистке контекста через кнопку: {exc}")
+        logger.exception("Failed to clear helper context for user %s via button", user_id)
+        await report_exception(
+            "helper.clear_context",
+            exc,
+            event=callback,
+            extras={"user_id": user_id},
+        )
         return
 
     await callback.answer("Контекст очищен ✨", show_alert=False)

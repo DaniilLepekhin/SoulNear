@@ -5,6 +5,8 @@ import asyncio
 import logging
 from typing import Coroutine, Any
 
+from bot.services.error_notifier import schedule_exception_report
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +32,11 @@ def create_safe_task(coro: Coroutine[Any, Any, Any], task_name: str = "backgroun
             await coro
         except Exception as e:
             logger.error(f"❌ Background task '{task_name}' failed: {e}", exc_info=True)
+            schedule_exception_report(
+                "background_task",
+                e,
+                extras={"task_name": task_name},
+            )
     
     return asyncio.create_task(safe_wrapper(), name=task_name)
 

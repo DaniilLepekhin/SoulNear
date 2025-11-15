@@ -6,6 +6,7 @@ from bot.loader import bot
 from bot.middlewares.events import EventsMiddleware
 from bot.workers import schedule_
 from logging_config import configure_logging
+from bot.handlers.error import register_error_handlers
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ async def main():
 
     dp.message.middleware(EventsMiddleware())
     dp.callback_query.middleware(EventsMiddleware())
+    register_error_handlers(dp)
 
     # Wait for database to be ready
     await wait_for_db()

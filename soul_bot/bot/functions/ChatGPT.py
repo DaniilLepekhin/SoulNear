@@ -4,27 +4,17 @@ import logging
 
 from openai import AsyncOpenAI
 
-from bot.loader import bot
 from config import OPENAI_API_KEY
 import database.repository.user as db_user
 import database.repository.statistic_day as db_statistic_day
 
 # Новый сервис с ChatCompletion API
 from bot.services import openai_service
+from bot.services.error_notifier import report_exception
 
 client = AsyncOpenAI(
     api_key=OPENAI_API_KEY,
 )
-
-
-async def send_error(function, error):
-    try:
-        await bot.send_message(chat_id=73744901,
-                               text=f'⚠️ALARM!⚠️\n'
-                                    f'{function} \n\n{error}')
-    except:
-        pass
-
 
 async def get_assistant_response(user_id: int,
                                  prompt: str,
@@ -48,7 +38,15 @@ async def get_assistant_response(user_id: int,
         )
     except Exception as e:
         logging.error(f"ChatCompletion API failed: {e}")
-        await send_error(function='get_assistant_response', error=e)
+        await report_exception(
+            "get_assistant_response",
+            e,
+            extras={
+                "assistant": assistant,
+                "prompt_preview": prompt[:160] if prompt else "",
+                "user_id": user_id,
+            },
+        )
         return None
 
 

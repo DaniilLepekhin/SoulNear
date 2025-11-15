@@ -58,6 +58,16 @@ if not POSTGRES_DB:
 # Admins. TODO: move to .env
 ADMINS = [580613548, 946195257, 73744901, 389209990, 60972166]
 
+# Telegram admin chat for alerts
+admin_chat_raw = os.getenv('ADMIN_CHAT_ID')
+if admin_chat_raw:
+    try:
+        ADMIN_CHAT_ID = int(admin_chat_raw)
+    except ValueError as exc:
+        raise ValueError(f"ADMIN_CHAT_ID должно быть числом, получено: {admin_chat_raw}") from exc
+else:
+    ADMIN_CHAT_ID = None
+
 # Опциональные ключи (для расширенных фич)
 ELEVEN_LABS_KEY = os.getenv('ELEVEN_LABS_KEY')
 

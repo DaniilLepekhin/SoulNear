@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime
 from aiogram import F
 from aiogram.fsm.context import FSMContext
@@ -22,6 +23,9 @@ from bot.handlers.user.quiz import launch_quiz_for_category_from_message
 import database.repository.user as db_user
 import database.repository.ads as db_ads
 import database.repository.deeplink_event as db_deeplink_event
+from bot.services.error_notifier import report_exception
+
+logger = logging.getLogger(__name__)
 
 LEGACY_QUIZ_DEEPLINK_PREFIX = 'quiz_'
 QUIZ_DEEPLINK_ALIASES = {
@@ -269,7 +273,13 @@ async def delete_context_message(message: Message, state: FSMContext):
         )
     except Exception as e:
         await msg.edit_text("❌ Ошибка при очистке контекста.")
-        print(f"Ошибка в deletecontext: {e}")
+        logger.exception("Failed to clear helper context for user %s", user_id)
+        await report_exception(
+            "start.delete_context",
+            e,
+            event=message,
+            extras={"user_id": user_id},
+        )
 
 
 @dp.message(Command('settings'))
@@ -323,7 +333,7 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
     except Exception as e:
-        print(f"Произошла ошибка при попытке удаления сообщения: {e}")
+        logger.warning("Failed to delete menu message for user %s: %s", callback.from_user.id, e)
         await callback.answer()
 
     if not await check_user_info(message=callback.message, state=state):
@@ -340,7 +350,7 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
                                       disable_web_page_preview=True,
                                       parse_mode='HTML')
     except Exception as e:
-        print(f"Ошибка при отправке видео: {e}")
+        logger.exception("Failed to send menu for user %s", callback.from_user.id)
         await callback.message.answer(text=texts.menu,
                                       reply_markup=menu_keyboard,
                                       disable_web_page_preview=True,
@@ -354,7 +364,7 @@ async def menu_message_not_delete(message: Message):
                              disable_web_page_preview=True,
                              parse_mode='HTML')
     except Exception as e:
-        print(f"Ошибка при отправке видео: {e}")
+        logger.exception("Failed to send menu (no delete path) for user %s", message.from_user.id)
         await message.answer(text=texts.menu,
                              reply_markup=menu_keyboard,
                              disable_web_page_preview=True,

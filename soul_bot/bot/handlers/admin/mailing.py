@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
@@ -7,6 +8,8 @@ from bot.loader import dp, bot
 from bot.states.states import Mailing
 from config import ADMINS
 import database.repository.user as db_user
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -86,6 +89,7 @@ async def send_mail(user_id, delay, message_id, chat_id, reply_markup):
 
         global BAD
         BAD += 1
+        logger.warning("Mailing failed for user %s: %s", user_id, e)
 
 
 async def admin_loader():
@@ -95,8 +99,8 @@ async def admin_loader():
             loader = await bot.send_message(chat_id=a, text='Началась рассылка!')
             loaders.append(loader)
 
-        except:
-            pass
+        except Exception as e:
+            logger.warning("Failed to notify admin %s about mailing start: %s", a, e)
 
     prev_data = 0
     while True:
@@ -121,7 +125,7 @@ async def admin_loader():
                 await asyncio.sleep(1)
                 await loader.edit_text(text3)
             except Exception as e:
-                print(e)
+                logger.warning("Failed to update mailing loader message: %s", e)
 
         if users == alive_dead:
             break

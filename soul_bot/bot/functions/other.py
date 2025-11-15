@@ -1,6 +1,7 @@
 import base64
 import os
 import random
+import logging
 import re
 import string
 from datetime import datetime
@@ -22,15 +23,10 @@ from utils.date_helpers import add_months
 from bot.functions.ChatGPT import get_assistant_response, generate_audio, analyse_photo
 from bot.states.states import Update_user_info
 from config import ADMINS
+from bot.services.error_notifier import report_exception
 
 
-async def send_error(function, error):
-    try:
-        await bot.send_message(chat_id=73744901,
-                               text=f'⚠️ALARM!⚠️\n'
-                                    f'{function} \n\n{error}')
-    except:
-        pass
+logger = logging.getLogger(__name__)
 
 
 def generate_string(size=16):
@@ -208,7 +204,13 @@ async def voice_answer(message: Message, assistant: str):
             await message.bot.download_file(file_info.file_path, file_name_full)
         except Exception as e:
             remove_user(user_id)
-            print(f"Ошибка при скачивании файла: {e}")
+            logger.exception("Failed to download voice file for user %s", user_id)
+            await report_exception(
+                "voice_answer.download_voice",
+                e,
+                event=message,
+                extras={"filename": file_name_full},
+            )
             await message.answer("Ошибка при скачивании файла. Пожалуйста, попробуйте ещё раз.")
             await gen_message.delete()
             return
@@ -239,11 +241,18 @@ async def voice_answer(message: Message, assistant: str):
 
         except Exception as e:
             remove_user(user_id)
-            print(f"Ошибка при скачивании файла: {e}")
+            logger.exception("Failed to send generated voice for user %s", user_id)
+            await report_exception(
+                "voice_answer.send_voice",
+                e,
+                event=message,
+                extras={"voice_file": res_voice},
+            )
             await gen_message.delete()
             return
     except Exception as e:
-        print(e)
+        logger.exception("Unexpected voice_answer failure for user %s", user_id)
+        await report_exception("voice_answer", e, event=message, extras={"assistant": assistant})
         remove_user(user_id)
     finally:
         for path in (file_name_full, file_name_full_converted):
@@ -285,7 +294,13 @@ async def text_answer(message: Message, assistant: str):
             parse_mode="HTML"
         )
     except Exception as e:
-        print(e)
+        logger.exception("Failed to process text answer for user %s", user_id)
+        await report_exception(
+            "text_answer",
+            e,
+            event=message,
+            extras={"assistant": assistant},
+        )
 
     remove_user(user_id)
 
@@ -338,6 +353,11 @@ async def photo_answer(message: Message):
             parse_mode="HTML"
         )
     except Exception as e:
-        print(e)
+        logger.exception("Failed to process photo answer for user %s", user_id)
+        await report_exception(
+            "photo_answer",
+            e,
+            event=message,
+        )
 
     remove_user(user_id)

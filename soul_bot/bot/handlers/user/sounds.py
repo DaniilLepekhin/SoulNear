@@ -1,3 +1,4 @@
+import logging
 from aiogram import F
 from aiogram.types import (
     InlineKeyboardButton,
@@ -9,6 +10,8 @@ from aiogram.types import (
 
 import bot.functions.Pictures as Pictures
 from bot.loader import dp
+
+logger = logging.getLogger(__name__)
 
 """version1"""
 
@@ -72,7 +75,7 @@ async def sounds_menu(callback: CallbackQuery):
     try:
         await callback.message.delete()
     except Exception as e:
-        print(f"Произошла ошибка при попытке удаления сообщения: {e}")
+        logger.warning("Failed to delete sounds menu message: %s", e)
     await callback.answer()
 
     msg_pic = FSInputFile(Pictures.hang_pic)
