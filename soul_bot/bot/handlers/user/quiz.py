@@ -916,6 +916,13 @@ def _categories_keyboard() -> InlineKeyboardMarkup:
             )
         ])
     
+    buttons.append([
+        InlineKeyboardButton(
+            text='🏠 Меню',
+            callback_data='quiz_go_menu'
+        )
+    ])
+    
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 

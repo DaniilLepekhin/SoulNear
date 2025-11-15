@@ -80,7 +80,11 @@ async def launch_deeplink_quiz(message: Message, state: FSMContext, category: st
                 InlineKeyboardButton(
                     text='▶️ Начать',
                     callback_data=f'deeplink_quiz_start:{category}',
-                )
+                ),
+                InlineKeyboardButton(
+                    text='🏠 Меню',
+                    callback_data='quiz_go_menu',
+                ),
             ]
         ]
     )
@@ -206,12 +210,18 @@ async def start_message(message: Message, state: FSMContext):
 
 @dp.message(Command('menu'))
 async def menu_message(message: Message, state: FSMContext):
-    if await _maybe_send_pending_quiz(message, state):
-        try:
-            await message.delete()
-        except:
-            pass
-        return
+    text = (message.text or "").strip()
+    if text.startswith('/'):
+        data = await state.get_data()
+        if data.get('pending_quiz_category'):
+            await state.update_data(pending_quiz_category=None)
+    else:
+        if await _maybe_send_pending_quiz(message, state):
+            try:
+                await message.delete()
+            except:
+                pass
+            return
 
     if not await check_user_info(message=message, state=state):
         return
