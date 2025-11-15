@@ -62,10 +62,11 @@ async def _offer_subscription(message: Message):
 async def _schedule_retention_start(user_id: int):
     """Запланировать начало retention цепочки"""
     # Устанавливаем начальное состояние для retention
+    # Устанавливаем last_retention_sent=now() чтобы первое сообщение пришло через 2 дня
     await db_user.update(
         user_id=user_id,
         last_retention_message=0,
-        last_retention_sent=None,
+        last_retention_sent=datetime.now(),
         retention_paused=False
     )
 

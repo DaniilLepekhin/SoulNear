@@ -32,17 +32,13 @@ async def check_retention_messages():
             if user.retention_paused:
                 continue
 
-            # Пропустить если еще не начали retention
-            if user.last_retention_message == 0 and user.last_retention_sent is None:
+            # Пропустить если еще не начали retention (должен быть установлен last_retention_sent)
+            if user.last_retention_sent is None:
                 continue
 
-            # Проверить интервал
-            if user.last_retention_sent:
-                days_passed = (datetime.now() - user.last_retention_sent).days
-                if days_passed >= 2:  # 2 дня между сообщениями
-                    await send_next_retention_message(user.user_id)
-            else:
-                # Первое сообщение - отправить сразу
+            # Проверить интервал - 2 дня между сообщениями
+            days_passed = (datetime.now() - user.last_retention_sent).days
+            if days_passed >= 2:
                 await send_next_retention_message(user.user_id)
 
     except Exception as e:
