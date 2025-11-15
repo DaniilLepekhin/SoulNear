@@ -234,18 +234,8 @@ async def start_message(message: Message, state: FSMContext):
 
 @dp.message(Command('menu'))
 async def menu_message(message: Message, state: FSMContext):
-    text = (message.text or "").strip()
-    if text.startswith('/'):
-        data = await state.get_data()
-        if data.get('pending_quiz_category'):
-            await state.update_data(pending_quiz_category=None)
-    else:
-        if await _maybe_send_pending_quiz(message, state):
-            try:
-                await message.delete()
-            except:
-                pass
-            return
+    # Очистить pending_quiz_category - пользователь явно хочет выйти в меню
+    await state.update_data(pending_quiz_category=None)
 
     if not await check_user_info(message=message, state=state):
         return
@@ -341,6 +331,9 @@ async def settings_message(message: Message):
 
 @dp.callback_query(F.data == 'menu')
 async def menu_callback(callback: CallbackQuery, state: FSMContext):
+    # Очистить pending_quiz_category - пользователь явно хочет выйти в меню
+    await state.update_data(pending_quiz_category=None)
+
     try:
         await callback.message.delete()
     except Exception as e:
@@ -348,10 +341,6 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
 
     if not await check_user_info(message=callback.message, state=state):
-        await callback.answer()
-        return
-
-    if await _maybe_send_pending_quiz(callback.message, state):
         await callback.answer()
         return
 
