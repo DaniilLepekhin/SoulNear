@@ -5,6 +5,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import database.repository.user as db_user
 from bot.handlers.user.retention import send_next_retention_message
+from bot.handlers.user.broadcast import send_next_broadcast_message
 
 
 async def refresh_requests():
@@ -16,8 +17,8 @@ async def refresh_requests():
 
 async def check_retention_messages():
     """
-    Проверять каждый день кому отправить retention сообщения.
-    Интервал: 2-3 дня между сообщениями.
+    Проверять каждый день кому отправить retention сообщения (допродажи).
+    Интервал: 2 дня между сообщениями.
     """
     try:
         # Получить всех пользователей для retention
@@ -45,6 +46,32 @@ async def check_retention_messages():
         print(f"Ошибка в check_retention_messages: {e}")
 
 
+async def check_broadcast_messages():
+    """
+    Проверять каждый день кому отправить общую рассылку.
+    Интервал: 1 день между сообщениями.
+    Отправляется ВСЕМ пользователям (даже с подпиской).
+    """
+    try:
+        # Получить всех активных пользователей
+        users = await db_user.get_all_for_broadcast()
+
+        for user in users:
+            # Проверить интервал
+            if user.last_broadcast_sent:
+                days_passed = (datetime.now() - user.last_broadcast_sent).days
+                if days_passed >= 1:  # 1 день между сообщениями
+                    await send_next_broadcast_message(user.user_id)
+            else:
+                # Первое сообщение - отправить через 1 день после регистрации
+                days_since_reg = (datetime.now() - user.reg_date).days
+                if days_since_reg >= 1:
+                    await send_next_broadcast_message(user.user_id)
+
+    except Exception as e:
+        print(f"Ошибка в check_broadcast_messages: {e}")
+
+
 async def schedule_():
     scheduler = AsyncIOScheduler()
 
@@ -53,6 +80,9 @@ async def schedule_():
 
     # Проверка retention сообщений каждый день в 6:00 UTC (9:00 MSK)
     scheduler.add_job(check_retention_messages, 'cron', hour=6, minute=0)
+
+    # Проверка broadcast сообщений каждый день в 6:00 UTC (9:00 MSK)
+    scheduler.add_job(check_broadcast_messages, 'cron', hour=6, minute=0)
 
     scheduler.start()
 

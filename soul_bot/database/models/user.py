@@ -33,7 +33,11 @@ class User(Base):
     free_messages_offered: Mapped[bool] = mapped_column(default=False)
     free_messages_activated: Mapped[bool] = mapped_column(default=False)
 
-    # Retention system
+    # Retention system (допродажи)
     last_retention_message: Mapped[int] = mapped_column(default=0)
     last_retention_sent: Mapped[datetime] = mapped_column(nullable=True)
     retention_paused: Mapped[bool] = mapped_column(default=False)
+
+    # Broadcast system (общая рассылка для всех)
+    last_broadcast_message: Mapped[int] = mapped_column(default=0)
+    last_broadcast_sent: Mapped[datetime] = mapped_column(nullable=True)

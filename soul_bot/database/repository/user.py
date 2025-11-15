@@ -197,7 +197,22 @@ async def get_all_for_retention() -> list[User]:
                 User.free_messages_activated == True,
                 User.free_messages_count == 0,
                 User.sub_date < datetime.now(),
-                User.last_retention_message < 15  # Не больше 15 сообщений
+                User.last_retention_message < 5  # Не больше 5 сообщений
+            )
+        )
+        return result.scalars().all()
+
+
+async def get_all_for_broadcast() -> list[User]:
+    """
+    Получить всех активных пользователей для общей рассылки.
+    Условия: активный пользователь (не заблокирован), не больше 15 сообщений
+    """
+    async with db() as session:
+        result = await session.execute(
+            select(User).where(
+                User.block_date.is_(None),  # Не заблокирован
+                User.last_broadcast_message < 15  # Не больше 15 сообщений
             )
         )
         return result.scalars().all()
