@@ -80,4 +80,16 @@ def configure_logging() -> None:
 
     logging.getLogger(__name__).debug("Logging configured. Log directory: %s", logs_dir)
 
+    try:
+        from config import ADMIN_CHAT_ID
+        if ADMIN_CHAT_ID:
+            from bot.services.error_notifier import AdminChatLogHandler
+
+            root_logger = logging.getLogger()
+            if not any(isinstance(handler, AdminChatLogHandler) for handler in root_logger.handlers):
+                handler = AdminChatLogHandler()
+                root_logger.addHandler(handler)
+    except Exception as exc:  # pragma: no cover - best effort
+        logging.getLogger(__name__).warning("Failed to configure admin log handler: %s", exc)
+
 

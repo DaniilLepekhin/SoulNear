@@ -64,12 +64,17 @@ flowchart LR
     quizEntry --> resumeQuiz["quiz_resume"]
     quizEntry --> newQuiz["quiz_new"]
     quizEntry --> quizCategories["quiz_category_*"]
+    quizEntry --> quizIntro["Deeplink intro message\n(«Нажми Начать» экран)"]
     resumeQuiz --> quizRunning
     newQuiz --> quizCategories
     quizCategories --> quizRunning
+    quizCategories -->|🏠 Меню| menu
     quizRunning(("FSM: QuizStates.waiting_for_answer"))
     quizRunning --> quizRunning
+    quizRunning -->|/menu или /start| menu
     quizRunning --> quizResults["Quiz results shown"]
+    quizIntro -->|▶️ Начать| quizRunning
+    quizIntro -->|🏠 Меню| menu
     quizResults --> quizComplete["Flow end"]
     quizResults -->|нет подписки| paywall["Плашка подписки (sub_menu)"]
     paywall --> menu

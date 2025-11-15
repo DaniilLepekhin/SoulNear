@@ -15,6 +15,8 @@ from asyncpg.exceptions import (
     PostgresConnectionError,
 )
 
+from bot.services.error_notifier import schedule_exception_report
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
@@ -112,12 +114,22 @@ def with_db_retry(
                             continue
                         except Exception as recreate_error:
                             logger.error(f"❌ Failed to recreate tables: {recreate_error}")
+                            schedule_exception_report(
+                                "database.recreate_tables",
+                                recreate_error,
+                                extras={"function": func.__name__},
+                            )
                             raise
                     
                     # Check if error is retriable (connection issues)
                     if not is_retriable_error(e):
                         # Not a connection issue - fail immediately
                         logger.error(f"❌ Non-retriable error in {func.__name__}: {e}")
+                        schedule_exception_report(
+                            "database.non_retriable",
+                            e,
+                            extras={"function": func.__name__},
+                        )
                         raise
                     
                     # Last attempt - don't retry anymore
@@ -126,6 +138,11 @@ def with_db_retry(
                             logger.error(
                                 f"❌ {func.__name__} failed after {max_retries} retries: {e}"
                             )
+                        schedule_exception_report(
+                            "database.retry_exhausted",
+                            e,
+                            extras={"function": func.__name__, "retries": max_retries},
+                        )
                         raise
                     
                     # Log retry attempt
@@ -140,6 +157,12 @@ def with_db_retry(
                     delay *= backoff_multiplier
             
             # Should never reach here, but just in case
+            if last_exception:
+                schedule_exception_report(
+                    "database.retry_unknown",
+                    last_exception,
+                    extras={"function": func.__name__},
+                )
             raise last_exception
         
         return wrapper
@@ -202,6 +225,11 @@ class DatabaseHealthMonitor:
             return True
         except Exception as e:
             logger.error(f"❌ Database recovery failed: {e}")
+            schedule_exception_report(
+                "database.recover_failed",
+                e,
+                extras={"check_interval": self.check_interval},
+            )
             return False
     
     async def monitor(self) -> None:
@@ -234,6 +262,10 @@ class DatabaseHealthMonitor:
                 
             except Exception as e:
                 logger.error(f"❌ Health monitor error: {e}")
+                schedule_exception_report(
+                    "database.health_monitor",
+                    e,
+                )
             
             await asyncio.sleep(self.check_interval)
 

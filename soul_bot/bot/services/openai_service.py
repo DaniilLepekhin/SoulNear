@@ -46,6 +46,7 @@ from bot.services.realtime_mood_detector import (
 from bot.services.temperature_adapter import adapt_style_to_temperature, apply_overrides
 from bot.services.formatting import format_bot_message
 from bot.services.user_style_detector import analyze_user_style
+from bot.services.error_notifier import schedule_exception_report
 
 # Инициализация OpenAI клиента
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -889,13 +890,14 @@ async def get_chat_completion(
         from utils.task_helpers import create_safe_task
         create_safe_task(_update_statistics(assistant_type, success=False), "update_statistics_error")
         
-        # Отправляем уведомление об ошибке админам
-        create_safe_task(_send_error_notification(
-            function='get_chat_completion',
-            error=str(e),
-            user_id=user_id,
-            assistant_type=assistant_type
-        ))
+        schedule_exception_report(
+            "openai_service.get_chat_completion",
+            e,
+            extras={
+                "user_id": user_id,
+                "assistant_type": assistant_type,
+            },
+        )
         
         return None
 
@@ -972,36 +974,7 @@ async def _update_statistics(assistant_type: str, success: bool = True) -> None:
         logger.error(f"Error updating statistics: {e}")
 
 
-async def _send_error_notification(
-    function: str,
-    error: str,
-    user_id: int = None,
-    assistant_type: str = None
-) -> None:
-    """Отправить уведомление об ошибке админам"""
-    try:
-        from bot.loader import bot
-        from config import ADMINS
-        
-        error_text = (
-            f"⚠️ ALARM! ⚠️\n\n"
-            f"Function: {function}\n"
-            f"Error: {error}\n"
-        )
-        
-        if user_id:
-            error_text += f"User ID: {user_id}\n"
-        if assistant_type:
-            error_text += f"Assistant Type: {assistant_type}\n"
-        
-        # Отправляем первому админу из списка
-        if ADMINS:
-            await bot.send_message(chat_id=ADMINS[0], text=error_text)
-            
-    except Exception as e:
-        logger.error(f"Error sending notification: {e}")
-
-
+#
 # ==========================================
 # 🔧 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ==========================================

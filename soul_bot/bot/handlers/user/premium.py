@@ -1,3 +1,4 @@
+import logging
 from aiogram import F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -9,6 +10,8 @@ from bot.loader import dp
 import database.repository.user as db_user
 import database.repository.statistic_day as db_statistic_day
 import database.repository.ads as db_ads
+
+logger = logging.getLogger(__name__)
 
 COSTS = [
     {'amount': 1111, 'month': 1},
@@ -23,7 +26,7 @@ async def premium_callback(callback: CallbackQuery):
     try:
         await callback.message.delete()
     except Exception as e:
-        print(f"Ошибка при удалении сообщения: {e}")
+        logger.warning("Failed to delete premium menu message: %s", e)
         await callback.answer()
 
     await callback.message.answer(
@@ -37,7 +40,7 @@ async def subscription_callback(callback: CallbackQuery):
     try:
         await callback.message.delete()
     except Exception as e:
-        print(f"Ошибка при удалении сообщения: {e}")
+        logger.warning("Failed to delete subscription message: %s", e)
         await callback.answer()
 
     user_id = callback.from_user.id

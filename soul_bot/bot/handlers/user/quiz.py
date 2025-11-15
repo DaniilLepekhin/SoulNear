@@ -36,6 +36,7 @@ import bot.text as texts
 from bot.functions.other import check_user_info
 import database.repository.user as db_user
 from bot.keyboards.premium import sub_menu
+from bot.services.error_notifier import report_exception
 
 # Initialize adaptive quiz service
 gpt_service = GPTService()
@@ -221,6 +222,13 @@ async def _start_quiz_for_category(call: CallbackQuery, state: FSMContext, categ
         await _show_current_question(call.message, quiz_session, state)
 
     except Exception as e:
+        logging.exception("Failed to start quiz session for user %s (category=%s)", user_id, category)
+        await report_exception(
+            "quiz.start_category",
+            e,
+            event=call,
+            extras={"category": category, "user_id": user_id},
+        )
         error_text = html.escape(str(e))
         await _safe_set_text(
             call.message,
@@ -326,7 +334,16 @@ async def handle_quiz_answer(call: CallbackQuery, state: FSMContext):
                     parse_mode='HTML'
                 )
         except Exception as e:
-            logging.error(f"Adaptive branching failed: {e}", exc_info=True)
+            logging.exception("Adaptive branching failed for session %s", session_id)
+            await report_exception(
+                "quiz.adaptive_branching",
+                e,
+                event=call,
+                extras={
+                    "session_id": session_id,
+                    "assistant_enabled": is_feature_enabled('ENABLE_ADAPTIVE_QUIZ'),
+                },
+            )
     
     # Проверяем завершён ли квиз
     logging.info(
@@ -455,7 +472,17 @@ async def handle_voice_answer(message: Message, state: FSMContext):
         convert_voice(str(raw_path), str(wav_path))
         transcript = await transcribe_audio(str(wav_path))
     except Exception as exc:
-        logging.exception("Quiz voice processing failed", exc_info=exc)
+        logging.exception(
+            "Quiz voice processing failed for user %s (session=%s)",
+            message.from_user.id,
+            session_id,
+        )
+        await report_exception(
+            "quiz.voice_processing",
+            exc,
+            event=message,
+            extras={"session_id": session_id, "question_id": question.get('id')},
+        )
         await message.answer("⚠️ Не смог разобрать голос — попробуй ещё раз или напиши текстом.")
         return
     finally:
@@ -628,10 +655,21 @@ async def _finish_quiz(message: Message, quiz_session, state: FSMContext):
             )
         
     except Exception as e:
+        logging.exception(
+            "Failed to finalize quiz for user %s (session=%s)",
+            user_id,
+            quiz_session.id,
+        )
         await status_msg.delete()
         await message.answer(
             f"⚠️ Ошибка при анализе: {e}\n\n"
             "Ваши ответы сохранены, попробуйте позже."
+        )
+        await report_exception(
+            "quiz.finish",
+            e,
+            event=message,
+            extras={"session_id": quiz_session.id, "category": quiz_session.category},
         )
     
     finally:
@@ -839,7 +877,16 @@ async def _ensure_next_question(message: Message, quiz_session) -> tuple:
 
             updated_session = await _queue_next_question_if_needed(quiz_session)
         except Exception as err:  # noqa: BLE001
-            logging.exception("[quiz] Unexpected error while generating question: %s", err)
+            logging.exception(
+                "[quiz] Unexpected error while generating question for session %s",
+                quiz_session.id,
+            )
+            await report_exception(
+                "quiz.generate_question",
+                err,
+                event=message,
+                extras={"session_id": quiz_session.id},
+            )
             updated_session = await _queue_next_question_if_needed(quiz_session)
     
     # НЕ удаляем status_msg здесь — вернём его наружу для удаления перед показом вопроса
@@ -915,6 +962,13 @@ def _categories_keyboard() -> InlineKeyboardMarkup:
                 callback_data=f"quiz_category_{cat_id}"
             )
         ])
+    
+    buttons.append([
+        InlineKeyboardButton(
+            text='🏠 Меню',
+            callback_data='quiz_go_menu'
+        )
+    ])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

@@ -1,3 +1,4 @@
+import logging
 from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
@@ -9,13 +10,15 @@ from bot.loader import dp
 import database.repository.media_category as db_media_category
 import database.repository.media as db_media
 
+logger = logging.getLogger(__name__)
+
 
 @dp.callback_query(F.data.startswith('media_categories'))
 async def media_categories_callback(call: CallbackQuery, state: FSMContext):
     try:
         await call.message.delete()
     except Exception as e:
-        print(f"Произошла ошибка при попытке удаления сообщения: {e}")
+        logger.warning("Failed to delete media categories message: %s", e)
         await call.answer()
 
     category = call.data.split()[1]
@@ -38,7 +41,7 @@ async def media_category_callback(call: CallbackQuery, state: FSMContext):
     try:
         await call.message.delete()
     except Exception as e:
-        print(f"Произошла ошибка при попытке удаления сообщения: {e}")
+        logger.warning("Failed to delete media category message: %s", e)
         await call.answer()
 
     user_id = call.from_user.id
@@ -81,7 +84,7 @@ async def media_file_callback(call: CallbackQuery, state: FSMContext):
     try:
         await call.message.delete()
     except Exception as e:
-        print(f"Произошла ошибка при попытке удаления сообщения: {e}")
+        logger.warning("Failed to delete media file message: %s", e)
         await call.answer()
 
     media_id = int(call.data.split()[1])

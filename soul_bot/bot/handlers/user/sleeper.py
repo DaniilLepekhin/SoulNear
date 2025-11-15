@@ -1,3 +1,4 @@
+import logging
 from aiogram import F
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
@@ -8,6 +9,8 @@ from bot.states.states import get_prompt
 import bot.keyboards.practice as keyboards
 from bot.handlers.user.helper import _check_and_decrease_free_messages
 
+logger = logging.getLogger(__name__)
+
 
 @dp.callback_query(F.data == 'soulsleep')
 async def soulsleep(callback: CallbackQuery, state: FSMContext):
@@ -15,7 +18,7 @@ async def soulsleep(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
     except Exception as e:
-        print(f"Ошибка при удалении сообщения: {e}")
+        logger.warning("Failed to delete sleeper menu message: %s", e)
         await callback.answer()
 
     user_id = callback.from_user.id

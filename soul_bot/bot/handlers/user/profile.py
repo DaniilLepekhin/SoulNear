@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 import html
 
@@ -27,6 +28,8 @@ from bot.services.quiz_ui import (
     build_quiz_entry_keyboard,
     get_quiz_intro_text,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # Telegram message length limit
@@ -444,7 +447,7 @@ async def update_user_info_start(call: CallbackQuery, state: FSMContext):
     try:
         await call.message.delete()
     except Exception as e:
-        print(f"Ошибка при удалении сообщения: {e}")
+        logger.warning("Failed to delete profile update prompt: %s", e)
         await call.answer()
 
     await state.set_state(Update_user_info.real_name)

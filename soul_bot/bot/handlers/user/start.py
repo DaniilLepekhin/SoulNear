@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime
 from aiogram import F
 from aiogram.fsm.context import FSMContext
@@ -23,6 +24,9 @@ import database.repository.user as db_user
 import database.repository.ads as db_ads
 import database.repository.deeplink_event as db_deeplink_event
 from config import ADMINS
+from bot.services.error_notifier import report_exception
+
+logger = logging.getLogger(__name__)
 
 LEGACY_QUIZ_DEEPLINK_PREFIX = 'quiz_'
 QUIZ_DEEPLINK_ALIASES = {
@@ -103,7 +107,11 @@ async def launch_deeplink_quiz(message: Message, state: FSMContext, category: st
                 InlineKeyboardButton(
                     text='▶️ Начать',
                     callback_data=f'deeplink_quiz_start:{category}',
-                )
+                ),
+                InlineKeyboardButton(
+                    text='🏠 Меню',
+                    callback_data='quiz_go_menu',
+                ),
             ]
         ]
     )
@@ -226,12 +234,18 @@ async def start_message(message: Message, state: FSMContext):
 
 @dp.message(Command('menu'))
 async def menu_message(message: Message, state: FSMContext):
-    if await _maybe_send_pending_quiz(message, state):
-        try:
-            await message.delete()
-        except:
-            pass
-        return
+    text = (message.text or "").strip()
+    if text.startswith('/'):
+        data = await state.get_data()
+        if data.get('pending_quiz_category'):
+            await state.update_data(pending_quiz_category=None)
+    else:
+        if await _maybe_send_pending_quiz(message, state):
+            try:
+                await message.delete()
+            except:
+                pass
+            return
 
     if not await check_user_info(message=message, state=state):
         return
@@ -270,7 +284,13 @@ async def delete_context_message(message: Message, state: FSMContext):
         )
     except Exception as e:
         await msg.edit_text("❌ Ошибка при очистке контекста.")
-        print(f"Ошибка в deletecontext: {e}")
+        logger.exception("Failed to clear helper context for user %s", user_id)
+        await report_exception(
+            "start.delete_context",
+            e,
+            event=message,
+            extras={"user_id": user_id},
+        )
 
 
 @dp.message(Command('settings'))
@@ -324,7 +344,7 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
     except Exception as e:
-        print(f"Произошла ошибка при попытке удаления сообщения: {e}")
+        logger.warning("Failed to delete menu message for user %s: %s", callback.from_user.id, e)
         await callback.answer()
 
     if not await check_user_info(message=callback.message, state=state):

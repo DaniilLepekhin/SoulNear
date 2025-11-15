@@ -1,3 +1,4 @@
+import logging
 from aiogram import F
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
@@ -10,6 +11,8 @@ from database.repository import conversation_history
 from bot.keyboards.analysis import build_quiz_ready_keyboard
 from bot.handlers.user.helper import _check_and_decrease_free_messages
 
+logger = logging.getLogger(__name__)
+
 
 # Чат ассистентом по самооценке
 @dp.callback_query(F.data == 'confidence')
@@ -17,7 +20,7 @@ async def confidence(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
     except Exception as e:
-        print(f"Ошибка при удалении сообщения: {e}")
+        logger.warning("Failed to delete confidence menu message: %s", e)
         await callback.answer()
 
     user_id = callback.from_user.id
@@ -49,7 +52,7 @@ async def confidence_voice(message: Message, state: FSMContext):
         data = await state.get_data()
         question_count = data['question_count']
 
-    except:
+    except Exception:
         question_count = 1
 
     if question_count < 12:
@@ -72,7 +75,7 @@ async def confidence_text(message: Message, state: FSMContext):
         data = await state.get_data()
         question_count = data['question_count']
 
-    except:
+    except Exception:
         question_count = 1
 
     if question_count < 12:
