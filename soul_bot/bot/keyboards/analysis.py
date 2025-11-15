@@ -12,7 +12,7 @@ analysis_menu = InlineKeyboardMarkup(inline_keyboard=[
 def build_quiz_ready_keyboard(category: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text='▶️ Начать', callback_data=f'quiz_category_{category}'),
             InlineKeyboardButton(text='↩️ Назад', callback_data='analysis'),
+            InlineKeyboardButton(text='▶️ Начать', callback_data=f'quiz_category_{category}'),
         ]
     ])
