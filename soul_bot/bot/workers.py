@@ -48,11 +48,11 @@ async def check_retention_messages():
 async def schedule_():
     scheduler = AsyncIOScheduler()
 
-    # Обновление запросов в 1:00
+    # Обновление запросов в 1:00 UTC (4:00 MSK)
     scheduler.add_job(refresh_requests, 'cron', hour=1, minute=0)
 
-    # Проверка retention сообщений каждый день в 10:00
-    scheduler.add_job(check_retention_messages, 'cron', hour=10, minute=0)
+    # Проверка retention сообщений каждый день в 6:00 UTC (9:00 MSK)
+    scheduler.add_job(check_retention_messages, 'cron', hour=6, minute=0)
 
     scheduler.start()
 
