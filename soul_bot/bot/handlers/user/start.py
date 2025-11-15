@@ -85,7 +85,7 @@ async def finalize_deeplink_event(state: FSMContext, quiz_session_id: int | None
         return
 
     await db_deeplink_event.attach_quiz(event_id, quiz_session_id)
-    await state.update_data(deeplink_event_id=None)
+    await state.update_data(deeplink_event_id=None, pending_quiz_category=None)
 
 
 async def launch_deeplink_quiz(message: Message, state: FSMContext, category: str) -> int | None:
